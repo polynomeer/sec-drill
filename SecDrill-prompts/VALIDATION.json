@@ -1,0 +1,16 @@
+{
+  "numberedPromptCount": 23,
+  "additionalExampleFileCount": 3,
+  "checksPassed": [
+    "numbering 00 through 22",
+    "UTF-8 and headings",
+    "local Markdown links",
+    "code fence balance",
+    "referenced design document names",
+    "archive CRC and SHA-256 manifest"
+  ],
+  "limitations": [
+    "Prompts have not been executed",
+    "No Claude Code configuration or product code was changed"
+  ]
+}
