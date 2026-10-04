@@ -1,0 +1,734 @@
+{
+  "$comment": "Synthetic event envelopes for contracts/event.schema.json. Every type has one valid event; invalid cases must be rejected.",
+  "valid": [
+    {
+      "eventId": "30000000-0000-4000-8000-000000000100",
+      "type": "SessionCreated",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 0,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 1,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+        "mode": "CTF"
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000101",
+      "type": "LabRequested",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 1,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 2,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "labId": "30000000-0000-4000-8000-000000000010",
+        "generation": 1,
+        "templateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000102",
+      "type": "LabReady",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 2,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 3,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "labId": "30000000-0000-4000-8000-000000000010",
+        "generation": 1,
+        "runtimeRef": "runtime-ref-synthetic-1"
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000103",
+      "type": "SubmissionAccepted",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 3,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 4,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "submissionId": "30000000-0000-4000-8000-000000000020",
+        "jobId": "30000000-0000-4000-8000-000000000021",
+        "kind": "FLAG",
+        "bundleRef": {
+          "key": "submissions/synthetic/1",
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "byteSize": 128
+        }
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000104",
+      "type": "ExecutionCompleted",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 4,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 5,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "jobId": "30000000-0000-4000-8000-000000000021",
+        "attempt": 1,
+        "fencingToken": 1,
+        "resultDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000105",
+      "type": "EvaluationCommitted",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 5,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 6,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "submissionId": "30000000-0000-4000-8000-000000000020",
+        "revision": 1,
+        "evidenceIds": [
+          "30000000-0000-4000-8000-000000000030"
+        ]
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000106",
+      "type": "ActionApplied",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 6,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 7,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "actionId": "30000000-0000-4000-8000-000000000040",
+        "tick": 0,
+        "stateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000107",
+      "type": "LabTerminationRequested",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 7,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 8,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "labId": "30000000-0000-4000-8000-000000000010",
+        "generation": 1
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000108",
+      "type": "LabTerminated",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 8,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 9,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "labId": "30000000-0000-4000-8000-000000000010",
+        "generation": 1,
+        "cleanupReceipt": {
+          "key": "receipts/synthetic/1",
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "byteSize": 64
+        }
+      }
+    },
+    {
+      "eventId": "30000000-0000-4000-8000-000000000109",
+      "type": "SessionFinished",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000002",
+      "aggregateVersion": 9,
+      "sessionId": "30000000-0000-4000-8000-000000000002",
+      "seq": 10,
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "correlationId": "30000000-0000-4000-8000-000000000003",
+      "payload": {
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "evaluationRefs": [
+          "30000000-0000-4000-8000-000000000050"
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "reason": "SessionCreated: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionCreated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "CTF"
+        }
+      }
+    },
+    {
+      "reason": "SessionCreated: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionCreated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "CTF",
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "LabRequested: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000101",
+        "type": "LabRequested",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 1,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 2,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "generation": 1,
+          "templateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "reason": "LabRequested: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000101",
+        "type": "LabRequested",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 1,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 2,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "labId": "30000000-0000-4000-8000-000000000010",
+          "generation": 1,
+          "templateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "LabReady: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000102",
+        "type": "LabReady",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 2,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 3,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "generation": 1,
+          "runtimeRef": "runtime-ref-synthetic-1"
+        }
+      }
+    },
+    {
+      "reason": "LabReady: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000102",
+        "type": "LabReady",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 2,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 3,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "labId": "30000000-0000-4000-8000-000000000010",
+          "generation": 1,
+          "runtimeRef": "runtime-ref-synthetic-1",
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "SubmissionAccepted: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000103",
+        "type": "SubmissionAccepted",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 3,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 4,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "jobId": "30000000-0000-4000-8000-000000000021",
+          "kind": "FLAG",
+          "bundleRef": {
+            "key": "submissions/synthetic/1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "byteSize": 128
+          }
+        }
+      }
+    },
+    {
+      "reason": "SubmissionAccepted: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000103",
+        "type": "SubmissionAccepted",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 3,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 4,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "submissionId": "30000000-0000-4000-8000-000000000020",
+          "jobId": "30000000-0000-4000-8000-000000000021",
+          "kind": "FLAG",
+          "bundleRef": {
+            "key": "submissions/synthetic/1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "byteSize": 128
+          },
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "ExecutionCompleted: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000104",
+        "type": "ExecutionCompleted",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 4,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 5,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "attempt": 1,
+          "fencingToken": 1,
+          "resultDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "reason": "ExecutionCompleted: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000104",
+        "type": "ExecutionCompleted",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 4,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 5,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "jobId": "30000000-0000-4000-8000-000000000021",
+          "attempt": 1,
+          "fencingToken": 1,
+          "resultDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "EvaluationCommitted: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000105",
+        "type": "EvaluationCommitted",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 5,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 6,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "revision": 1,
+          "evidenceIds": [
+            "30000000-0000-4000-8000-000000000030"
+          ]
+        }
+      }
+    },
+    {
+      "reason": "EvaluationCommitted: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000105",
+        "type": "EvaluationCommitted",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 5,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 6,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "submissionId": "30000000-0000-4000-8000-000000000020",
+          "revision": 1,
+          "evidenceIds": [
+            "30000000-0000-4000-8000-000000000030"
+          ],
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "ActionApplied: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000106",
+        "type": "ActionApplied",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 6,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 7,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "tick": 0,
+          "stateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "reason": "ActionApplied: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000106",
+        "type": "ActionApplied",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 6,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 7,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "actionId": "30000000-0000-4000-8000-000000000040",
+          "tick": 0,
+          "stateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "LabTerminationRequested: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000107",
+        "type": "LabTerminationRequested",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 7,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 8,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "generation": 1
+        }
+      }
+    },
+    {
+      "reason": "LabTerminationRequested: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000107",
+        "type": "LabTerminationRequested",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 7,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 8,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "labId": "30000000-0000-4000-8000-000000000010",
+          "generation": 1,
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "LabTerminated: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000108",
+        "type": "LabTerminated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 8,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 9,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "generation": 1,
+          "cleanupReceipt": {
+            "key": "receipts/synthetic/1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "byteSize": 64
+          }
+        }
+      }
+    },
+    {
+      "reason": "LabTerminated: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000108",
+        "type": "LabTerminated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 8,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 9,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "labId": "30000000-0000-4000-8000-000000000010",
+          "generation": 1,
+          "cleanupReceipt": {
+            "key": "receipts/synthetic/1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "byteSize": 64
+          },
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "SessionFinished: missing required payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000109",
+        "type": "SessionFinished",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 9,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 10,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "evaluationRefs": [
+            "30000000-0000-4000-8000-000000000050"
+          ]
+        }
+      }
+    },
+    {
+      "reason": "SessionFinished: unknown payload field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000109",
+        "type": "SessionFinished",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 9,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 10,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "evaluationRefs": [
+            "30000000-0000-4000-8000-000000000050"
+          ],
+          "rawSecret": "not-allowed"
+        }
+      }
+    },
+    {
+      "reason": "unknown event type",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionDeleted",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "CTF"
+        }
+      }
+    },
+    {
+      "reason": "unsupported schemaVersion",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionCreated",
+        "schemaVersion": 2,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "CTF"
+        }
+      }
+    },
+    {
+      "reason": "non-uuid eventId",
+      "event": {
+        "eventId": "evt-1",
+        "type": "SessionCreated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "CTF"
+        }
+      }
+    },
+    {
+      "reason": "missing correlationId",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionCreated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "CTF"
+        }
+      }
+    },
+    {
+      "reason": "seq must start at 1",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionCreated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 0,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "CTF"
+        }
+      }
+    },
+    {
+      "reason": "non RFC3339 occurredAt",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionCreated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04 00:00:00",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "CTF"
+        }
+      }
+    },
+    {
+      "reason": "unknown mode enum",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionCreated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+          "mode": "SPEEDRUN"
+        }
+      }
+    },
+    {
+      "reason": "legacy versionId field",
+      "event": {
+        "eventId": "30000000-0000-4000-8000-000000000100",
+        "type": "SessionCreated",
+        "schemaVersion": 1,
+        "aggregateId": "30000000-0000-4000-8000-000000000002",
+        "aggregateVersion": 0,
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "seq": 1,
+        "occurredAt": "2026-10-04T00:00:00Z",
+        "correlationId": "30000000-0000-4000-8000-000000000003",
+        "payload": {
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "mode": "CTF",
+          "versionId": "30000000-0000-4000-8000-000000000009"
+        }
+      }
+    }
+  ]
+}

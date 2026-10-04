@@ -95,7 +95,7 @@
                 "type": "string",
                 "format": "uuid"
               },
-              "versionId": {
+              "scenarioVersionId": {
                 "type": "string",
                 "format": "uuid"
               },
@@ -113,7 +113,7 @@
             },
             "required": [
               "sessionId",
-              "versionId",
+              "scenarioVersionId",
               "mode"
             ]
           }

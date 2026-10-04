@@ -6,6 +6,21 @@ CREATE TABLE users (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- Idempotency-Key replay store (15). submissions.client_request_id holds the same key value.
+CREATE TABLE idempotency_records (
+  owner_id uuid NOT NULL REFERENCES users(id),
+  route text NOT NULL,
+  idempotency_key uuid NOT NULL,
+  request_digest text NOT NULL CHECK (request_digest ~ '^[a-f0-9]{64}$'),
+  response_status integer NOT NULL CHECK (response_status BETWEEN 100 AND 599),
+  response_body jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  PRIMARY KEY (owner_id, route, idempotency_key),
+  CHECK (expires_at > created_at)
+);
+CREATE INDEX idempotency_records_expiry ON idempotency_records(expires_at);
+
 CREATE TABLE scenarios (
   id uuid PRIMARY KEY,
   slug text NOT NULL UNIQUE,
@@ -52,6 +67,7 @@ CREATE TABLE sessions (
   version bigint NOT NULL DEFAULT 0 CHECK (version >= 0),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (id, owner_id),
+  FOREIGN KEY (parent_session_id, owner_id) REFERENCES sessions(id, owner_id),
   CHECK (parent_session_id IS DISTINCT FROM id)
 );
 CREATE INDEX sessions_owner_created ON sessions(owner_id, created_at DESC, id);
@@ -80,7 +96,11 @@ CREATE TABLE labs (
   cleanup_confirmed_at timestamptz,
   version bigint NOT NULL DEFAULT 0,
   FOREIGN KEY (session_id, owner_id) REFERENCES sessions(id, owner_id),
-  UNIQUE (session_id, generation)
+  UNIQUE (session_id, generation),
+  UNIQUE (id, session_id),
+  -- TERMINATED means runtime, network and disk reclaim was confirmed (13).
+  -- A FAILED lab with no residual resources also records cleanup_confirmed_at.
+  CHECK (state <> 'TERMINATED' OR cleanup_confirmed_at IS NOT NULL)
 );
 CREATE UNIQUE INDEX labs_owner_active ON labs(owner_id)
   WHERE cleanup_confirmed_at IS NULL;
@@ -105,6 +125,7 @@ CREATE INDEX submissions_session_created ON submissions(session_id,created_at,id
 CREATE TABLE jobs (
   id uuid PRIMARY KEY,
   submission_id uuid REFERENCES submissions(id),
+  lab_id uuid,
   session_id uuid NOT NULL REFERENCES sessions(id),
   kind text NOT NULL CHECK (kind IN ('PROVISION','GRADE','REPORT','CLEANUP','EXPORT')),
   revision integer NOT NULL DEFAULT 1 CHECK (revision > 0),
@@ -117,7 +138,15 @@ CREATE TABLE jobs (
   due_at timestamptz NOT NULL DEFAULT now(),
   version bigint NOT NULL DEFAULT 0,
   FOREIGN KEY (submission_id,session_id) REFERENCES submissions(id,session_id),
-  UNIQUE (submission_id,kind,revision)
+  FOREIGN KEY (lab_id,session_id) REFERENCES labs(id,session_id),
+  UNIQUE (submission_id,kind,revision),
+  UNIQUE (lab_id,kind,revision),
+  CHECK (CASE kind
+    WHEN 'GRADE' THEN submission_id IS NOT NULL AND lab_id IS NULL
+    WHEN 'PROVISION' THEN lab_id IS NOT NULL AND submission_id IS NULL
+    WHEN 'CLEANUP' THEN lab_id IS NOT NULL AND submission_id IS NULL
+    ELSE submission_id IS NULL AND lab_id IS NULL
+  END)
 );
 CREATE INDEX jobs_due ON jobs(due_at,id) WHERE state IN ('PENDING','RETRY_WAIT');
 

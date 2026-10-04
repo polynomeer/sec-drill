@@ -8,6 +8,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# Local OS/editor files that must never enter the manifest or archive.
+EXCLUDED_NAMES = {".DS_Store", "Thumbs.db", "MANIFEST.sha256"}
 LINK_PATTERN = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
 
 
@@ -64,8 +66,8 @@ def build_combined():
 
 def validate():
     documents = sorted((ROOT / "docs").glob("*.md"))
-    assert len(documents) == 35
-    assert [int(path.name[:2]) for path in documents] == list(range(35))
+    assert documents, "no documents"
+    assert [int(path.name[:2]) for path in documents] == list(range(len(documents)))
     for path in documents:
         content = path.read_text(encoding="utf-8")
         assert content.startswith("# SecDrill "), path
@@ -82,10 +84,11 @@ def validate():
     assert scenario["publishable"] is False and oracle["publishable"] is False
     with (ROOT / "examples/acceptance-matrix.csv").open(encoding="utf-8", newline="") as handle:
         requirements = list(csv.DictReader(handle))
-    assert len(requirements) == 17
+    defined = set(re.findall(r"\b((?:FR|NFR)-\d{2})\b", (ROOT / "docs/02-prd.md").read_text(encoding="utf-8")))
+    assert {row["requirement"] for row in requirements} == defined, "acceptance matrix must trace every 02 requirement"
     operations = [operation for path in api["paths"].values() for operation in path.values()]
     assert len({operation["operationId"] for operation in operations}) == len(operations)
-    checks = ["35 documents and numbering", "local links", "JSON parse and local schema refs", "API operationId uniqueness", "scenario/oracle consistency", "100-point rubric", "17 requirements traced"]
+    checks = [f"{len(documents)} documents and numbering", "local links", "JSON parse and local schema refs", "API operationId uniqueness", "scenario/oracle consistency", "100-point rubric", f"{len(requirements)} requirements traced"]
     limitations = ["PostgreSQL live migration/constraint behavior not executed", "Product implementation, strong runtime, performance and chaos tests not executed", "Markdown display and Mermaid rendering depend on reader"]
     try:
         from openapi_spec_validator import validate as validate_openapi
@@ -101,7 +104,7 @@ def validate():
             "sessionId": "20000000-0000-4000-8000-000000000002",
             "occurredAt": "2026-10-04T00:00:00Z",
             "correlationId": "20000000-0000-4000-8000-000000000003",
-            "payload": {"sessionId": "20000000-0000-4000-8000-000000000002", "versionId": scenario["scenarioVersionId"], "mode": "CTF"}
+            "payload": {"sessionId": "20000000-0000-4000-8000-000000000002", "scenarioVersionId": scenario["scenarioVersionId"], "mode": "CTF"}
         }
         validator = Draft202012Validator(event, format_checker=FormatChecker())
         validator.validate(sample_event)
@@ -117,10 +120,11 @@ def validate():
 def package(report):
     report["textBytes"] = sum(path.stat().st_size for path in (ROOT / "docs").glob("*.md"))
     (ROOT / "VALIDATION.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    source_paths = sorted(path for path in ROOT.rglob("*") if path.is_file() and path.name != "MANIFEST.sha256" and "__pycache__" not in path.parts)
+    source_paths = sorted(path for path in ROOT.rglob("*") if path.is_file() and path.name not in EXCLUDED_NAMES and "__pycache__" not in path.parts)
     manifest = "".join(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(ROOT).as_posix()}\n" for path in source_paths)
     (ROOT / "MANIFEST.sha256").write_text(manifest, encoding="utf-8")
-    archive = ROOT.parent / "SecDrill-development-docs-v0.1.zip"
+    archive = ROOT.parent / "dist" / "SecDrill-development-docs-v0.1.zip"
+    archive.parent.mkdir(exist_ok=True)
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
         for path in source_paths + [ROOT / "MANIFEST.sha256"]:
             bundle.write(path, Path(ROOT.name) / path.relative_to(ROOT))

@@ -12,12 +12,12 @@ CREATED는 Lab ready 후 ACTIVE가 된다. ACTIVE에서 Lab이 만료되어도 �
 
 `REQUESTED → PROVISIONING → READY → TERMINATING → TERMINATED`
 
-REQUESTED/PROVISIONING은 생성 실패 시 FAILED; FAILED에도 잔여 자원이 있으면 cleanup job을 실행한다. 취소·TTL·운영 중지는 모든 비종료 상태에서 TERMINATING을 요청한다. 생성 완료 callback이 취소 뒤 도착하면 READY로 전이하지 않고 그 runtime을 회수한다. TERMINATED는 런타임·네트워크·디스크 회수가 실제 확인된 상태다. cleanup 실패는 CLEANUP_FAILED로 남겨 자원을 점유한 것으로 계산하고 sweeper가 재시도한다.
+REQUESTED/PROVISIONING은 생성 실패 시 FAILED; FAILED에도 잔여 자원이 있으면 cleanup job을 실행한다. 취소·TTL·운영 중지는 모든 비종료 상태에서 TERMINATING을 요청한다. 생성 완료 callback이 취소 뒤 도착하면 READY로 전이하지 않고 그 runtime을 회수한다. TERMINATED는 런타임·네트워크·디스크 회수가 실제 확인된 상태다. cleanup 실패는 CLEANUP_FAILED로 남겨 자원을 점유한 것으로 계산하고 sweeper가 재시도한다. 활성 Lab 한도는 `cleanup_confirmed_at`이 없는 Lab으로 계산한다. TERMINATED는 이 값 없이 저장할 수 없고, 잔여 자원이 없음이 확인된 FAILED는 전이와 함께 이 값을 기록해 한도에서 제외한다.
 
 ## Job와 Submission
 
 Job: `PENDING → DISPATCHED → LEASED → RUNNING → SUCCEEDED`.
-재시도 가능 오류: LEASED/RUNNING → RETRY_WAIT → PENDING. 최대 3 attempt 소진 또는 영구 오류는 FAILED, 실행 취소 확인 후 CANCELLED. heartbeat는 LEASED부터 시작한다. dispatch timeout 120초는 lease 30초와 별개이며 살아 있는 worker의 대기열은 무조건 재발행하지 않는다.
+재시도 가능 오류: LEASED/RUNNING → RETRY_WAIT → PENDING. 최대 3 attempt 소진 또는 영구 오류는 FAILED, 실행 취소 확인 후 CANCELLED. heartbeat는 LEASED부터 시작한다. PROVISION·CLEANUP job은 Lab을, GRADE job은 Submission을 가리키며 REPORT·EXPORT는 둘 다 갖지 않는다. dispatch timeout 120초는 lease 30초와 별개이며 살아 있는 worker의 대기열은 무조건 재발행하지 않는다.
 
 Submission: `ACCEPTED → EVALUATING → EVALUATED` 또는 `EVALUATION_FAILED`. 단계별 평가가 끝나도 Session은 ACTIVE일 수 있다. 재채점은 Submission 상태를 초기화하지 않고 새 Job·EvaluationRevision을 추가한다.
 

@@ -1,0 +1,181 @@
+{
+  "$comment": "Synthetic request/response bodies validated against openapi.yaml components.schemas.",
+  "cases": [
+    {
+      "schema": "SessionCreate",
+      "valid": true,
+      "value": {
+        "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+        "mode": "CTF"
+      }
+    },
+    {
+      "schema": "SessionCreate",
+      "valid": false,
+      "reason": "unknown mode",
+      "value": {
+        "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+        "mode": "SPEEDRUN"
+      }
+    },
+    {
+      "schema": "SessionCreate",
+      "valid": false,
+      "reason": "unknown field",
+      "value": {
+        "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+        "mode": "CTF",
+        "ownerId": "30000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "schema": "Session",
+      "valid": true,
+      "value": {
+        "id": "30000000-0000-4000-8000-000000000002",
+        "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+        "mode": "CTF",
+        "status": "ACTIVE",
+        "phase": "ATTACK",
+        "version": 3,
+        "createdAt": "2026-10-04T00:00:00Z",
+        "lab": {
+          "id": "30000000-0000-4000-8000-000000000010",
+          "sessionId": "30000000-0000-4000-8000-000000000002",
+          "generation": 1,
+          "state": "READY",
+          "expiresAt": "2026-10-04T01:00:00Z"
+        }
+      }
+    },
+    {
+      "schema": "Session",
+      "valid": false,
+      "reason": "negative version",
+      "value": {
+        "id": "30000000-0000-4000-8000-000000000002",
+        "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+        "mode": "CTF",
+        "status": "ACTIVE",
+        "phase": "ATTACK",
+        "version": -1,
+        "createdAt": "2026-10-04T00:00:00Z"
+      }
+    },
+    {
+      "schema": "Lab",
+      "valid": true,
+      "value": {
+        "id": "30000000-0000-4000-8000-000000000010",
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "generation": 1,
+        "state": "READY",
+        "expiresAt": "2026-10-04T01:00:00Z"
+      }
+    },
+    {
+      "schema": "Lab",
+      "valid": false,
+      "reason": "generation starts at 1",
+      "value": {
+        "id": "30000000-0000-4000-8000-000000000010",
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "generation": 0,
+        "state": "READY",
+        "expiresAt": "2026-10-04T01:00:00Z"
+      }
+    },
+    {
+      "schema": "SubmissionCreate",
+      "valid": true,
+      "value": {
+        "kind": "FLAG",
+        "expectedVersion": 3,
+        "content": {
+          "challengeId": "10000000-0000-4000-8000-000000000003",
+          "flag": "SYNTHETIC-FLAG-NOT-A-REAL-SECRET"
+        }
+      }
+    },
+    {
+      "schema": "SubmissionCreate",
+      "valid": false,
+      "reason": "flag over 256 chars",
+      "value": {
+        "kind": "FLAG",
+        "expectedVersion": 3,
+        "content": {
+          "challengeId": "10000000-0000-4000-8000-000000000003",
+          "flag": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        }
+      }
+    },
+    {
+      "schema": "Submission",
+      "valid": true,
+      "value": {
+        "id": "30000000-0000-4000-8000-000000000020",
+        "sessionId": "30000000-0000-4000-8000-000000000002",
+        "kind": "FLAG",
+        "status": "ACCEPTED",
+        "createdAt": "2026-10-04T00:00:00Z"
+      }
+    },
+    {
+      "schema": "Error",
+      "valid": true,
+      "value": {
+        "code": "VERSION_CONFLICT",
+        "message": "Session version changed",
+        "requestId": "req-synthetic-1",
+        "retryable": false,
+        "details": {
+          "latestVersion": 4
+        }
+      }
+    },
+    {
+      "schema": "Error",
+      "valid": true,
+      "value": {
+        "code": "VALIDATION_FAILED",
+        "message": "Invalid input",
+        "requestId": "req-synthetic-2",
+        "retryable": false,
+        "details": {
+          "fieldErrors": [
+            {
+              "field": "mode",
+              "message": "unsupported"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "schema": "Error",
+      "valid": false,
+      "reason": "code outside catalog",
+      "value": {
+        "code": "OOPS",
+        "message": "x",
+        "requestId": "r",
+        "retryable": false
+      }
+    },
+    {
+      "schema": "Error",
+      "valid": false,
+      "reason": "details must not carry stack traces",
+      "value": {
+        "code": "INTERNAL_ERROR",
+        "message": "x",
+        "requestId": "r",
+        "retryable": false,
+        "details": {
+          "stack": "at Foo.bar"
+        }
+      }
+    }
+  ]
+}

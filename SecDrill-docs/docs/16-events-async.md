@@ -6,7 +6,7 @@
 
 | type | producer | consumer | payload |
 |---|---|---|---|
-| SessionCreated | Session | 추천·분석 | sessionId,versionId,mode |
+| SessionCreated | Session | 추천·분석 | sessionId,scenarioVersionId,mode |
 | LabRequested | Lab | Orchestrator | labId,generation,templateDigest |
 | LabReady | Result Ingest | Session·Gateway | labId,generation,runtimeRef |
 | SubmissionAccepted | Submission | Orchestrator | submissionId,jobId,kind,bundleRef |

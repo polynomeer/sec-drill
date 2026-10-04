@@ -554,12 +554,12 @@ CREATED는 Lab ready 후 ACTIVE가 된다. ACTIVE에서 Lab이 만료되어도 �
 
 `REQUESTED → PROVISIONING → READY → TERMINATING → TERMINATED`
 
-REQUESTED/PROVISIONING은 생성 실패 시 FAILED; FAILED에도 잔여 자원이 있으면 cleanup job을 실행한다. 취소·TTL·운영 중지는 모든 비종료 상태에서 TERMINATING을 요청한다. 생성 완료 callback이 취소 뒤 도착하면 READY로 전이하지 않고 그 runtime을 회수한다. TERMINATED는 런타임·네트워크·디스크 회수가 실제 확인된 상태다. cleanup 실패는 CLEANUP_FAILED로 남겨 자원을 점유한 것으로 계산하고 sweeper가 재시도한다.
+REQUESTED/PROVISIONING은 생성 실패 시 FAILED; FAILED에도 잔여 자원이 있으면 cleanup job을 실행한다. 취소·TTL·운영 중지는 모든 비종료 상태에서 TERMINATING을 요청한다. 생성 완료 callback이 취소 뒤 도착하면 READY로 전이하지 않고 그 runtime을 회수한다. TERMINATED는 런타임·네트워크·디스크 회수가 실제 확인된 상태다. cleanup 실패는 CLEANUP_FAILED로 남겨 자원을 점유한 것으로 계산하고 sweeper가 재시도한다. 활성 Lab 한도는 `cleanup_confirmed_at`이 없는 Lab으로 계산한다. TERMINATED는 이 값 없이 저장할 수 없고, 잔여 자원이 없음이 확인된 FAILED는 전이와 함께 이 값을 기록해 한도에서 제외한다.
 
 ## Job와 Submission
 
 Job: `PENDING → DISPATCHED → LEASED → RUNNING → SUCCEEDED`.
-재시도 가능 오류: LEASED/RUNNING → RETRY_WAIT → PENDING. 최대 3 attempt 소진 또는 영구 오류는 FAILED, 실행 취소 확인 후 CANCELLED. heartbeat는 LEASED부터 시작한다. dispatch timeout 120초는 lease 30초와 별개이며 살아 있는 worker의 대기열은 무조건 재발행하지 않는다.
+재시도 가능 오류: LEASED/RUNNING → RETRY_WAIT → PENDING. 최대 3 attempt 소진 또는 영구 오류는 FAILED, 실행 취소 확인 후 CANCELLED. heartbeat는 LEASED부터 시작한다. PROVISION·CLEANUP job은 Lab을, GRADE job은 Submission을 가리키며 REPORT·EXPORT는 둘 다 갖지 않는다. dispatch timeout 120초는 lease 30초와 별개이며 살아 있는 worker의 대기열은 무조건 재발행하지 않는다.
 
 Submission: `ACCEPTED → EVALUATING → EVALUATED` 또는 `EVALUATION_FAILED`. 단계별 평가가 끝나도 Session은 ACTIVE일 수 있다. 재채점은 Submission 상태를 초기화하지 않고 새 Job·EvaluationRevision을 추가한다.
 
@@ -587,16 +587,17 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | users | id, pseudonym, created_at | email은 별도 암호화 identity record |
 | scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest | unique scenario_id+version_no; published immutable |
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
-| sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent relation 검증 |
+| sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
-| labs | session_id, owner_id, generation, state, runtime_ref, expires_at | owner 활성 partial unique; session+generation unique |
+| labs | session_id, owner_id, generation, state, runtime_ref, expires_at, cleanup_confirmed_at | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인 필수 |
 | submissions | session_id, kind, artifact_id, client_request_id, request_digest | session+client_request_id unique; artifact session 일치 |
-| jobs | submission_id, kind, state, attempt, fencing_token, lease_until | due job index; unique submission+kind+revision |
+| jobs | submission_id, lab_id, kind, state, attempt, fencing_token, lease_until | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK |
+| idempotency_records | owner_id, route, idempotency_key, request_digest, response, expires_at | owner+route+key PK; 만료 index |
 | evaluations | submission_id, revision, policy_version, verdict, dimensions, active | submission+revision unique; 활성 partial unique |
 | ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
-추가 구현 테이블: auth_sessions(token_hash, expires_at, revoked_at), idempotency_records(owner, route, key, request_digest, response, expires_at), applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), audit_events(actor, purpose, action), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
+추가 구현 테이블: auth_sessions(token_hash, expires_at, revoked_at), applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), audit_events(actor, purpose, action), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
 
 ## 원자 작업
 
@@ -627,7 +628,7 @@ MVP 공개 계약은 [OpenAPI](contracts/openapi.yaml)에 정의한다. 아래�
 
 개인 웹 로그인은 OIDC provider에서 확인하고 플랫폼의 opaque auth session으로 연결하는 제안을 사용한다. access session은 15분, refresh는 7일·회전·reuse 감지를 적용한다. browser cookie는 HttpOnly/Secure/SameSite, mutation은 CSRF token과 Origin 검사로 보호한다. OpenAPI cookieAuth는 access session cookie이며 운영자 API는 별도 workload/operator bearer다. provider 선택은 ADR-009의 미결정 항목이다.
 
-POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시간 저장하고 canonical body digest가 다른 재사용은 409 `IDEMPOTENCY_CONFLICT`다. 상태 변경은 body expectedVersion으로 CAS한다. 원래 응답의 재반환은 version 충돌 검사보다 우선한다.
+POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시간 저장하고 canonical body digest가 다른 재사용은 409 `IDEMPOTENCY_CONFLICT`다. 상태 변경은 body expectedVersion으로 CAS한다. 원래 응답의 재반환은 version 충돌 검사보다 우선한다. 제출 생성의 `submissions.client_request_id`는 이 Idempotency-Key 값이다.
 
 | 메서드와 경로 | 입력 | 성공 | 주요 오류 |
 |---|---|---|---|
@@ -659,7 +660,7 @@ MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다
 
 ## 오류 봉투
 
-`{code,message,requestId,retryable,details}`. 400 malformed JSON, 401 로그인 필요, 403 자기 자원이지만 허용되지 않은 운영, 404 존재하지 않거나 타인 자원, 409 상태·멱등 충돌, 413 크기, 422 의미 검증, 429 한도, 503 플랫폼 일시 오류를 사용한다. details는 필드 오류·latestVersion·missingGates만 포함하고 내부 stack·oracle·비밀은 제외한다.
+`{code,message,requestId,retryable,details}`. 400 malformed JSON, 401 로그인 필요, 403 자기 자원이지만 허용되지 않은 운영, 404 존재하지 않거나 타인 자원, 409 상태·멱등 충돌, 413 크기, 422 의미 검증, 429 한도, 503 플랫폼 일시 오류를 사용한다. details는 필드 오류(fieldErrors)·latestVersion·missingGates만 포함하고 내부 stack·oracle·비밀은 제외한다. `code` 값과 코드별 HTTP 상태·retryable은 [enums.json](contracts/enums.json)의 errorCodes catalog가 단일 기준이다. 예상하지 못한 서버 오류는 500 `INTERNAL_ERROR`이며 내부 정보를 노출하지 않는다.
 
 ## 내부 계약
 
@@ -678,7 +679,7 @@ MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다
 
 | type | producer | consumer | payload |
 |---|---|---|---|
-| SessionCreated | Session | 추천·분석 | sessionId,versionId,mode |
+| SessionCreated | Session | 추천·분석 | sessionId,scenarioVersionId,mode |
 | LabRequested | Lab | Orchestrator | labId,generation,templateDigest |
 | LabReady | Result Ingest | Session·Gateway | labId,generation,runtimeRef |
 | SubmissionAccepted | Submission | Orchestrator | submissionId,jobId,kind,bundleRef |

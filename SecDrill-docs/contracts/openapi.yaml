@@ -167,6 +167,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -293,6 +303,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -403,6 +423,16 @@
           },
           "429": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
             "content": {
               "application/json": {
                 "schema": {
@@ -546,6 +576,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -681,6 +721,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -791,6 +841,16 @@
           },
           "429": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
             "content": {
               "application/json": {
                 "schema": {
@@ -934,6 +994,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -1061,6 +1131,16 @@
           },
           "429": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
             "content": {
               "application/json": {
                 "schema": {
@@ -1204,6 +1284,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -1331,6 +1421,16 @@
           },
           "429": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
             "content": {
               "application/json": {
                 "schema": {
@@ -1478,6 +1578,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -1588,6 +1698,16 @@
           },
           "429": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
             "content": {
               "application/json": {
                 "schema": {
@@ -1724,6 +1844,16 @@
           },
           "429": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
             "content": {
               "application/json": {
                 "schema": {
@@ -1916,6 +2046,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -2042,6 +2182,16 @@
               }
             }
           },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "503": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
             "content": {
@@ -2160,6 +2310,16 @@
           },
           "429": {
             "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
             "content": {
               "application/json": {
                 "schema": {
@@ -2295,7 +2455,27 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "MALFORMED_REQUEST",
+              "AUTHENTICATION_REQUIRED",
+              "FORBIDDEN",
+              "NOT_FOUND",
+              "VERSION_CONFLICT",
+              "IDEMPOTENCY_CONFLICT",
+              "INVALID_STATE",
+              "MISSING_GATES",
+              "NOT_READY",
+              "STREAM_CURSOR_EXPIRED",
+              "PAYLOAD_TOO_LARGE",
+              "VALIDATION_FAILED",
+              "UNSUPPORTED_MODE",
+              "RATE_LIMITED",
+              "QUOTA_EXCEEDED",
+              "INTERNAL_ERROR",
+              "SERVICE_UNAVAILABLE"
+            ],
+            "description": "오류 코드 catalog는 contracts/enums.json errorCodes; 코드별 HTTP 상태와 retryable 고정"
           },
           "message": {
             "type": "string"
@@ -2308,7 +2488,44 @@
           },
           "details": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": false,
+            "description": "필드 오류·latestVersion·missingGates만 포함; stack·oracle·비밀 제외",
+            "properties": {
+              "fieldErrors": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "maxLength": 500
+                    }
+                  },
+                  "required": [
+                    "field",
+                    "message"
+                  ]
+                }
+              },
+              "latestVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "missingGates": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                  "type": "string",
+                  "maxLength": 100
+                }
+              }
+            }
           }
         },
         "required": [

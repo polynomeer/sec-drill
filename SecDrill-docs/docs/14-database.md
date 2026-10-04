@@ -9,16 +9,17 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | users | id, pseudonym, created_at | email은 별도 암호화 identity record |
 | scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest | unique scenario_id+version_no; published immutable |
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
-| sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent relation 검증 |
+| sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
-| labs | session_id, owner_id, generation, state, runtime_ref, expires_at | owner 활성 partial unique; session+generation unique |
+| labs | session_id, owner_id, generation, state, runtime_ref, expires_at, cleanup_confirmed_at | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인 필수 |
 | submissions | session_id, kind, artifact_id, client_request_id, request_digest | session+client_request_id unique; artifact session 일치 |
-| jobs | submission_id, kind, state, attempt, fencing_token, lease_until | due job index; unique submission+kind+revision |
+| jobs | submission_id, lab_id, kind, state, attempt, fencing_token, lease_until | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK |
+| idempotency_records | owner_id, route, idempotency_key, request_digest, response, expires_at | owner+route+key PK; 만료 index |
 | evaluations | submission_id, revision, policy_version, verdict, dimensions, active | submission+revision unique; 활성 partial unique |
 | ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
-추가 구현 테이블: auth_sessions(token_hash, expires_at, revoked_at), idempotency_records(owner, route, key, request_digest, response, expires_at), applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), audit_events(actor, purpose, action), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
+추가 구현 테이블: auth_sessions(token_hash, expires_at, revoked_at), applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), audit_events(actor, purpose, action), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
 
 ## 원자 작업
 

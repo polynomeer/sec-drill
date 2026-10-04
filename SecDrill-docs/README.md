@@ -49,7 +49,9 @@ SecDrill은 격리된 환경에서 취약점을 찾고, 공격을 재현하고, 
 ## 함께 제공하는 계약
 
 - `contracts/openapi.yaml`: MVP 공개 API의 OpenAPI 3.1 초안.
-- `contracts/schema.sql`: 핵심 영속 모델의 PostgreSQL DDL 초안.
+- `contracts/schema.sql`: 핵심 영속 모델의 PostgreSQL DDL 초안. 운영 단일 출처는 구현 저장소의 번호 있는 migration이다.
+- `contracts/enums.json`: enum과 오류 코드 catalog. SQL·OpenAPI·이벤트 schema와 구현 코드가 이 값과 일치해야 한다.
+- `contracts/fixtures/`: 이벤트 봉투와 API 본문의 합성 정상·비정상 예제. 계약 검사가 정상 통과·비정상 거절을 확인한다.
 - `contracts/event.schema.json`: 제어 영역 이벤트 봉투 JSON Schema.
 - `examples/scenario.json`: 테넌트 데이터 유출 시나리오의 공개 매니페스트.
 - `examples/private-oracle.json`: 동일 사건의 채점기 전용 정의 예제. 학습자에게 제공하지 않는다.
