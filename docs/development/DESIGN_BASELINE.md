@@ -44,7 +44,7 @@ F-01~F-06은 T01·T02·T05를 막는 누락이다. F-07~F-13은 정리 사항이
 | F-02 | 해결 | jobs `lab_id`·kind별 대상 CHECK·`UNIQUE(lab_id,kind,revision)`, 13·14. DB 테스트 |
 | F-03 | 해결 | parent+owner 복합 FK, 14. DB 테스트 |
 | F-04 | 해결 | `idempotency_records` 테이블, 14·15(`client_request_id` = Idempotency-Key). DB 테스트 |
-| F-05 | 미해결 | D-04, T05 전 결정 |
+| F-05 | 해결 | D-04·ADR 0003, 공통 벡터 |
 | F-06 | 해결 | `contracts/enums.json` errorCodes, OpenAPI `Error.code` enum·details schema, 500 `INTERNAL_ERROR` 추가, 15 |
 | F-07 | 미해결 | 시나리오 매니페스트 개정 시(T03) |
 | F-08 | 해결 | event schema·16·build_pack 예제 `scenarioVersionId` |

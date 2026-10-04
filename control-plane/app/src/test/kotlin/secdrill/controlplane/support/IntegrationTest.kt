@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.testcontainers.postgresql.PostgreSQLContainer
+import org.testcontainers.rabbitmq.RabbitMQContainer
+import org.testcontainers.utility.DockerImageName
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -20,7 +22,12 @@ const val TEST_ORIGIN = "https://app.secdrill.test"
 @Retention(AnnotationRetention.RUNTIME)
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["spring.flyway.enabled=true", "secdrill.auth.allowed-origins=$TEST_ORIGIN"],
+    properties = [
+        "spring.flyway.enabled=true",
+        "secdrill.auth.allowed-origins=$TEST_ORIGIN",
+        // Tests drive the publisher and sweeper step by step.
+        "secdrill.async.scheduling-enabled=false",
+    ],
 )
 @Import(TestInfrastructure::class)
 annotation class IntegrationTest
@@ -30,6 +37,14 @@ class TestInfrastructure {
     @Bean
     @ServiceConnection
     fun postgres(): PostgreSQLContainer = TestPostgres.container()
+
+    /** rabbitmq:4.3.6-alpine pinned by index digest (D-08). */
+    @Bean
+    @ServiceConnection
+    fun rabbit(): RabbitMQContainer = RabbitMQContainer(
+        DockerImageName.parse("rabbitmq@sha256:2cb43283d8bbd3caa6c0f0dc00e96c8de772df33df7fd8af6aee4d605aeb8ada")
+            .asCompatibleSubstituteFor("rabbitmq"),
+    )
 
     @Bean
     @Primary

@@ -11,11 +11,11 @@
 | D-01 | 계약 파일 위치 | 지금 | Decided: A(현 위치 유지), 2026-10-04 |
 | D-02 | migration 도구와 PostgreSQL 검증 방식 | 지금 | Decided: Flyway + Testcontainers, 2026-10-04 |
 | D-03 | DDL 누락 보완(F-01~F-04, F-06, F-08) | 지금 | Decided: T01에서 6건 모두 보완, 2026-10-04 |
-| D-04 | canonical digest와 hash chain | T05 전 | Open |
+| D-04 | canonical digest와 hash chain | T05 전 | Decided: RFC 8785 JCS + SHA-256, genesis `0`×64, 2026-10-04 |
 | D-05 | Control Plane 언어·프레임워크 | 지금 | Decided: Kotlin + Spring Boot + Gradle + JDK 21, 2026-10-04 ([ADR 0001](../adr/0001-control-plane-stack-and-migrations.md) Proposed, 파일럿 전 재검토) |
 | D-06 | Web 스택 | T11 전 | Deferred |
 | D-07 | build_pack 재생성 동작 | 팩 첫 수정 전 | Decided: B(도구 수정), 2026-10-04 |
-| D-08 | message broker | T05 publisher 전 | Deferred |
+| D-08 | message broker | T05 publisher 전 | Decided: RabbitMQ 4.3 quorum queue, 2026-10-04 |
 | D-09 | OIDC provider | 파일럿 전 | Deferred (구현은 provider 중립, [ADR 0002](../adr/0002-learner-and-operator-authentication.md)) |
 | D-10 | 호스팅과 strong runtime | T06 실검증 전 / 파일럿 전 | Deferred |
 | D-11 | 운영·법무 항목 | 파일럿 전 | Deferred |

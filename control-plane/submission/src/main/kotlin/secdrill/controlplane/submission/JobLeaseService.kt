@@ -1,0 +1,232 @@
+package secdrill.controlplane.submission
+
+import org.springframework.jdbc.core.simple.JdbcClient
+import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import secdrill.controlplane.evidence.LedgerAppender
+import secdrill.controlplane.platform.AsyncProperties
+import secdrill.controlplane.platform.OutboxWriter
+import secdrill.controlplane.platform.SystemAudit
+import secdrill.execution.protocol.Ack
+import secdrill.execution.protocol.JobControl
+import secdrill.execution.protocol.JobLease
+import secdrill.execution.protocol.JobOutcome
+import secdrill.execution.protocol.JobResultReport
+import secdrill.kernel.EventType
+import secdrill.kernel.EvidenceSource
+import secdrill.kernel.JobFailure
+import secdrill.kernel.JobKind
+import secdrill.kernel.JobState
+import secdrill.kernel.PatchGate
+import secdrill.kernel.SubmissionKind
+import secdrill.kernel.SubmissionStatus
+import secdrill.kernel.TrustLevel
+import secdrill.kernel.Verdict
+import tools.jackson.databind.json.JsonMapper
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
+import java.util.UUID
+import kotlin.random.Random
+
+/**
+ * Server-managed job leases with fencing (13, 16, ADR-004).
+ *
+ * - claim: DISPATCHED -> LEASED, attempt + 1, fencing token + 1, lease = now + 30 s
+ * - start / heartbeat / complete are accepted only for the current token, in the right state, before lease expiry
+ * - platform errors and expired leases retry up to three attempts in total, then become SYSTEM_ERROR, never FAIL
+ * - stale results are audited and ignored; they never create an evaluation
+ */
+@Service
+class JobLeaseService(
+    private val jdbc: JdbcClient,
+    private val properties: AsyncProperties,
+    private val ledger: LedgerAppender,
+    private val outbox: OutboxWriter,
+    private val audit: SystemAudit,
+    private val json: JsonMapper,
+    private val clock: Clock,
+) : JobControl {
+    private fun now(): Instant = clock.instant().truncatedTo(ChronoUnit.MICROS)
+    private fun Instant.db(): OffsetDateTime = atOffset(ZoneOffset.UTC)
+
+    @Transactional
+    override fun claimNext(workerId: String, kinds: Set<JobKind>): JobLease? {
+        if (kinds.isEmpty()) return null
+        val now = now()
+        val row = jdbc.sql(
+            """SELECT j.id, j.kind, j.attempt, j.fencing_token, j.submission_id, s.request_digest FROM jobs j
+               LEFT JOIN submissions s ON s.id = j.submission_id
+               WHERE j.state = 'DISPATCHED' AND j.kind IN (:kinds) AND j.attempt < :max
+               ORDER BY j.dispatched_at, j.id LIMIT 1 FOR UPDATE OF j SKIP LOCKED""",
+        ).param("kinds", kinds.map { it.name }).param("max", properties.maxAttempts)
+            .query { rs, _ ->
+                ClaimRow(
+                    rs.getObject(1, UUID::class.java), JobKind.valueOf(rs.getString(2)), rs.getInt(3), rs.getLong(4),
+                    rs.getObject(5, UUID::class.java), rs.getString(6),
+                )
+            }.optional().orElse(null) ?: return null
+
+        val leaseUntil = now.plus(properties.lease)
+        jdbc.sql(
+            """UPDATE jobs SET state = 'LEASED', attempt = attempt + 1, fencing_token = fencing_token + 1, worker_id = ?,
+               lease_until = ?, version = version + 1 WHERE id = ?""",
+        ).params(workerId.take(200), leaseUntil.db(), row.id).update()
+        row.submissionId?.let {
+            jdbc.sql("UPDATE submissions SET status = 'EVALUATING' WHERE id = ? AND status = 'ACCEPTED'").param(it).update()
+        }
+        return JobLease(row.id, row.kind, row.attempt + 1, row.token + 1, leaseUntil, row.submissionId, row.digest)
+    }
+
+    @Transactional
+    override fun start(lease: JobLease): Ack = acceptIf(
+        lease, "start",
+        jdbc.sql(
+            "UPDATE jobs SET state = 'RUNNING', version = version + 1 WHERE id = ? AND fencing_token = ? AND state = 'LEASED' AND lease_until > ?",
+        ).params(lease.jobId, lease.fencingToken, now().db()).update(),
+    )
+
+    @Transactional
+    override fun heartbeat(lease: JobLease): Ack {
+        val now = now()
+        return acceptIf(
+            lease, "heartbeat",
+            jdbc.sql(
+                """UPDATE jobs SET lease_until = ? WHERE id = ? AND fencing_token = ? AND state IN ('LEASED', 'RUNNING') AND lease_until > ?""",
+            ).params(now.plus(properties.lease).db(), lease.jobId, lease.fencingToken, now.db()).update(),
+        )
+    }
+
+    @Transactional
+    override fun complete(lease: JobLease, report: JobResultReport): Ack {
+        val now = now()
+        val job = lockJob(lease.jobId) ?: return stale(lease, "complete")
+        if (job.state != JobState.RUNNING || job.token != lease.fencingToken || !job.leaseUntil!!.isAfter(now)) {
+            return stale(lease, "complete")
+        }
+        when (report.outcome) {
+            JobOutcome.COMPLETED -> {
+                jdbc.sql(
+                    """UPDATE jobs SET state = 'SUCCEEDED', result_digest = ?, worker_id = NULL, lease_until = NULL, version = version + 1
+                       WHERE id = ?""",
+                ).params(report.resultDigest, job.id).update()
+                val evaluation = commitEvaluation(job, report.verdict!!, report.policyVersion, report.fake)
+                outbox.append(
+                    EventType.ExecutionCompleted, job.id, job.version + 1, job.sessionId, job.submissionId ?: job.id,
+                    mapOf("jobId" to job.id.toString(), "attempt" to job.attempt, "fencingToken" to job.token, "resultDigest" to report.resultDigest),
+                    causationId = evaluation,
+                )
+            }
+            JobOutcome.PLATFORM_ERROR -> retryOrFail(job, JobFailure.PLATFORM_ERROR, report.policyVersion, report.fake)
+            JobOutcome.CONTENT_INVALID -> failFinally(job, JobFailure.CONTENT_INVALID, report.policyVersion, report.fake)
+        }
+        return Ack.ACCEPTED
+    }
+
+    @Scheduled(fixedDelayString = "\${secdrill.async.sweep-interval:1s}")
+    fun scheduledSweep() {
+        if (properties.schedulingEnabled) sweepOnce()
+    }
+
+    /** Expires leases, releases due retries and flags dispatch timeouts. Returns how many jobs changed. */
+    @Transactional
+    fun sweepOnce(): Int {
+        val now = now()
+        var changed = 0
+        jdbc.sql("SELECT id FROM jobs WHERE state IN ('LEASED', 'RUNNING') AND lease_until <= ? ORDER BY lease_until FOR UPDATE SKIP LOCKED")
+            .param(now.db()).query(UUID::class.java).list()
+            .forEach { id -> lockJob(id!!)?.let { retryOrFail(it, JobFailure.LEASE_EXPIRED, null, fake = false); changed++ } }
+        changed += jdbc.sql(
+            "UPDATE jobs SET state = 'DISPATCHED', dispatched_at = ?, version = version + 1 WHERE state = 'RETRY_WAIT' AND due_at <= ?",
+        ).params(now.db(), now.db()).update()
+        // Dispatch waiting is not a lease (13): flag it for operators instead of re-issuing work to a live pool.
+        jdbc.sql(
+            """UPDATE jobs SET last_error = 'DISPATCH_TIMEOUT' WHERE state = 'DISPATCHED' AND dispatched_at <= ?
+               AND last_error IS DISTINCT FROM 'DISPATCH_TIMEOUT' RETURNING id""",
+        ).param(now.minus(properties.dispatchTimeout).db()).query(UUID::class.java).list().forEach {
+            audit.record("job dispatch timeout", "job $it waited longer than ${properties.dispatchTimeout} for a worker")
+        }
+        return changed
+    }
+
+    private fun retryOrFail(job: LockedJob, failure: JobFailure, policy: String?, fake: Boolean) {
+        if (job.attempt >= properties.maxAttempts) return failFinally(job, failure, policy, fake)
+        val delay = properties.retryDelays[(job.attempt - 1).coerceIn(0, properties.retryDelays.lastIndex)]
+        val jitter = Duration.ofMillis(Random.nextLong(properties.retryJitter.toMillis() + 1))
+        jdbc.sql(
+            """UPDATE jobs SET state = 'RETRY_WAIT', due_at = ?, last_error = ?, worker_id = NULL, lease_until = NULL, version = version + 1
+               WHERE id = ?""",
+        ).params(now().plus(delay).plus(jitter).db(), failure.name, job.id).update()
+    }
+
+    /** Platform failure after the last attempt: SYSTEM_ERROR evaluation, never negative skill evidence (00). */
+    private fun failFinally(job: LockedJob, failure: JobFailure, policy: String?, fake: Boolean) {
+        jdbc.sql("UPDATE jobs SET state = 'FAILED', last_error = ?, worker_id = NULL, lease_until = NULL, version = version + 1 WHERE id = ?")
+            .params(failure.name, job.id).update()
+        if (job.submissionId != null) commitEvaluation(job, Verdict.SYSTEM_ERROR, policy ?: "platform/system-error", fake)
+    }
+
+    /** Inserts the next active EvaluationRevision and records it in the ledger and outbox in this transaction. */
+    private fun commitEvaluation(job: LockedJob, verdict: Verdict, policy: String, fake: Boolean): UUID {
+        val submission = checkNotNull(job.submissionId)
+        val kind = jdbc.sql("SELECT kind FROM submissions WHERE id = ?").param(submission).query { rs, _ -> SubmissionKind.valueOf(rs.getString(1)) }.single()
+        val revision = jdbc.sql("SELECT coalesce(max(revision), 0) + 1 FROM evaluations WHERE submission_id = ?").param(submission).query(Int::class.java).single()
+        val patchGate = if (kind != SubmissionKind.PATCH) null else when (verdict) {
+            Verdict.PASS -> PatchGate.VERIFIED
+            Verdict.FAIL -> PatchGate.NOT_VERIFIED
+            Verdict.SYSTEM_ERROR -> PatchGate.INCONCLUSIVE
+        }
+        val evaluationId = UUID.randomUUID()
+        val superseded = jdbc.sql("UPDATE evaluations SET is_active = false WHERE submission_id = ? AND is_active RETURNING id")
+            .param(submission).query(UUID::class.java).optional().orElse(null)
+        jdbc.sql(
+            """INSERT INTO evaluations(id, submission_id, revision, policy_version, verdict, patch_gate, dimensions, gates, supersedes_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, '[]', ?, ?)""",
+        ).params(
+            // The List overload accepts nulls (patch gate and supersedes are optional).
+            listOf(evaluationId, submission, revision, policy, verdict.name, patchGate?.name, json.writeValueAsString(mapOf("fake" to fake)), superseded, now().db()),
+        ).update()
+        val status = if (verdict == Verdict.SYSTEM_ERROR) SubmissionStatus.EVALUATION_FAILED else SubmissionStatus.EVALUATED
+        jdbc.sql("UPDATE submissions SET status = ? WHERE id = ?").params(status.name, submission).update()
+        // A fake worker observed nothing: its result is SIMULATED evidence, never SERVER_VERIFIED.
+        val evidence = ledger.append(
+            job.sessionId, EventType.EvaluationCommitted.name, EvidenceSource.SUPERVISOR,
+            if (fake) TrustLevel.SIMULATED else TrustLevel.SERVER_VERIFIED,
+            mapOf("submissionId" to submission, "evaluationId" to evaluationId, "revision" to revision, "verdict" to verdict.name, "fake" to fake),
+        )
+        outbox.append(
+            EventType.EvaluationCommitted, submission, revision.toLong(), job.sessionId, submission,
+            mapOf("submissionId" to submission.toString(), "revision" to revision, "evidenceIds" to listOf(evidence.evidenceId.toString())),
+            seq = evidence.seq,
+        )
+        return evaluationId
+    }
+
+    private fun lockJob(id: UUID): LockedJob? = jdbc.sql(
+        "SELECT id, session_id, submission_id, state, attempt, fencing_token, lease_until, version FROM jobs WHERE id = ? FOR UPDATE",
+    ).param(id).query { rs, _ ->
+        LockedJob(
+            rs.getObject(1, UUID::class.java), rs.getObject(2, UUID::class.java), rs.getObject(3, UUID::class.java),
+            JobState.valueOf(rs.getString(4)), rs.getInt(5), rs.getLong(6),
+            rs.getObject(7, OffsetDateTime::class.java)?.toInstant(), rs.getLong(8),
+        )
+    }.optional().orElse(null)
+
+    private fun acceptIf(lease: JobLease, action: String, updated: Int): Ack = if (updated == 1) Ack.ACCEPTED else stale(lease, action)
+
+    private fun stale(lease: JobLease, action: String): Ack {
+        audit.record("stale job result", "rejected $action for job ${lease.jobId} attempt ${lease.attempt} token ${lease.fencingToken}")
+        return Ack.STALE
+    }
+
+    private data class ClaimRow(val id: UUID, val kind: JobKind, val attempt: Int, val token: Long, val submissionId: UUID?, val digest: String?)
+
+    private data class LockedJob(
+        val id: UUID, val sessionId: UUID, val submissionId: UUID?, val state: JobState,
+        val attempt: Int, val token: Long, val leaseUntil: Instant?, val version: Long,
+    )
+}

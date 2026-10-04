@@ -41,6 +41,7 @@ class TestBrowser(private val base: String) {
         csrf: String? = null,
         bearer: String? = null,
         cookies: Map<String, String> = jar,
+        headers: Map<String, String> = emptyMap(),
     ): TestResponse {
         val target = if (url.startsWith("http")) url else base + url
         val builder = HttpRequest.newBuilder(URI.create(target))
@@ -49,6 +50,7 @@ class TestBrowser(private val base: String) {
         origin?.let { builder.header("Origin", it) }
         csrf?.let { builder.header("X-CSRF-Token", it) }
         bearer?.let { builder.header("Authorization", "Bearer $it") }
+        headers.forEach { (name, value) -> builder.header(name, value) }
         if (cookies.isNotEmpty() && target.startsWith(base)) builder.header("Cookie", cookies.entries.joinToString("; ") { "${it.key}=${it.value}" })
         val response = http.send(builder.build(), HttpResponse.BodyHandlers.ofString())
         val result = TestResponse(response.statusCode(), response.body(), response.headers())

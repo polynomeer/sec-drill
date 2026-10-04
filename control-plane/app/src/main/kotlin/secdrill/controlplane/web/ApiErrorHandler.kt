@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import secdrill.controlplane.access.ResourceNotFoundException
+import secdrill.kernel.ApiException
 import secdrill.kernel.ErrorCode
 import secdrill.kernel.ErrorDetails
 import secdrill.kernel.ErrorEnvelope
@@ -28,6 +29,10 @@ class ApiErrorHandler {
 
     @ExceptionHandler(NoResourceFoundException::class)
     fun notFound(error: NoResourceFoundException) = respond(ErrorCode.NOT_FOUND, "Resource not found")
+
+    /** Domain contract errors carry their own code; the message is fixed text chosen by the domain code. */
+    @ExceptionHandler(ApiException::class)
+    fun api(error: ApiException) = respond(error.code, error.message ?: error.code.name, error.details)
 
     /** Same body as a missing route so other owners' resources stay indistinguishable from absent ones. */
     @ExceptionHandler(ResourceNotFoundException::class)

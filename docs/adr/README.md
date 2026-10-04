@@ -16,3 +16,5 @@
 |---|---|---|---|
 | [0001](0001-control-plane-stack-and-migrations.md) | Control Plane 개발 스택과 migration | Proposed | ADR-001 일부 |
 | [0002](0002-learner-and-operator-authentication.md) | 학습자·운영자 인증 | Proposed | ADR-009 |
+| [0003](0003-canonical-digest-and-evidence-hash.md) | Canonical digest와 Evidence hash chain | Accepted | — |
+| [0004](0004-outbox-rabbitmq-and-job-leases.md) | Outbox·RabbitMQ 전달과 job lease | Proposed | ADR-003, ADR-004 |

@@ -9,6 +9,10 @@ dependencies {
     implementation(platform(libs.spring.boot.bom))
     implementation(project(":shared:kernel"))
     implementation(project(":control-plane:identity"))
+    implementation(project(":control-plane:platform"))
+    implementation(project(":control-plane:evidence"))
+    implementation(project(":control-plane:submission"))
+    implementation(project(":execution:fake-worker"))
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.jdbc)
@@ -24,6 +28,7 @@ dependencies {
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.testcontainers.rabbitmq)
     testImplementation(libs.kotlin.test.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

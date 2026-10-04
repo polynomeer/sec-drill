@@ -4,7 +4,7 @@ SecDrill은 격리된 환경에서 취약점을 찾고 공격을 재현한 뒤, 
 
 ## 현재 상태
 
-T02(인증과 소유권)까지 진행했다. Control Plane은 OIDC 로그인·플랫폼 세션·운영자 인증·owner guard·health를 제공하며 **Session·Lab·제출·채점 등 제품 기능과 공격 Lab은 아직 없다.** 설계 문서는 v0.1 제안 초안이며 수치·스택은 검증할 가정이다. 진행 상황은 [IMPLEMENTATION_STATUS](docs/development/IMPLEMENTATION_STATUS.md)에 있다.
+T05(비동기 작업 기반)까지 진행했다. Control Plane은 인증·owner guard, 제출 수락(Idempotency·Outbox), RabbitMQ 전달, job lease·fencing을 제공한다. 채점은 **fake worker**(local 전용, 결과에 fake 표시)만 있으며 **Session·Lab API, 실제 채점, 공격 Lab은 아직 없다.** 설계 문서는 v0.1 제안 초안이며 수치·스택은 검증할 가정이다. 진행 상황은 [IMPLEMENTATION_STATUS](docs/development/IMPLEMENTATION_STATUS.md)에 있다.
 
 ## 문서 진입점
 
@@ -16,7 +16,7 @@ T02(인증과 소유권)까지 진행했다. Control Plane은 OIDC 로그인·�
 | [docs/development/WORKFLOW.md](docs/development/WORKFLOW.md) | 작업 흐름, 새 대화에서 읽을 파일, 완료 기준, 에이전트 간 인계 |
 | [docs/development/DECISIONS_REQUIRED.md](docs/development/DECISIONS_REQUIRED.md) | 결정이 필요한 항목과 권장안 |
 | [docs/development/DESIGN_BASELINE.md](docs/development/DESIGN_BASELINE.md) | 설계 분류와 계약 검토 발견 사항 |
-| [docs/development/T01_PLAN.md](docs/development/T01_PLAN.md), [T02](docs/development/T02.md) | Task별 계획과 결과 |
+| [T01](docs/development/T01_PLAN.md), [T02](docs/development/T02.md), [T05](docs/development/T05.md) | Task별 계획과 결과 |
 | [docs/development/prompts/](docs/development/prompts/) | 단계별 작업 프롬프트(00~22) |
 | [docs/adr/](docs/adr/README.md) | 검토된 실제 설계 결정 |
 
@@ -40,7 +40,7 @@ python3 -m venv .venv
 ./gradlew check
 ```
 
-로컬 실행: `docker compose up -d`로 개발 DB를 띄우고 [example.env](example.env)의 값을 환경변수로 설정한 뒤 `./gradlew :control-plane:app:bootRun`. health는 `/actuator/health/readiness`. `SPRING_PROFILES_ACTIVE=local`이면 `POST /v1/auth/dev-login`(Origin `http://localhost:8080`)으로 로그인할 수 있다.
+로컬 실행: `docker compose up -d`로 개발 DB와 RabbitMQ를 띄우고 [example.env](example.env)의 값을 환경변수로 설정한 뒤 `./gradlew :control-plane:app:bootRun`. health는 `/actuator/health/readiness`. `SPRING_PROFILES_ACTIVE=local`이면 `POST /v1/auth/dev-login`(Origin `http://localhost:8080`)으로 로그인할 수 있다.
 
 검사 범위와 미검증 항목은 [VERIFICATION](docs/development/VERIFICATION.md)에 있다.
 

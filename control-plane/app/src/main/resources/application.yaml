@@ -13,6 +13,21 @@ spring:
     # Schema changes come only from versioned migrations (14). Applying them on start is opt-in.
     enabled: ${SECDRILL_DB_MIGRATE_ON_START:false}
     locations: classpath:db/migration
+  rabbitmq:
+    host: ${SECDRILL_RABBITMQ_HOST:127.0.0.1}
+    port: ${SECDRILL_RABBITMQ_PORT:5672}
+    username: ${SECDRILL_RABBITMQ_USER:secdrill}
+    password: ${SECDRILL_RABBITMQ_PASSWORD:}
+    connection-timeout: 2s
+    # ADR 0004: an Outbox row is published only after a broker ack for a routed message.
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        default-requeue-rejected: true
+        acknowledge-mode: auto
   jackson:
     default-property-inclusion: non_null
   mvc:

@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
 @Testcontainers
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["spring.flyway.enabled=true"],
+    properties = ["spring.flyway.enabled=true", "spring.rabbitmq.listener.simple.auto-startup=false", "secdrill.async.scheduling-enabled=false"],
 )
 class HealthReadinessTest {
     companion object {

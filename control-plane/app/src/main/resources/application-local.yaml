@@ -1,8 +1,12 @@
-# Local development only. AuthSafetyCheck refuses dev-login outside this profile or together with `prod`.
+# Local development only. AuthSafetyCheck and FakeWorkerSafetyCheck refuse these outside this profile or with `prod`.
 secdrill:
   auth:
     allowed-origins:
       - http://localhost:8080
       - http://127.0.0.1:8080
     dev-login:
+      enabled: true
+  # In-process fake grading worker; results are labelled fake-worker/0 and SIMULATED (prompt 04).
+  execution:
+    fake-worker:
       enabled: true

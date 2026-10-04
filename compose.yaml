@@ -14,3 +14,17 @@ services:
       interval: 2s
       timeout: 2s
       retries: 15
+
+  rabbitmq:
+    # rabbitmq:4.3.6-alpine, pinned by digest (D-08). Keep in sync with TestBroker in IntegrationTest.kt.
+    image: rabbitmq@sha256:2cb43283d8bbd3caa6c0f0dc00e96c8de772df33df7fd8af6aee4d605aeb8ada
+    environment:
+      RABBITMQ_DEFAULT_USER: secdrill
+      RABBITMQ_DEFAULT_PASS: secdrill-local-dev
+    ports:
+      - "127.0.0.1:5672:5672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
