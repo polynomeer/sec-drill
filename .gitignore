@@ -1,0 +1,44 @@
+# Secrets and credentials (templates use the name `example.env` or `*.example`)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ecdsa*
+id_ed25519*
+secrets/
+.secrets/
+
+# Personal agent and editor settings
+.claude/settings.local.json
+CLAUDE.local.md
+AGENTS.local.md
+.idea/
+.vscode/
+*.swp
+
+# Local environments and caches
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+.gradle/
+build/
+dist/
+out/
+coverage/
+
+# Generated packages (SecDrill-docs/tools/build_pack.py writes a ZIP next to the pack)
+*.zip
+
+# Raw Lab output and learner submissions never belong in Git
+lab-logs/
+raw-logs/
+**/submissions/raw/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
