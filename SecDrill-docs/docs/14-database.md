@@ -17,10 +17,10 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
 | labs | session_id, owner_id, generation, state, runtime_ref, expires_at, cleanup_confirmed_at | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인 필수 |
 | submissions | session_id, kind, artifact_id, client_request_id, request_digest | session+client_request_id unique; artifact session 일치 |
-| jobs | submission_id, lab_id, kind, state, attempt, fencing_token, lease_until | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK |
-| idempotency_records | owner_id, route, idempotency_key, request_digest, response, expires_at | owner+route+key PK; 만료 index |
+| jobs | submission_id, lab_id, kind, state, attempt, fencing_token, worker_id, lease_until, last_error, result_digest | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK; LEASED/RUNNING일 때만 lease·worker |
+| idempotency_records | owner_id, route(실제 경로), idempotency_key, request_digest, response_status, response_body(text), expires_at | owner+route+key PK; 만료 index; 첫 응답을 byte 그대로 재반환 |
 | evaluations | submission_id, revision, policy_version, verdict, dimensions, active | submission+revision unique; 활성 partial unique |
-| ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard |
+| ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard; 첫 hash는 `0`×64, 각 hash는 이전 hash를 포함한 JCS 객체의 SHA-256 |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
 추가 구현 테이블: applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.

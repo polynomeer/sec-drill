@@ -44,3 +44,6 @@ class ErrorEnvelope private constructor(
             ErrorEnvelope(code, message, requestId, details)
     }
 }
+
+/** A contract error raised by domain code; the HTTP layer renders it as the envelope with [code]'s status. */
+class ApiException(val code: ErrorCode, message: String, val details: ErrorDetails? = null) : RuntimeException(message)

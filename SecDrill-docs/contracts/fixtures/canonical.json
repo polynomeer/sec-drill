@@ -1,0 +1,67 @@
+{
+  "$comment": "RFC 8785 (JCS) + SHA-256 vectors shared by scripts/check.py and Kotlin tests (D-04, ADR 0003). Case 3 checks UTF-16 key order (U+1F600 sorts before U+FB33).",
+  "cases": [
+    {
+      "input": {
+        "b": 1,
+        "a": "x",
+        "c": [
+          true,
+          false,
+          null
+        ]
+      },
+      "canonical": "{\"a\":\"x\",\"b\":1,\"c\":[true,false,null]}",
+      "sha256": "0db76acaa252ad31bc56a5544ebd0b687195b7cc05c1dd4e63cdcf456fa55554"
+    },
+    {
+      "input": {
+        "€": "€",
+        "\r": "\n\t\u0001\"\\",
+        "Ω": "é",
+        "/": "</script>"
+      },
+      "canonical": "{\"\\r\":\"\\n\\t\\u0001\\\"\\\\\",\"/\":\"</script>\",\"Ω\":\"é\",\"€\":\"€\"}",
+      "sha256": "cb1ff4f4ed57119bf90c443ec6c9066fdd2a1848854778c4524d1757af609cfe"
+    },
+    {
+      "input": {
+        "😀": 1,
+        "דּ": 2,
+        "a": 3
+      },
+      "canonical": "{\"a\":3,\"😀\":1,\"דּ\":2}",
+      "sha256": "5f53f9e5bfabd882a5023df271e6e68a16836872ba174de6d778b38dfca6b983"
+    },
+    {
+      "input": {
+        "z": {},
+        "y": [],
+        "x": {
+          "b": [
+            {
+              "d": -9007199254740991,
+              "c": 0
+            }
+          ]
+        }
+      },
+      "canonical": "{\"x\":{\"b\":[{\"c\":0,\"d\":-9007199254740991}]},\"y\":[],\"z\":{}}",
+      "sha256": "dc1294b5e6e7b8299456eccf9d5bdd634b09582c1c54e1513a998e3071108ac4"
+    }
+  ],
+  "evidenceChain": {
+    "fields": {
+      "previousHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sessionId": "20000000-0000-4000-8000-000000000002",
+      "seq": 1,
+      "eventType": "SubmissionAccepted",
+      "source": "CONTROL",
+      "trustLevel": "SERVER_VERIFIED",
+      "occurredAt": "2026-10-04T00:00:00Z",
+      "payloadDigest": "0db76acaa252ad31bc56a5544ebd0b687195b7cc05c1dd4e63cdcf456fa55554"
+    },
+    "canonical": "{\"eventType\":\"SubmissionAccepted\",\"occurredAt\":\"2026-10-04T00:00:00Z\",\"payloadDigest\":\"0db76acaa252ad31bc56a5544ebd0b687195b7cc05c1dd4e63cdcf456fa55554\",\"previousHash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"seq\":1,\"sessionId\":\"20000000-0000-4000-8000-000000000002\",\"source\":\"CONTROL\",\"trustLevel\":\"SERVER_VERIFIED\"}",
+    "hash": "e100ab339b74de12c6591792c5ab3f51ac8d1867afd3d7aa050492d8a1378cf4"
+  }
+}

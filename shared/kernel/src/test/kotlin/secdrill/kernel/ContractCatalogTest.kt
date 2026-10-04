@@ -34,6 +34,7 @@ class ContractCatalogTest {
         "AuthRevokeReason" to AuthRevokeReason.entries,
         "OperatorRole" to OperatorRole.entries,
         "AuditActorType" to AuditActorType.entries,
+        "JobFailure" to JobFailure.entries,
     )
 
     private fun strings(node: JsonNode): List<String> = node.values().map { it.asString() }

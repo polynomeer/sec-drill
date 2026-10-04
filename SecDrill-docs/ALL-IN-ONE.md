@@ -595,10 +595,10 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
 | labs | session_id, owner_id, generation, state, runtime_ref, expires_at, cleanup_confirmed_at | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인 필수 |
 | submissions | session_id, kind, artifact_id, client_request_id, request_digest | session+client_request_id unique; artifact session 일치 |
-| jobs | submission_id, lab_id, kind, state, attempt, fencing_token, lease_until | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK |
-| idempotency_records | owner_id, route, idempotency_key, request_digest, response, expires_at | owner+route+key PK; 만료 index |
+| jobs | submission_id, lab_id, kind, state, attempt, fencing_token, worker_id, lease_until, last_error, result_digest | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK; LEASED/RUNNING일 때만 lease·worker |
+| idempotency_records | owner_id, route(실제 경로), idempotency_key, request_digest, response_status, response_body(text), expires_at | owner+route+key PK; 만료 index; 첫 응답을 byte 그대로 재반환 |
 | evaluations | submission_id, revision, policy_version, verdict, dimensions, active | submission+revision unique; 활성 partial unique |
-| ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard |
+| ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard; 첫 hash는 `0`×64, 각 hash는 이전 hash를 포함한 JCS 객체의 SHA-256 |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
 추가 구현 테이블: applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
@@ -700,6 +700,10 @@ MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다
 | LabTerminated | Runner ingest | Quota·Ops | labId,generation,cleanupReceipt |
 | SessionFinished | Session | Report·추천 | sessionId,evaluationRefs |
 
+## digest와 hash
+
+request digest·Evidence payload digest·hash chain은 RFC 8785(JCS) canonical JSON의 UTF-8 SHA-256이다. 계약 값은 문자열·boolean·null·객체·배열·±(2^53−1) 정수로 한정하고 정수가 아닌 수는 거절한다. Evidence hash는 `{eventType, occurredAt, payloadDigest, previousHash, seq, sessionId, source, trustLevel}`의 JCS digest이며 첫 `previousHash`는 `0`×64다. 공통 벡터는 [canonical.json](contracts/fixtures/canonical.json)이다.
+
 ## 전달과 중복
 
 DB transaction에서 row와 outbox를 함께 저장한다. Publisher는 batch claim·broker publish confirm 후 publishedAt을 기록한다. publish 이후 DB 갱신 전 죽으면 재발행되므로 소비자는 consumer_inbox unique(consumer,eventId)를 사용한다. DB 상태를 반영하는 소비자는 inbox insert와 업무 변경을 같은 transaction에 수행하고 commit 후 ack한다.
@@ -714,7 +718,7 @@ heartbeat 10초, lease 30초, 전체 실행 timeout 300초다. dispatch 대기�
 
 ## 큐와 DLQ
 
-queue는 lab.lifecycle, grading.official, replay.optional, coaching.optional로 나눈다. Lab cleanup과 공식 채점이 우선이고 추천·AI는 낮은 우선순위다. 영구 schema 오류·서명 불일치는 즉시 DLQ, 일시 인프라 오류는 retry 소진 후 DLQ다. DLQ redrive는 원래 eventId/jobId와 새 attempt·감사 목적을 유지한다. 결함 있는 payload를 그대로 무한 재시도하지 않는다.
+이벤트는 topic exchange `secdrill.events`에 event type을 routing key로 발행한다. Outbox row는 broker ack를 받고 반환(unroutable)되지 않은 경우에만 publishedAt을 기록하며, 실패는 backoff 후 재시도한다. 소비 queue는 quorum queue이고 delivery limit 3을 넘거나 poison으로 거절된 메시지는 dead-letter exchange `secdrill.dlx`를 거쳐 `secdrill.dlq`로 간다. queue는 lab.lifecycle, grading.official, replay.optional, coaching.optional로 나눈다(T05는 grading.official만 구현). Lab cleanup과 공식 채점이 우선이고 추천·AI는 낮은 우선순위다. 영구 schema 오류·서명 불일치는 즉시 DLQ, 일시 인프라 오류는 retry 소진 후 DLQ다. DLQ redrive는 원래 eventId/jobId와 새 attempt·감사 목적을 유지한다. 결함 있는 payload를 그대로 무한 재시도하지 않는다.
 
 ## 호환성
 

@@ -64,6 +64,8 @@ def sql_enums():
     for table, body in re.findall(r"CREATE TABLE (\w+) \((.*?)\n\);", sql, re.S):
         for column, values in re.findall(r"CHECK \((\w+) IN \(([^)]*)\)\)", body):
             enums[f"{table}.{column}"] = re.findall(r"'([^']+)'", values)
+    for table, column, values in re.findall(r"ALTER TABLE (\w+) ADD COLUMN (\w+) [^;]*?CHECK \(\w+ IN \(([^)]*)\)\)", sql):
+        enums[f"{table}.{column}"] = re.findall(r"'([^']+)'", values)
     return enums
 
 
@@ -151,6 +153,7 @@ def check_enums():
         "AuthRevokeReason": [sql["auth_sessions.revoke_reason"]],
         "OperatorRole": [sql["operator_tokens.role"]],
         "AuditActorType": [sql["audit_events.actor_type"]],
+        "JobFailure": [sql["jobs.last_error"]],
     }
     problems = [f"{name} has no catalog entry" for name in sources if name not in enums]
     for name, values in sources.items():
@@ -212,6 +215,39 @@ def check_fixtures():
     if problems:
         raise AssertionError("; ".join(problems))
     return f"{len(events['valid'])} valid + {len(events['invalid'])} invalid events, {len(cases)} API cases"
+
+
+def jcs(value):
+    """Reference RFC 8785 encoder for the contract subset (integers, no floats); independent of the Kotlin one."""
+    if value is None or isinstance(value, bool):
+        return {None: "null", True: "true", False: "false"}[value]
+    if isinstance(value, int):
+        assert abs(value) <= 2**53 - 1, "integer outside the interoperable range"
+        return str(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        return "[" + ",".join(jcs(item) for item in value) + "]"
+    if isinstance(value, dict):
+        keys = sorted(value, key=lambda key: key.encode("utf-16-be"))
+        return "{" + ",".join(json.dumps(key, ensure_ascii=False) + ":" + jcs(value[key]) for key in keys) + "}"
+    raise TypeError(f"unsupported {type(value).__name__}")
+
+
+@check("contracts: canonical JSON (RFC 8785) and evidence hash vectors")
+def check_canonical():
+    vectors = load_json(PACK / "contracts/fixtures/canonical.json")
+    sha = lambda text: hashlib.sha256(text.encode("utf-8")).hexdigest()
+    problems = []
+    for index, case in enumerate(vectors["cases"]):
+        if jcs(case["input"]) != case["canonical"] or sha(case["canonical"]) != case["sha256"]:
+            problems.append(f"case {index}")
+    chain = vectors["evidenceChain"]
+    if jcs(chain["fields"]) != chain["canonical"] or sha(chain["canonical"]) != chain["hash"]:
+        problems.append("evidence chain")
+    if problems:
+        raise AssertionError("vector mismatch: " + ", ".join(problems))
+    return f"{len(vectors['cases'])} canonical cases + evidence chain"
 
 
 @check("db: migrations V1..Vn together match the reviewed contracts/schema.sql")
@@ -361,7 +397,7 @@ def check_gitignore():
     return f"{len(must_ignore)} excluded, {len(must_track)} kept"
 
 
-CHECKS = [check_pack, check_manifest, check_enums, check_events, check_fixtures, check_migration, check_examples, check_traceability,
+CHECKS = [check_pack, check_manifest, check_enums, check_events, check_fixtures, check_canonical, check_migration, check_examples, check_traceability,
           check_prompts, check_repo_links, check_config, check_gitignore]
 
 

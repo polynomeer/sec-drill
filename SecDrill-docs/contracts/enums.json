@@ -23,7 +23,8 @@
     "AuthTokenKind": {"values": ["ACCESS", "REFRESH"], "source": "14"},
     "AuthRevokeReason": {"values": ["LOGOUT", "REFRESH_REUSE", "OPERATOR"], "source": "14"},
     "OperatorRole": {"values": ["OPERATOR", "SECURITY_ADMIN"], "source": "19"},
-    "AuditActorType": {"values": ["OPERATOR", "SYSTEM"], "source": "14"}
+    "AuditActorType": {"values": ["OPERATOR", "SYSTEM"], "source": "14"},
+    "JobFailure": {"values": ["DISPATCH_TIMEOUT", "LEASE_EXPIRED", "PLATFORM_ERROR", "CONTENT_INVALID"], "source": "16"}
   },
   "errorCodes": {
     "$comment": "Error envelope `code` values (15). httpStatus and retryable are fixed per code.",
