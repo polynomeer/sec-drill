@@ -7,6 +7,8 @@ plugins {
 dependencies {
     implementation(platform(libs.spring.boot.bom))
     api(project(":shared:kernel"))
+    implementation(project(":control-plane:identity"))
+    implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.jackson.module.kotlin)
 }

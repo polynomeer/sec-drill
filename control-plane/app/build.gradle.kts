@@ -24,6 +24,7 @@ dependencies {
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.security.test)
+    testImplementation(libs.spring.boot.starter.security.oauth2.client)
     testImplementation(libs.mock.oauth2.server)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)

@@ -21,6 +21,8 @@
 | D-11 | 운영·법무 항목 | 파일럿 전 | Deferred |
 | D-12 | 에이전트 간 작업 소유권 | 지금 | Proposed |
 | D-13 | 프롬프트 묶음의 단일 출처 | 지금 | Decided: B(원본 묶음도 커밋), 2026-10-04 |
+| D-14 | DB 역할 배포와 소유자 분리 | T14 전 | Open |
+| D-15 | private Artifact store 구현 | T14 전 / 파일럿 전 | Open |
 
 ## 상세
 
@@ -90,3 +92,16 @@
 - 선택지: (A) `docs/development/prompts/`만 추적하고 `SecDrill-prompts/`는 커밋하지 않음(삭제 또는 로컬 보관) (B) 원본 묶음도 커밋해 출처 기록으로 남김(내용 중복, ALL-PROMPTS·MANIFEST가 수정 시 어긋남).
 - 권장: A. 복사본은 원본과 동일함을 확인했다.
 - 결정: **B**. `SecDrill-prompts/`는 출처 스냅숏으로 커밋하고 수정하지 않는다. 작업용 단일 출처는 `docs/development/prompts/`다.
+
+### D-14 DB 역할 배포와 소유자 분리 (T14 전)
+
+- 영향: append-only·삭제 권한 분리(14). 지금 migration이 `control_app` 역할을 만들지만 앱은 테이블 소유자로 접속한다.
+- 선택지: (A) migration 전용 소유자와 런타임 로그인 역할(`control_app` 부여)을 분리하고 역할은 migration이 생성 (B) 역할을 인프라 코드로 미리 만들고 migration은 GRANT만.
+- 권장: **B**. 관리형 PostgreSQL에서 CREATEROLE을 migration에 주지 않아도 된다. 어느 쪽이든 런타임은 소유자로 접속하지 않는다.
+
+### D-15 private Artifact store 구현 (T14 전 / 파일럿 전)
+
+- 영향: 제출 bundle·raw log·export 저장(11). 지금은 개발용 local filesystem store만 있고 `prod`에서 기동을 거부한다.
+- 선택지: (A) S3 호환 object store(MinIO·클라우드) + 버킷 정책·versioning·암호화 (B) DB large object.
+- 권장: **A**. 11의 제안과 같고 보관기간·versioning·서명 URL을 store가 제공한다. 호스팅(D-10)과 함께 정한다.
+
