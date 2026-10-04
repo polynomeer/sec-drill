@@ -41,9 +41,12 @@ JDK 21과 실행 중인 Docker가 필요하다. Docker가 없으면 DB 테스트
 | `ContractCatalogTest` | Kotlin enum·ErrorCode가 `enums.json`과 이름·순서·terminal·HTTP 상태·retryable까지 일치 | — |
 | `KernelValuesTest` | canonical UUID만 허용, RFC 3339 offset 필수와 UTC `Z` 출력, retryable이 코드를 따름 | — |
 | `ErrorEnvelopeTest` | 오류 봉투 형태, 잘못된 JSON·알 수 없는 enum·없는 경로·지원하지 않는 method·예상 외 예외의 코드와 상태, 내부 메시지 미노출 | 실제 API endpoint(미구현) |
-| `CoreSchemaConstraintsTest` | PostgreSQL 18.6(digest 고정)에 V1 적용 후 제약 13건: 멱등 키, owner 범위 FK, 활성 Lab 한도와 cleanup, job 대상·중복·attempt, active evaluation, evidence seq·append-only, enum·digest CHECK, inbox 중복, 수정된 migration checksum 실패 | 동시성 경합, 개인정보 삭제 함수(미구현) |
+| `CoreSchemaConstraintsTest` | PostgreSQL 18.6(digest 고정)에 V1·V2 적용 후 제약 15건: 멱등 키, owner 범위 FK, 활성 Lab 한도와 cleanup, job 대상·중복·attempt, active evaluation, evidence seq·append-only, enum·digest CHECK, inbox 중복, live refresh 1개·token hash 형식, 운영자 token 12시간, audit append-only, 수정된 migration checksum 실패 | 동시성 경합, 개인정보 삭제 함수(미구현) |
 | `HealthReadinessTest` | migration 적용 후 기동, readiness는 DB 중지 시 503, liveness는 200 유지 | 운영 배포 환경 |
-| `checkControlDbBoundary` | `:shared:*`·`:execution:*` classpath에 JDBC·driver·pool·migration·ORM·`:control-plane:*` 없음 | 런타임 네트워크 접근(격리는 T06) |
+| `checkModuleBoundary` | `:shared:*`·`:execution:*` classpath에 JDBC·driver·pool·migration·ORM·`:control-plane:*` 없음, Control Plane domain 모듈(`:control-plane:identity` 등)이 `:control-plane:app`에 의존하지 않음 | 런타임 네트워크 접근(격리는 T06) |
+| `AuthSessionFlowTest`·`OidcLoginTest`·`OperatorAuthTest`·`DevLoginTest` | 로그인(mock IdP의 PKCE·nonce·state), 만료·즉시 폐기, refresh 회전·재사용 시 로그인 폐기, cookie 속성, Origin·CSRF, 서버 session 미생성, 운영자 bearer 분리·audit | 실제 OIDC provider, 브라우저의 SameSite 처리 |
+| `OwnershipGuardTest` | 다섯 자원 유형의 owner·타인·없음·삭제 판정, HTTP 404 본문 동일성 | 실제 자원 API(T04 이후) |
+| `AuthSafetyTest` | dev-login을 local 밖이나 prod와 함께 켜면, prod에 OIDC·https origin이 없으면 기동 실패 | 운영 배포 설정 |
 
 ## 수행하지 않은 검증
 

@@ -14,7 +14,7 @@ T01(프롬프트 02)은 "확정된 스택"으로 Control Plane 골격과 migrati
 
 - Kotlin 2.3.21, Spring Boot 4.1.1, JDK 21 LTS toolchain, Gradle 9.8.0 wrapper(배포본 SHA-256 고정). 라이브러리 버전은 Spring Boot BOM이 관리하고 `gradle.lockfile`로 고정한다.
 - 모듈: `:shared:kernel`(ID·시각·enum·오류 봉투, Spring·DB 의존 없음), `:control-plane:app`(조립·HTTP 오류·health·migration). 나머지 `30`의 모듈은 내용이 생길 때 추가한다.
-- 경계: `:execution:*`와 `:shared:*`의 compile·runtime classpath에 JDBC·driver·pool·migration·ORM 라이브러리나 `:control-plane:*` 모듈이 있으면 `checkControlDbBoundary`가 `check`를 실패시킨다.
+- 경계: `:execution:*`와 `:shared:*`의 compile·runtime classpath에 JDBC·driver·pool·migration·ORM 라이브러리나 `:control-plane:*` 모듈이 있으면 `checkModuleBoundary`가 `check`를 실패시킨다.
 - migration: Flyway 순수 SQL(`db/migration/V<n>__*.sql`). 앱 시작 시 적용은 기본 비활성(`SECDRILL_DB_MIGRATE_ON_START`)이며 로컬 개발에서만 켠다.
 - DB 검증: Testcontainers로 `postgres:18.6-alpine`을 index digest로 고정해 실행한다.
 

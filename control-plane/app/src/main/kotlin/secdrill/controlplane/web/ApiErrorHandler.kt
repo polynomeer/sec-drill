@@ -8,6 +8,7 @@ import org.springframework.web.ErrorResponse
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.servlet.resource.NoResourceFoundException
+import secdrill.controlplane.access.ResourceNotFoundException
 import secdrill.kernel.ErrorCode
 import secdrill.kernel.ErrorDetails
 import secdrill.kernel.ErrorEnvelope
@@ -27,6 +28,10 @@ class ApiErrorHandler {
 
     @ExceptionHandler(NoResourceFoundException::class)
     fun notFound(error: NoResourceFoundException) = respond(ErrorCode.NOT_FOUND, "Resource not found")
+
+    /** Same body as a missing route so other owners' resources stay indistinguishable from absent ones. */
+    @ExceptionHandler(ResourceNotFoundException::class)
+    fun notOwned(error: ResourceNotFoundException) = respond(ErrorCode.NOT_FOUND, "Resource not found")
 
     /**
      * Other framework errors (unsupported method or media type, missing parameter) implement ErrorResponse and

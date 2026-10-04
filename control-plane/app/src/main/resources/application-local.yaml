@@ -1,0 +1,8 @@
+# Local development only. AuthSafetyCheck refuses dev-login outside this profile or together with `prod`.
+secdrill:
+  auth:
+    allowed-origins:
+      - http://localhost:8080
+      - http://127.0.0.1:8080
+    dev-login:
+      enabled: true

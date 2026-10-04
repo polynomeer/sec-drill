@@ -19,6 +19,16 @@ spring:
     problemdetails:
       enabled: false
 
+secdrill:
+  auth:
+    # Exact Origin values for unsafe methods; empty rejects every unsafe request (fail closed).
+    allowed-origins: ${SECDRILL_ALLOWED_ORIGINS:}
+    dev-login:
+      enabled: false
+# OIDC (ADR 0002): set the standard Spring properties through the environment, for example
+# SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_OIDC_CLIENT_ID / _CLIENT_SECRET / _SCOPE=openid and
+# SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER_URI. Without them OIDC login is not mounted.
+
 server:
   error:
     include-stacktrace: never

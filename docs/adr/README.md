@@ -15,3 +15,4 @@
 | 번호 | 제목 | 상태 | 원 초안 |
 |---|---|---|---|
 | [0001](0001-control-plane-stack-and-migrations.md) | Control Plane 개발 스택과 migration | Proposed | ADR-001 일부 |
+| [0002](0002-learner-and-operator-authentication.md) | 학습자·운영자 인증 | Proposed | ADR-009 |

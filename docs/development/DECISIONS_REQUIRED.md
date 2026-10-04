@@ -16,7 +16,7 @@
 | D-06 | Web 스택 | T11 전 | Deferred |
 | D-07 | build_pack 재생성 동작 | 팩 첫 수정 전 | Decided: B(도구 수정), 2026-10-04 |
 | D-08 | message broker | T05 publisher 전 | Deferred |
-| D-09 | OIDC provider | T02 실연동 전 / 파일럿 전 | Deferred |
+| D-09 | OIDC provider | 파일럿 전 | Deferred (구현은 provider 중립, [ADR 0002](../adr/0002-learner-and-operator-authentication.md)) |
 | D-10 | 호스팅과 strong runtime | T06 실검증 전 / 파일럿 전 | Deferred |
 | D-11 | 운영·법무 항목 | 파일럿 전 | Deferred |
 | D-12 | 에이전트 간 작업 소유권 | 지금 | Proposed |

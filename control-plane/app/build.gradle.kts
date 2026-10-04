@@ -8,6 +8,7 @@ plugins {
 dependencies {
     implementation(platform(libs.spring.boot.bom))
     implementation(project(":shared:kernel"))
+    implementation(project(":control-plane:identity"))
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.spring.boot.starter.jdbc)
@@ -18,6 +19,8 @@ dependencies {
     runtimeOnly(libs.postgresql)
 
     testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.starter.security.test)
+    testImplementation(libs.mock.oauth2.server)
     testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit.jupiter)

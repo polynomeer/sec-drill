@@ -209,6 +209,31 @@ class CoreSchemaConstraintsTest {
     }
 
     @Test
+    fun `one live refresh token per login and hashes only`() {
+        val owner = db { user() }
+        val login = UUID.randomUUID()
+        db { exec("INSERT INTO auth_sessions(id, user_id, csrf_hash, created_at) VALUES (?, ?, ?, now())", login, owner, digest) }
+        val insert = "INSERT INTO auth_tokens(token_hash, auth_session_id, kind, issued_at, expires_at) VALUES (?, ?, 'REFRESH', now(), now() + interval '7 days')"
+        db { exec(insert, "1".repeat(64), login) }
+        assertSqlState("23505") { exec(insert, "2".repeat(64), login) }
+        assertSqlState("23514") { exec(insert, "raw-token-not-a-hash", login) }
+        assertSqlState("23514") {
+            exec("UPDATE auth_sessions SET revoked_at = now() WHERE id = ?", login)
+        }
+    }
+
+    @Test
+    fun `operator tokens live at most 12 hours and audit is append-only`() {
+        val insertToken = "INSERT INTO operator_tokens(token_hash, operator_id, role, purpose, issued_at, expires_at) VALUES (?, ?, 'OPERATOR', 'review', now(), now() + ?::interval)"
+        db { exec(insertToken, "3".repeat(64), UUID.randomUUID(), "12 hours") }
+        assertSqlState("23514") { exec(insertToken, "4".repeat(64), UUID.randomUUID(), "13 hours") }
+        val audit = UUID.randomUUID()
+        db { exec("INSERT INTO audit_events(id, actor_type, actor_id, purpose, action, occurred_at) VALUES (?, 'OPERATOR', ?, 'review', 'GET /ops/v1/whoami', now())", audit, UUID.randomUUID()) }
+        assertSqlState("P0001") { exec("UPDATE audit_events SET action = 'tampered' WHERE id = ?", audit) }
+        assertSqlState("P0001") { exec("DELETE FROM audit_events WHERE id = ?", audit) }
+    }
+
+    @Test
     fun `edited applied migration fails validation`() {
         val directory = Files.createTempDirectory("migrations")
         val original = javaClass.getResource("/db/migration/V1__core_schema.sql")!!.readText()

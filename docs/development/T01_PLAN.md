@@ -69,7 +69,7 @@
 | T01-3 | 완료 | F-01~F-04·F-06·F-08 반영, 팩 13~16·README 개정, `build_pack.py` 재생성 |
 | T01-4 | 완료 | Gradle 9.8.0 wrapper(배포본·jar SHA-256 확인), `:shared:kernel`, `:control-plane:app`, lockfile |
 | T01-5 | 완료 | `secdrill.kernel`: ID·RFC 3339·enum·ErrorCode/ErrorEnvelope. `KernelValuesTest`, `ErrorEnvelopeTest` |
-| T01-6 | 완료 | `checkControlDbBoundary`. 금지 의존 주입 시 실패 확인. Control 모듈 간 경계 규칙은 해당 모듈이 생길 때 추가 |
+| T01-6 | 완료 | `checkModuleBoundary`. 금지 의존 주입 시 실패 확인. Control 모듈 간 경계 규칙은 해당 모듈이 생길 때 추가 |
 | T01-7 | 완료 | `V1__core_schema.sql`, schema.sql과 SQL 동일 검사, 수정된 migration checksum 실패 테스트 |
 | T01-8 | 완료 | `CoreSchemaConstraintsTest` 13건, PostgreSQL 18.6(digest 고정). 제약 제거 시 해당 테스트 실패 확인 |
 | T01-9 | 완료 | `example.env`, `compose.yaml`, readiness·liveness 테스트, 로컬 `bootRun` health 200 |

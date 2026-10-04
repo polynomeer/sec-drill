@@ -1,6 +1,6 @@
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.artifacts.component.ModuleComponentSelector
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.artifacts.result.UnresolvedDependencyResult
@@ -15,8 +15,7 @@ plugins {
 // Modules that run outside the Control Plane trust boundary (11, 17) or are shared with it.
 // They must never reach the Control DB: no JDBC, driver, pool, migration or ORM artifacts,
 // and no dependency on a Control Plane module.
-val boundedPrefixes = listOf(":execution:", ":shared:")
-val forbiddenModules = listOf(
+val controlDbModules = listOf(
     "org.postgresql:",
     "com.zaxxer:HikariCP",
     "org.springframework:spring-jdbc",
@@ -31,6 +30,18 @@ val forbiddenModules = listOf(
     "org.hibernate",
     "jakarta.persistence:",
 )
+
+/** What a module may not reach: external module prefixes and in-build project paths. */
+data class Boundary(val modules: List<String>, val projects: (String) -> Boolean, val reason: String)
+
+fun boundaryFor(path: String): Boundary? = when {
+    path.startsWith(":execution:") || path.startsWith(":shared:") ->
+        Boundary(controlDbModules, { it.startsWith(":control-plane:") }, "Control DB or Control Plane modules")
+    // Domain modules cooperate through application services and events (11); only the app assembles them.
+    path.startsWith(":control-plane:") && path != ":control-plane:app" ->
+        Boundary(emptyList(), { it == ":control-plane:app" }, "the assembling :control-plane:app module")
+    else -> null
+}
 
 subprojects {
     dependencyLocking {
@@ -50,48 +61,45 @@ subprojects {
             inputs.dir(rootProject.file("SecDrill-docs/contracts")).withPropertyName("contracts")
         }
 
-        if (boundedPrefixes.any { path.startsWith(it) }) {
-            val projectPath = path
-            val roots = listOf("runtimeClasspath", "compileClasspath").map { name ->
-                configurations.named(name).flatMap { it.incoming.resolutionResult.rootComponent }
-            }
-            val boundaryCheck = tasks.register("checkControlDbBoundary") {
-                group = "verification"
-                description = "Fails if this module can reach Control DB libraries or Control Plane modules."
-                inputs.property("forbidden", forbiddenModules)
-                doLast {
-                    val violations = sortedSetOf<String>()
-                    roots.forEach { root ->
-                        val seen = mutableSetOf<ResolvedComponentResult>()
-                        fun visit(component: ResolvedComponentResult) {
-                            if (!seen.add(component)) return
-                            when (val id = component.id) {
-                                is ModuleComponentIdentifier -> {
-                                    val coordinates = "${id.group}:${id.module}"
-                                    if (forbiddenModules.any { coordinates.startsWith(it) }) violations += coordinates
-                                }
-                                is ProjectComponentIdentifier ->
-                                    if (id.projectPath.startsWith(":control-plane:")) violations += id.projectPath
-                            }
-                            component.dependencies.forEach { dependency ->
-                                when (dependency) {
-                                    is ResolvedDependencyResult -> visit(dependency.selected)
-                                    // An unresolvable request (e.g. missing version) still declares intent; judge it by coordinates.
-                                    is UnresolvedDependencyResult -> (dependency.requested as? ModuleComponentSelector)?.let {
-                                        val coordinates = "${it.group}:${it.module}"
-                                        if (forbiddenModules.any { prefix -> coordinates.startsWith(prefix) }) violations += coordinates
-                                    }
-                                }
+        val boundary = boundaryFor(path) ?: return@withId
+        val projectPath = path
+        val roots = listOf("runtimeClasspath", "compileClasspath").map { name ->
+            configurations.named(name).flatMap { it.incoming.resolutionResult.rootComponent }
+        }
+        val boundaryCheck = tasks.register("checkModuleBoundary") {
+            group = "verification"
+            description = "Fails if this module can reach ${boundary.reason}."
+            inputs.property("forbiddenModules", boundary.modules)
+            doLast {
+                val violations = sortedSetOf<String>()
+                fun forbiddenModule(coordinates: String) = boundary.modules.any { coordinates.startsWith(it) }
+                roots.forEach { root ->
+                    val seen = mutableSetOf<ResolvedComponentResult>()
+                    fun visit(component: ResolvedComponentResult) {
+                        if (!seen.add(component)) return
+                        when (val id = component.id) {
+                            is ModuleComponentIdentifier ->
+                                "${id.group}:${id.module}".let { if (forbiddenModule(it)) violations += it }
+                            is ProjectComponentIdentifier ->
+                                if (id.projectPath != projectPath && boundary.projects(id.projectPath)) violations += id.projectPath
+                        }
+                        component.dependencies.forEach { dependency ->
+                            when (dependency) {
+                                is ResolvedDependencyResult -> visit(dependency.selected)
+                                // An unresolvable request (e.g. missing version) still declares intent; judge it by coordinates.
+                                is UnresolvedDependencyResult -> (dependency.requested as? ModuleComponentSelector)
+                                    ?.let { "${it.group}:${it.module}" }
+                                    ?.let { if (forbiddenModule(it)) violations += it }
                             }
                         }
-                        visit(root.get())
                     }
-                    check(violations.isEmpty()) {
-                        "$projectPath must not depend on Control DB or Control Plane modules: ${violations.joinToString()}"
-                    }
+                    visit(root.get())
+                }
+                check(violations.isEmpty()) {
+                    "$projectPath must not depend on ${boundary.reason}: ${violations.joinToString()}"
                 }
             }
-            tasks.named("check") { dependsOn(boundaryCheck) }
         }
+        tasks.named("check") { dependsOn(boundaryCheck) }
     }
 }
