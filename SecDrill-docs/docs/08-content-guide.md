@@ -8,6 +8,12 @@
 
 `examples/scenario.json`과 `examples/private-oracle.json`은 해당 구조를 설명한다. 예제 digest는 자리표시 값으로 출판 게이트를 통과하지 못하게 한다. 실제 번들 digest는 압축 메타데이터가 아닌 canonical manifest와 파일 digest 목록으로 계산한다.
 
+## 번들 형식과 출판 게이트
+
+저작 디렉터리는 `manifest.json`(공개, [scenario-manifest.schema.json](../contracts/scenario-manifest.schema.json)), `oracle.json`(비공개, [private-oracle.schema.json](../contracts/private-oracle.schema.json)), `public/`, `private/`, `signature.json`으로 구성한다. content digest는 manifest와 public 파일 digest 목록, oracle digest는 oracle과 private 파일 digest 목록, bundle digest는 둘과 scenarioVersionId의 RFC 8785 canonical SHA-256이다. 작성자는 CLI(`content keygen|digest|sign|validate`)로 Ed25519 서명하고 Control Plane은 신뢰하는 공개키로만 검증한다. 계약 문서에는 부동소수를 쓰지 않고 비율은 basis point 정수(10000 = 100%)로 쓴다.
+
+출판 게이트는 구조, 버전 일치, rubric 합 100, 공개·비공개 분리(oracle 필드·값·파일이 공개 쪽에 없음), 실제 이미지 digest, placeholder 없는 oracle 참조, 양쪽 publishable=true, 유효 서명, 그리고 수용된 runtime verifier의 참조 해답·핵심 mutant·seed 검사 PASS를 모두 요구한다. runtime 검사를 실행하지 못하면 보고서는 INCOMPLETE이고 출판할 수 없다. 출판된 버전의 내용은 바뀌지 않으며 변경은 새 버전으로 낸다. 차단(QUARANTINED)된 버전은 다시 열지 않는다.
+
 ## 저작 순서
 
 1. 업무 배경과 학습 역량 1~3개를 고른다.

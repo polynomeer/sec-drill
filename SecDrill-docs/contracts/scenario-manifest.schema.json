@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.example.invalid/scenario-manifest.schema.json",
+  "title": "SecDrill public scenario manifest",
+  "description": "Learner-visible part of a content bundle (08). Oracle data never appears here. Publish-gate rules beyond structure (real image digest, publishable=true, verification) are enforced by the publish gate, not by this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "scenarioId",
+    "scenarioVersionId",
+    "version",
+    "title",
+    "family",
+    "modes",
+    "phases",
+    "competencyTags",
+    "brief",
+    "difficulty",
+    "estimatedMinutes",
+    "scope",
+    "runtime",
+    "versions",
+    "challenges",
+    "completionRequirements",
+    "publishable"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "scenarioId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "scenarioVersionId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "family": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{3,64}$"
+    },
+    "modes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CTF",
+          "WARGAME",
+          "PURPLE"
+        ]
+      }
+    },
+    "phases": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "ANALYZE",
+          "ATTACK",
+          "OBSERVE",
+          "DETECT",
+          "CONTAIN",
+          "PATCH",
+          "VERIFY",
+          "POSTMORTEM"
+        ]
+      }
+    },
+    "competencyTags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z_]{3,40}$"
+      }
+    },
+    "brief": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "difficulty": {
+      "enum": [
+        "BEGINNER",
+        "INTERMEDIATE",
+        "ADVANCED"
+      ]
+    },
+    "estimatedMinutes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 600
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowedTargets",
+        "syntheticDataOnly",
+        "externalNetwork"
+      ],
+      "properties": {
+        "allowedTargets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9.-]+\\.lab\\.internal$"
+          }
+        },
+        "syntheticDataOnly": {
+          "const": true
+        },
+        "externalNetwork": {
+          "const": false
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "imageDigest",
+        "vcpus",
+        "memoryMiB",
+        "diskMiB",
+        "pids",
+        "idleTtlSeconds",
+        "hardTtlSeconds"
+      ],
+      "properties": {
+        "profile": {
+          "const": "lab-strong"
+        },
+        "imageDigest": {
+          "type": "string",
+          "minLength": 1
+        },
+        "vcpus": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "memoryMiB": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 2048
+        },
+        "diskMiB": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 4096
+        },
+        "pids": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 256
+        },
+        "idleTtlSeconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 900
+        },
+        "hardTtlSeconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 3600
+        }
+      }
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rubric",
+        "engine",
+        "randomization"
+      ],
+      "properties": {
+        "rubric": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]{1,64}$"
+        },
+        "engine": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]{1,64}$"
+        },
+        "randomization": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]{1,64}$"
+        }
+      }
+    },
+    "challenges": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "key",
+          "kind",
+          "objective",
+          "basePoints"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{3,64}$"
+          },
+          "kind": {
+            "enum": [
+              "FLAG",
+              "OBJECTIVE"
+            ]
+          },
+          "objective": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "basePoints": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        }
+      }
+    },
+    "patch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language",
+        "allowedPaths",
+        "maxCompressedBytes",
+        "maxExpandedBytes",
+        "maxFiles"
+      ],
+      "properties": {
+        "language": {
+          "const": "Python"
+        },
+        "allowedPaths": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_./-]+$"
+          }
+        },
+        "maxCompressedBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5242880
+        },
+        "maxExpandedBytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20971520
+        },
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z_]{3,40}$"
+      }
+    },
+    "completionRequirements": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-z_]{3,64}$"
+        }
+      }
+    },
+    "transferScenarioFamily": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{3,64}$"
+    },
+    "publishable": {
+      "type": "boolean"
+    }
+  }
+}

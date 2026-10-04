@@ -59,7 +59,7 @@ enum class AuthTokenKind { ACCESS, REFRESH }
 enum class AuthRevokeReason { LOGOUT, REFRESH_REUSE, OPERATOR }
 
 /** Platform operator roles (19). Lab-internal admin rights are unrelated. */
-enum class OperatorRole { OPERATOR, SECURITY_ADMIN }
+enum class OperatorRole { OPERATOR, SECURITY_ADMIN, AUTHOR, REVIEWER }
 
 enum class AuditActorType { OPERATOR, SYSTEM }
 
@@ -71,3 +71,6 @@ enum class DeletionScope { ACCOUNT, SESSION }
 enum class DeletionStatus { REQUESTED, APPROVED, REJECTED, COMPLETED }
 
 enum class TombstoneSubject { USER, SESSION, ARTIFACT }
+
+/** Outcome of one content validation run (08). Only PASS can lead to publication. */
+enum class ValidationStatus { PASS, FAIL, INCOMPLETE }

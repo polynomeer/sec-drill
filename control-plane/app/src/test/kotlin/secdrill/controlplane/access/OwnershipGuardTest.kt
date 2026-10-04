@@ -70,7 +70,7 @@ class OwnershipGuardTest {
         jdbc.sql("INSERT INTO scenarios(id, slug, title) VALUES (?, ?, 'Synthetic')").params(scenario, "s-$scenario").update()
         jdbc.sql(
             """INSERT INTO scenario_versions(id, scenario_id, version_no, status, content_digest, oracle_digest, oracle_key,
-               rubric_version, engine_version, randomization_version, public_manifest) VALUES (?, ?, 1, 'PUBLISHED', ?, ?, 'o', 'r', 'e', 'x', '{}')""",
+               rubric_version, engine_version, randomization_version, public_manifest) VALUES (?, ?, 1, 'DRAFT', ?, ?, 'o', 'r', 'e', 'x', '{}')""",
         ).params(version, scenario, digest, digest).update()
         jdbc.sql(
             """INSERT INTO sessions(id, owner_id, scenario_version_id, mode, status, phase, seed, rubric_version, engine_version, randomization_version)

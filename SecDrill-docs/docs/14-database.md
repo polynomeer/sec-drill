@@ -11,7 +11,8 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | auth_sessions / auth_tokens | user_id, csrf_hash, revoked_at, revoke_reason / token_hash, kind, expires_at, superseded_at | 비밀은 SHA-256 hash만 저장; 로그인당 live refresh 1개 partial unique |
 | operator_tokens | token_hash, operator_id, role, purpose, expires_at, revoked_at | 최대 12시간; learner 세션과 별도 |
 | audit_events | actor_type, actor_id, purpose, action, occurred_at | UPDATE/DELETE trigger 거절 |
-| scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest | unique scenario_id+version_no; published immutable |
+| scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest, author_id, bundle_digest, signature_key_id, quarantine | unique scenario_id+version_no; 내용 불변 trigger; 상태는 DRAFT→VALIDATED→PUBLISHED→QUARANTINED 방향만; VALIDATED는 PASS 보고서, PUBLISHED는 독립 승인 필요 |
+| content_validation_reports / content_approvals | version, bundle_digest, verifier_kind, status, checks / version, author, reviewer, report | 보고서 append-only; 승인은 version당 1건, reviewer≠author CHECK, 같은 version의 보고서만 참조 |
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
 | sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |

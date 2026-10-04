@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.example.invalid/private-oracle.schema.json",
+  "title": "SecDrill private oracle",
+  "description": "Grader-only part of a content bundle (08, 09, 20). Never sent to learners, Labs, public APIs or logs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "visibility",
+    "scenarioVersionId",
+    "verifier",
+    "hiddenTests",
+    "mutants",
+    "weights",
+    "gate",
+    "referencePatchRef",
+    "publishable"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "visibility": {
+      "const": "GRADER_ONLY"
+    },
+    "scenarioVersionId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "requires"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requires": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "flag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "secretRef",
+        "bind",
+        "plaintextLogging"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "HMAC-SHA256"
+        },
+        "secretRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bind": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "sessionId",
+              "challengeId",
+              "nonce"
+            ]
+          }
+        },
+        "plaintextLogging": {
+          "const": false
+        }
+      }
+    },
+    "hiddenTests": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "expected"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{3,64}$"
+          },
+          "expected": {
+            "enum": [
+              "deny",
+              "allow"
+            ]
+          }
+        }
+      }
+    },
+    "mutants": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]{3,64}$"
+      }
+    },
+    "detection": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rates are integer basis points (10000 = 100%); contract documents carry no floating-point numbers (ADR 0003).",
+      "required": [
+        "groundTruthUnit",
+        "normalWindowSeconds",
+        "minRecallBps",
+        "minPrecisionBps",
+        "maxP95LatencySeconds",
+        "attackLabelVisibleToRule"
+      ],
+      "properties": {
+        "groundTruthUnit": {
+          "type": "string"
+        },
+        "normalWindowSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minRecallBps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "minPrecisionBps": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "maxP95LatencySeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "attackLabelVisibleToRule": {
+          "const": false
+        }
+      }
+    },
+    "weights": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mandatorySecurityTests",
+        "mandatoryRegressionTests",
+        "platformFailure"
+      ],
+      "properties": {
+        "mandatorySecurityTests": {
+          "const": "ALL"
+        },
+        "mandatoryRegressionTests": {
+          "const": "ALL"
+        },
+        "platformFailure": {
+          "const": "INCONCLUSIVE"
+        }
+      }
+    },
+    "referencePatchRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "publishable": {
+      "type": "boolean"
+    }
+  }
+}

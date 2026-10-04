@@ -58,7 +58,7 @@ class CoreSchemaConstraintsTest {
         exec(
             """INSERT INTO scenario_versions(id, scenario_id, version_no, status, content_digest, oracle_digest, oracle_key,
                rubric_version, engine_version, randomization_version, public_manifest)
-               VALUES (?, ?, 1, 'PUBLISHED', ?, ?, 'oracle/synthetic', 'r1', 'e1', 'x1', '{}')""",
+               VALUES (?, ?, 1, 'DRAFT', ?, ?, 'oracle/synthetic', 'r1', 'e1', 'x1', '{}')""",
             version, scenario, digest, digest,
         )
         return version
@@ -190,9 +190,16 @@ class CoreSchemaConstraintsTest {
     fun `enum, digest and idempotency constraints reject invalid rows`() {
         val (owner, version, _) = db { fixture() }
         assertSqlState("23514") { session(owner, version, mode = "SPEEDRUN") }
+        // Inserted rather than updated: V5 makes stored content immutable, which would reject an UPDATE first.
         assertSqlState("23514") {
-            exec("UPDATE scenario_versions SET content_digest = 'not-a-digest' WHERE id = ?", version)
+            exec(
+                """INSERT INTO scenario_versions(id, scenario_id, version_no, status, content_digest, oracle_digest, oracle_key,
+                   rubric_version, engine_version, randomization_version, public_manifest)
+                   SELECT ?, scenario_id, 2, 'DRAFT', 'not-a-digest', oracle_digest, 'o', 'r', 'e', 'x', '{}' FROM scenario_versions WHERE id = ?""",
+                UUID.randomUUID(), version,
+            )
         }
+        assertSqlState("P0001") { exec("UPDATE scenario_versions SET content_digest = ? WHERE id = ?", "f".repeat(64), version) }
         val insertRecord = """INSERT INTO idempotency_records(owner_id, route, idempotency_key, request_digest, response_status, response_body, expires_at)
             VALUES (?, 'POST /v1/sessions', ?, ?, 201, '{}', now() + interval '24 hours')"""
         val key = UUID.randomUUID()

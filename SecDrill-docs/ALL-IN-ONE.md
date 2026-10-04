@@ -348,6 +348,12 @@ CTF의 플래그 획득은 목표 달성 증거다. 그것만으로 탐지·수�
 
 `examples/scenario.json`과 `examples/private-oracle.json`은 해당 구조를 설명한다. 예제 digest는 자리표시 값으로 출판 게이트를 통과하지 못하게 한다. 실제 번들 digest는 압축 메타데이터가 아닌 canonical manifest와 파일 digest 목록으로 계산한다.
 
+## 번들 형식과 출판 게이트
+
+저작 디렉터리는 `manifest.json`(공개, [scenario-manifest.schema.json](contracts/scenario-manifest.schema.json)), `oracle.json`(비공개, [private-oracle.schema.json](contracts/private-oracle.schema.json)), `public/`, `private/`, `signature.json`으로 구성한다. content digest는 manifest와 public 파일 digest 목록, oracle digest는 oracle과 private 파일 digest 목록, bundle digest는 둘과 scenarioVersionId의 RFC 8785 canonical SHA-256이다. 작성자는 CLI(`content keygen|digest|sign|validate`)로 Ed25519 서명하고 Control Plane은 신뢰하는 공개키로만 검증한다. 계약 문서에는 부동소수를 쓰지 않고 비율은 basis point 정수(10000 = 100%)로 쓴다.
+
+출판 게이트는 구조, 버전 일치, rubric 합 100, 공개·비공개 분리(oracle 필드·값·파일이 공개 쪽에 없음), 실제 이미지 digest, placeholder 없는 oracle 참조, 양쪽 publishable=true, 유효 서명, 그리고 수용된 runtime verifier의 참조 해답·핵심 mutant·seed 검사 PASS를 모두 요구한다. runtime 검사를 실행하지 못하면 보고서는 INCOMPLETE이고 출판할 수 없다. 출판된 버전의 내용은 바뀌지 않으며 변경은 새 버전으로 낸다. 차단(QUARANTINED)된 버전은 다시 열지 않는다.
+
 ## 저작 순서
 
 1. 업무 배경과 학습 역량 1~3개를 고른다.
@@ -589,7 +595,8 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | auth_sessions / auth_tokens | user_id, csrf_hash, revoked_at, revoke_reason / token_hash, kind, expires_at, superseded_at | 비밀은 SHA-256 hash만 저장; 로그인당 live refresh 1개 partial unique |
 | operator_tokens | token_hash, operator_id, role, purpose, expires_at, revoked_at | 최대 12시간; learner 세션과 별도 |
 | audit_events | actor_type, actor_id, purpose, action, occurred_at | UPDATE/DELETE trigger 거절 |
-| scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest | unique scenario_id+version_no; published immutable |
+| scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest, author_id, bundle_digest, signature_key_id, quarantine | unique scenario_id+version_no; 내용 불변 trigger; 상태는 DRAFT→VALIDATED→PUBLISHED→QUARANTINED 방향만; VALIDATED는 PASS 보고서, PUBLISHED는 독립 승인 필요 |
+| content_validation_reports / content_approvals | version, bundle_digest, verifier_kind, status, checks / version, author, reviewer, report | 보고서 append-only; 승인은 version당 1건, reviewer≠author CHECK, 같은 version의 보고서만 참조 |
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
 | sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
@@ -677,7 +684,7 @@ MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다
 
 `POST /internal/jobs/{id}/claim`은 workload identity, attempt, workerId로 lease와 fencing token을 반환한다. heartbeat는 token 일치 시 30초 연장한다. `POST /internal/jobs/{id}/result`는 token, resultDigest, artifactRefs, verdictSummary를 받아 202 또는 stale 409를 반환한다. ingest는 job에 허용된 객체 key·크기·digest만 수신한다. Runner는 arbitrary URL fetch나 DB 접근 권한이 없다.
 
-운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
+운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. 콘텐츠 내부 API(operator bearer): `POST /ops/v1/content/bundles`(AUTHOR, 서명 번들 등록 → DRAFT), `POST /ops/v1/scenario-versions/{id}/validations`(AUTHOR·REVIEWER, 검증 보고서), `POST /ops/v1/scenario-versions/{id}/approve`(작성자가 아닌 REVIEWER), `POST /ops/v1/scenario-versions/{id}/quarantine`(OPERATOR·SECURITY_ADMIN·REVIEWER). 학습자 `GET /scenarios/{id}`는 PUBLISHED 버전의 공개 manifest 필드만 반환한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
 
 
 출처 파일: `docs/16-events-async.md`
@@ -804,7 +811,7 @@ Browser→API는 인증·CSRF·입력 제한, API→DB는 소유권·트랜잭�
 | 주체 | 권한 | 금지 |
 |---|---|---|
 | LEARNER | 본인 Session·제출·증거·리포트·내보내기 | 타인 데이터·oracle·운영 endpoint |
-| AUTHOR | draft 콘텐츠 등록·검증 실행 | 자기 출판 승인·학습자 소스 기본 접근 |
+| AUTHOR | draft 콘텐츠 등록·검증 실행 | 자기 출판 승인·학습자 소스 기본 접근 (operator token role `AUTHOR`) |
 | REVIEWER | 검증 보고서·정답 검토·승인 | 작성자로 참여한 버전 승인 |
 | OPERATOR | Lab stop·DLQ·quarantine·배포 상태 | routine source·secret 접근 |
 | SECURITY_ADMIN | 감사·제재·break-glass 승인 | 감사 기록 수정·자기 요청 단독 승인 |

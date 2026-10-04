@@ -66,6 +66,9 @@ def sql_enums():
             enums[f"{table}.{column}"] = re.findall(r"'([^']+)'", values)
     for table, column, values in re.findall(r"ALTER TABLE (\w+) ADD COLUMN (\w+) [^;]*?CHECK \(\w+ IN \(([^)]*)\)\)", sql):
         enums[f"{table}.{column}"] = re.findall(r"'([^']+)'", values)
+    # A later constraint replaces an earlier column CHECK (e.g. V5 widening operator roles).
+    for table, column, values in re.findall(r"ALTER TABLE (\w+) ADD CONSTRAINT \w+ CHECK \((\w+) IN \(([^)]*)\)\)", sql):
+        enums[f"{table}.{column}"] = re.findall(r"'([^']+)'", values)
     return enums
 
 
@@ -157,6 +160,7 @@ def check_enums():
         "DeletionScope": [sql["deletion_requests.scope"], schemas["DeletionRequest"]["properties"]["scope"]["enum"]],
         "DeletionStatus": [sql["deletion_requests.status"]],
         "TombstoneSubject": [sql["deletion_tombstones.subject_type"]],
+        "ValidationStatus": [sql["content_validation_reports.status"]],
     }
     problems = [f"{name} has no catalog entry" for name in sources if name not in enums]
     for name, values in sources.items():
@@ -268,6 +272,23 @@ def check_migration():
         first = next(i for i, (a, b) in enumerate(zip(design + [""], released + [""])) if a != b)
         raise AssertionError(f"first difference at SQL line {first + 1}: schema.sql={design[first:first + 1]} migrations={released[first:first + 1]}")
     return f"V1..V{len(files)}: {len(released)} SQL lines identical (comments ignored); live behavior is tested by Gradle"
+
+
+@check("contracts: example bundle validates against manifest and oracle schemas")
+def check_bundle_schemas():
+    try:
+        from jsonschema import Draft202012Validator, FormatChecker
+    except ImportError:
+        return ("SKIP", check_bundle_schemas.check_name, "jsonschema unavailable")
+    problems = []
+    for schema_file, example in [("scenario-manifest.schema.json", "scenario.json"), ("private-oracle.schema.json", "private-oracle.json")]:
+        schema = load_json(PACK / "contracts" / schema_file)
+        Draft202012Validator.check_schema(schema)
+        errors = list(Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(load_json(PACK / "examples" / example)))
+        problems += [f"{example}: {error.message}" for error in errors]
+    if problems:
+        raise AssertionError("; ".join(problems))
+    return "scenario.json and private-oracle.json are structurally valid (publish gate is separate)"
 
 
 @check("examples: scenario and oracle agree with contracts")
@@ -400,7 +421,7 @@ def check_gitignore():
     return f"{len(must_ignore)} excluded, {len(must_track)} kept"
 
 
-CHECKS = [check_pack, check_manifest, check_enums, check_events, check_fixtures, check_canonical, check_migration, check_examples, check_traceability,
+CHECKS = [check_pack, check_manifest, check_enums, check_events, check_fixtures, check_canonical, check_bundle_schemas, check_migration, check_examples, check_traceability,
           check_prompts, check_repo_links, check_config, check_gitignore]
 
 

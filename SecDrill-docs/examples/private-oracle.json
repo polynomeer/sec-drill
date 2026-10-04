@@ -13,7 +13,7 @@
     {"id": "unauthenticated-read", "expected": "deny"}
   ],
   "mutants": ["deny-everything", "fix-only-direct-route", "trust-client-tenant", "uuid-means-safe", "tamper-test-framework"],
-  "detection": {"groundTruthUnit": "attackEpisode", "normalWindowSeconds": 30, "minRecall": 0.9, "minPrecision": 0.8, "maxP95LatencySeconds": 30, "attackLabelVisibleToRule": false},
+  "detection": {"groundTruthUnit": "attackEpisode", "normalWindowSeconds": 30, "minRecallBps": 9000, "minPrecisionBps": 8000, "maxP95LatencySeconds": 30, "attackLabelVisibleToRule": false},
   "weights": {"attack": 15, "observation": 10, "detection": 15, "response": 15, "patch": 25, "regression": 10, "postmortem": 10},
   "gate": {"mandatorySecurityTests": "ALL", "mandatoryRegressionTests": "ALL", "platformFailure": "INCONCLUSIVE"},
   "referencePatchRef": "PLACEHOLDER_REQUIRES_VALIDATED_PRIVATE_ARTIFACT",

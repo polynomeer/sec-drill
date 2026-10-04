@@ -9,6 +9,8 @@
   "phases": ["ANALYZE", "ATTACK", "OBSERVE", "DETECT", "CONTAIN", "PATCH", "VERIFY", "POSTMORTEM"],
   "competencyTags": ["AUTHORIZATION", "ATTACK_REASONING", "DETECTION", "RESPONSE", "SECURE_PATCHING"],
   "brief": "고객이 다른 회사 주문이 보인다고 신고했습니다. 허용된 합성 서비스에서 문제를 확인하고 수정 효과를 증명하십시오.",
+  "difficulty": "INTERMEDIATE",
+  "estimatedMinutes": 60,
   "scope": {"allowedTargets": ["app.lab.internal"], "syntheticDataOnly": true, "externalNetwork": false},
   "runtime": {"profile": "lab-strong", "imageDigest": "PLACEHOLDER_REQUIRES_SIGNED_IMAGE_DIGEST", "vcpus": 2, "memoryMiB": 2048, "diskMiB": 4096, "pids": 256, "idleTtlSeconds": 900, "hardTtlSeconds": 3600},
   "versions": {"rubric": "purple-v1", "engine": "ir-v1", "randomization": "tenant-ids-v1"},

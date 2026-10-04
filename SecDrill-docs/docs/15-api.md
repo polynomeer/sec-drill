@@ -50,4 +50,4 @@ MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다
 
 `POST /internal/jobs/{id}/claim`은 workload identity, attempt, workerId로 lease와 fencing token을 반환한다. heartbeat는 token 일치 시 30초 연장한다. `POST /internal/jobs/{id}/result`는 token, resultDigest, artifactRefs, verdictSummary를 받아 202 또는 stale 409를 반환한다. ingest는 job에 허용된 객체 key·크기·digest만 수신한다. Runner는 arbitrary URL fetch나 DB 접근 권한이 없다.
 
-운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
+운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. 콘텐츠 내부 API(operator bearer): `POST /ops/v1/content/bundles`(AUTHOR, 서명 번들 등록 → DRAFT), `POST /ops/v1/scenario-versions/{id}/validations`(AUTHOR·REVIEWER, 검증 보고서), `POST /ops/v1/scenario-versions/{id}/approve`(작성자가 아닌 REVIEWER), `POST /ops/v1/scenario-versions/{id}/quarantine`(OPERATOR·SECURITY_ADMIN·REVIEWER). 학습자 `GET /scenarios/{id}`는 PUBLISHED 버전의 공개 manifest 필드만 반환한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.

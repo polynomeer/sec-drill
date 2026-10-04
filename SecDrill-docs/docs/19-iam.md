@@ -5,7 +5,7 @@
 | 주체 | 권한 | 금지 |
 |---|---|---|
 | LEARNER | 본인 Session·제출·증거·리포트·내보내기 | 타인 데이터·oracle·운영 endpoint |
-| AUTHOR | draft 콘텐츠 등록·검증 실행 | 자기 출판 승인·학습자 소스 기본 접근 |
+| AUTHOR | draft 콘텐츠 등록·검증 실행 | 자기 출판 승인·학습자 소스 기본 접근 (operator token role `AUTHOR`) |
 | REVIEWER | 검증 보고서·정답 검토·승인 | 작성자로 참여한 버전 승인 |
 | OPERATOR | Lab stop·DLQ·quarantine·배포 상태 | routine source·secret 접근 |
 | SECURITY_ADMIN | 감사·제재·break-glass 승인 | 감사 기록 수정·자기 요청 단독 승인 |
