@@ -1,0 +1,23 @@
+{
+  "documentCount": 35,
+  "apiOperationCount": 19,
+  "checksPassed": [
+    "35 documents and numbering",
+    "local links",
+    "JSON parse and local schema refs",
+    "API operationId uniqueness",
+    "scenario/oracle consistency",
+    "100-point rubric",
+    "17 requirements traced",
+    "OpenAPI 3.1 validator",
+    "JSON Schema draft 2020-12 meta-schema",
+    "valid event accepted and invalid payload rejected",
+    "PostgreSQL SQL syntax parser"
+  ],
+  "limitations": [
+    "PostgreSQL live migration/constraint behavior not executed",
+    "Product implementation, strong runtime, performance and chaos tests not executed",
+    "Markdown display and Mermaid rendering depend on reader"
+  ],
+  "textBytes": 117702
+}

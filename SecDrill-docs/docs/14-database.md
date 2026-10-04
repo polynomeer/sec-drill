@@ -1,0 +1,39 @@
+# SecDrill DB 설계
+
+PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 private object store로 분리한다. [schema.sql](../contracts/schema.sql)은 핵심 모델의 실행 가능한 DDL 초안이며 auth·운영 부가 테이블은 아래 명세에 따라 구현한다.
+
+## 테이블과 제약
+
+| 테이블 | 핵심 컬럼 | 제약·인덱스 |
+|---|---|---|
+| users | id, pseudonym, created_at | email은 별도 암호화 identity record |
+| scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest | unique scenario_id+version_no; published immutable |
+| challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
+| sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent relation 검증 |
+| artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
+| labs | session_id, owner_id, generation, state, runtime_ref, expires_at | owner 활성 partial unique; session+generation unique |
+| submissions | session_id, kind, artifact_id, client_request_id, request_digest | session+client_request_id unique; artifact session 일치 |
+| jobs | submission_id, kind, state, attempt, fencing_token, lease_until | due job index; unique submission+kind+revision |
+| evaluations | submission_id, revision, policy_version, verdict, dimensions, active | submission+revision unique; 활성 partial unique |
+| ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard |
+| outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
+
+추가 구현 테이블: auth_sessions(token_hash, expires_at, revoked_at), idempotency_records(owner, route, key, request_digest, response, expires_at), applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), audit_events(actor, purpose, action), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
+
+## 원자 작업
+
+제출 생성 트랜잭션은 idempotency 확인·submission·job·outbox·evidence를 함께 저장한다. ledger_heads의 해당 Session row를 잠그고 seq·hash를 증가시킨다. 결과 반영은 job fencing CAS·evaluation insert·이전 active 해제·evidence·outbox를 같은 트랜잭션으로 커밋한다. partial unique 위반은 정상 중복과 잘못된 새 revision을 구분해 처리한다.
+
+## 파티셔닝과 접근
+
+MVP는 B-tree index와 기간별 삭제로 시작한다. evidence·telemetry 양이 커지면 월 단위 partition을 도입하되 session+seq 유일성을 보장하는 전략을 먼저 검증한다. FK를 다른 owner Session으로 연결하지 않도록 repository scope와 복합 FK를 사용한다. RLS는 방어층으로 검토하되 pooled connection의 tenant context 누수 테스트 없이 도입하지 않는다.
+
+## 보관과 개인정보 삭제
+
+Evidence metadata는 기본 180일, raw Lab 로그는 30일, 객체는 sensitivity별 TTL이다. append-only는 일반 앱 권한에 적용한다. 삭제 담당 전용 역할은 승인된 deletion request에 따라 객체 bytes·identity 연결을 삭제하고 전체 만료 Session의 원장·head를 같이 제거할 수 있다. retained Ledger에는 가명 ID와 digest만 남기고 보고서에 payload unavailable을 표시한다. hash chain 유지가 개인정보 영구 보존의 근거는 아니다. backup 복원 후 deletion tombstone을 재적용한다.
+
+제공 DDL의 evidence trigger는 기본 불변성만 강제한다. 운영용 privacy erasure는 별도 migration에서 일반 앱에 부여하지 않는 전용 역할·승인 요청·대상 Session 검증·감사 receipt를 갖는 제한 SECURITY DEFINER 함수로 구현한다. 함수의 search_path는 고정하고 실행 권한을 삭제 담당에게만 부여한다. 일반 API가 trigger를 끄는 방식은 금지한다. 이 함수와 실제 삭제 통합 테스트가 없으면 FR-10 출시 게이트를 통과하지 못한다.
+
+## 마이그레이션과 복구
+
+expand → backfill → app 전환 → contract 순서로 호환 변경한다. destructive migration은 백업·복구 검증 후 적용한다. 런타임 자동 DDL은 금지한다. schema.sql은 초기 설계 확인용이고 운영에서는 번호 있는 migration이 단일 출처다. 새 버전 컬럼은 기존 Session bundle에 default를 추정하지 않고 명시 backfill한다.

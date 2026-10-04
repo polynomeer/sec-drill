@@ -1,0 +1,523 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.example.invalid/event.schema.json",
+  "title": "SecDrill domain event envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "type",
+    "schemaVersion",
+    "aggregateId",
+    "aggregateVersion",
+    "sessionId",
+    "occurredAt",
+    "correlationId",
+    "payload"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "SessionCreated",
+        "LabRequested",
+        "LabReady",
+        "SubmissionAccepted",
+        "ExecutionCompleted",
+        "EvaluationCommitted",
+        "ActionApplied",
+        "LabTerminationRequested",
+        "LabTerminated",
+        "SessionFinished"
+      ]
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "aggregateId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregateVersion": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sessionId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "causationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true,
+      "maxProperties": 32
+    }
+  },
+  "description": "공통 봉투와 이벤트별 payload를 검증한다. raw source, PII, secret은 금지. bundleRef는 FLAG plaintext 대신 제한된 처리 참조 또는 서버 생성 safe receipt를 가리킨다.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "SessionCreated"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "versionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "CTF",
+                  "WARGAME",
+                  "PURPLE",
+                  "PATCH",
+                  "DETECTION",
+                  "INVESTIGATE"
+                ]
+              }
+            },
+            "required": [
+              "sessionId",
+              "versionId",
+              "mode"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "LabRequested"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "labId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "generation": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "templateDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "labId",
+              "generation",
+              "templateDigest"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "LabReady"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "labId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "generation": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "runtimeRef": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "labId",
+              "generation",
+              "runtimeRef"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "SubmissionAccepted"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "submissionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "jobId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "FLAG",
+                  "OBJECTIVE",
+                  "PATCH",
+                  "DETECTION",
+                  "POSTMORTEM"
+                ]
+              },
+              "bundleRef": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "key",
+                  "digest",
+                  "byteSize"
+                ]
+              }
+            },
+            "required": [
+              "submissionId",
+              "jobId",
+              "kind",
+              "bundleRef"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ExecutionCompleted"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "jobId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "attempt": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3
+              },
+              "fencingToken": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "resultDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "jobId",
+              "attempt",
+              "fencingToken",
+              "resultDigest"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "EvaluationCommitted"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "submissionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "evidenceIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "required": [
+              "submissionId",
+              "revision",
+              "evidenceIds"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ActionApplied"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "tick": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "stateDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "actionId",
+              "tick",
+              "stateDigest"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "LabTerminationRequested"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "labId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "generation": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "labId",
+              "generation"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "LabTerminated"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "labId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "generation": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "cleanupReceipt": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "byteSize": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "key",
+                  "digest",
+                  "byteSize"
+                ]
+              }
+            },
+            "required": [
+              "labId",
+              "generation",
+              "cleanupReceipt"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "SessionFinished"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "sessionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "evaluationRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "required": [
+              "sessionId",
+              "evaluationRefs"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

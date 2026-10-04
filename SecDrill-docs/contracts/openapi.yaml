@@ -1,0 +1,3826 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SecDrill 공개 API 계약 초안",
+    "version": "0.1.0",
+    "description": "MVP 제안 계약. 실제 서버·운영자·내부 API 구현을 포함하지 않는다. files 제출 body는 총256KiB 제한; 대형 bundle 업로드 계약은 후속 확장."
+  },
+  "servers": [
+    {
+      "url": "https://api.example.invalid/v1",
+      "description": "자리표시 주소; 운영 URL 아님"
+    }
+  ],
+  "security": [
+    {
+      "cookieAuth": []
+    }
+  ],
+  "paths": {
+    "/scenarios": {
+      "get": {
+        "operationId": "listScenarios",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CTF",
+                "WARGAME",
+                "PURPLE",
+                "PATCH",
+                "DETECTION",
+                "INVESTIGATE"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "difficulty",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BEGINNER",
+                "INTERMEDIATE",
+                "ADVANCED"
+              ]
+            }
+          },
+          {
+            "name": "competency",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions": {
+      "post": {
+        "operationId": "createSession",
+        "summary": "createSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}": {
+      "get": {
+        "operationId": "getSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/labs": {
+      "post": {
+        "operationId": "requestLab",
+        "summary": "requestLab",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lab"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/submissions": {
+      "post": {
+        "operationId": "submitArtifact",
+        "summary": "submitArtifact",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmissionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/submissions/{id}": {
+      "get": {
+        "operationId": "getSubmission",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/actions": {
+      "post": {
+        "operationId": "applyAction",
+        "summary": "applyAction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Action"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/hints": {
+      "post": {
+        "operationId": "requestHint",
+        "summary": "requestHint",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HintRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hint"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/finish": {
+      "post": {
+        "operationId": "finishSession",
+        "summary": "finishSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/stop": {
+      "post": {
+        "operationId": "stopSession",
+        "summary": "stopSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/evidence": {
+      "get": {
+        "operationId": "listEvidence",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "afterSeq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidencePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/report": {
+      "get": {
+        "operationId": "getReport",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/replay": {
+      "get": {
+        "operationId": "getReplay",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "fromSeq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "toSeq",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayManifest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sessions/{id}/stream": {
+      "get": {
+        "operationId": "streamSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE: id=seq; event=evidence; data=redacted Evidence JSON",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/skills/me": {
+      "get": {
+        "operationId": "getMySkills",
+        "parameters": [
+          {
+            "name": "policyVersion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/exports": {
+      "post": {
+        "operationId": "requestExport",
+        "summary": "requestExport",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/deletion-requests": {
+      "post": {
+        "operationId": "requestDeletion",
+        "summary": "requestDeletion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "수락 또는 처리 결과",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncReceipt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/async-jobs/{id}": {
+      "get": {
+        "operationId": "getAsyncJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "내보내기·삭제 작업 상태",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AsyncReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/scenarios/{id}": {
+      "get": {
+        "operationId": "getScenario",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "학습자 공개 사건 상세; oracle·seed·정답 제외",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "access_session"
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "description": "owner+route 기준24시간; 같은 body는 최초 응답, 다른 body는409"
+      },
+      "CsrfToken": {
+        "name": "X-CSRF-Token",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 256
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "retryable"
+        ]
+      },
+      "VersionCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "expectedVersion"
+        ]
+      },
+      "SessionCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scenarioVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "CTF",
+              "WARGAME",
+              "PURPLE",
+              "PATCH",
+              "DETECTION",
+              "INVESTIGATE"
+            ]
+          },
+          "parentSessionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "scenarioVersionId",
+          "mode"
+        ]
+      },
+      "Session": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scenarioVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "CTF",
+              "WARGAME",
+              "PURPLE",
+              "PATCH",
+              "DETECTION",
+              "INVESTIGATE"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "ACTIVE",
+              "SUBMITTED",
+              "EVALUATING",
+              "COMPLETED",
+              "CANCELLED",
+              "EXPIRED",
+              "EVALUATION_FAILED"
+            ]
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "ANALYZE",
+              "ATTACK",
+              "OBSERVE",
+              "DETECT",
+              "CONTAIN",
+              "PATCH",
+              "VERIFY",
+              "POSTMORTEM"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lab": {
+            "$ref": "#/components/schemas/Lab"
+          }
+        },
+        "required": [
+          "id",
+          "scenarioVersionId",
+          "mode",
+          "status",
+          "phase",
+          "version",
+          "createdAt"
+        ]
+      },
+      "Lab": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "REQUESTED",
+              "PROVISIONING",
+              "READY",
+              "TERMINATING",
+              "TERMINATED",
+              "FAILED",
+              "CLEANUP_FAILED"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "connectPath": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "generation",
+          "state",
+          "expiresAt"
+        ]
+      },
+      "Scenario": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scenarioVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "BEGINNER",
+              "INTERMEDIATE",
+              "ADVANCED"
+            ]
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CTF",
+                "WARGAME",
+                "PURPLE",
+                "PATCH",
+                "DETECTION",
+                "INVESTIGATE"
+              ]
+            }
+          },
+          "competencyTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "estimatedMinutes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "scenarioVersionId",
+          "title",
+          "difficulty",
+          "modes",
+          "competencyTags",
+          "estimatedMinutes"
+        ]
+      },
+      "ScenarioPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scenario"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "FlagSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "FLAG"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "challengeId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "flag": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              }
+            },
+            "required": [
+              "challengeId",
+              "flag"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "expectedVersion",
+          "content"
+        ]
+      },
+      "ObjectiveSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "OBJECTIVE"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "challengeId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "evidenceSeqs": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "uniqueItems": true,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "resourceId": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "explanation": {
+                "type": "string",
+                "maxLength": 8192
+              }
+            },
+            "required": [
+              "challengeId",
+              "evidenceSeqs",
+              "resourceId",
+              "explanation"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "expectedVersion",
+          "content"
+        ]
+      },
+      "PatchSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "PATCH"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "files": {
+                "type": "object",
+                "minProperties": 1,
+                "maxProperties": 100,
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 200000
+                }
+              },
+              "explanation": {
+                "type": "string",
+                "maxLength": 8192
+              }
+            },
+            "required": [
+              "files",
+              "explanation"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "expectedVersion",
+          "content"
+        ]
+      },
+      "DetectionNode": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "type": "string",
+                "enum": [
+                  "eq",
+                  "neq"
+                ]
+              },
+              "field": {
+                "type": "string",
+                "enum": [
+                  "eventType",
+                  "actorId",
+                  "tenantId",
+                  "resourceTenantId",
+                  "status",
+                  "routeGroup"
+                ]
+              },
+              "compareField": {
+                "type": "string",
+                "enum": [
+                  "eventType",
+                  "actorId",
+                  "tenantId",
+                  "resourceTenantId",
+                  "status",
+                  "routeGroup"
+                ]
+              }
+            },
+            "required": [
+              "op",
+              "field",
+              "compareField"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "type": "string",
+                "enum": [
+                  "eq",
+                  "neq"
+                ]
+              },
+              "field": {
+                "type": "string",
+                "enum": [
+                  "eventType",
+                  "actorId",
+                  "tenantId",
+                  "resourceTenantId",
+                  "status",
+                  "routeGroup"
+                ]
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "integer"
+                ]
+              }
+            },
+            "required": [
+              "op",
+              "field",
+              "value"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "type": "string",
+                "enum": [
+                  "and",
+                  "or"
+                ]
+              },
+              "children": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 8,
+                "items": {
+                  "$ref": "#/components/schemas/DetectionNode"
+                }
+              }
+            },
+            "required": [
+              "op",
+              "children"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "op": {
+                "const": "count_gte"
+              },
+              "predicate": {
+                "$ref": "#/components/schemas/DetectionNode"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "windowSeconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 300
+              }
+            },
+            "required": [
+              "op",
+              "predicate",
+              "count",
+              "windowSeconds"
+            ]
+          }
+        ]
+      },
+      "DetectionSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "DETECTION"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "rule": {
+                "$ref": "#/components/schemas/DetectionNode"
+              },
+              "explanation": {
+                "type": "string",
+                "maxLength": 8192
+              }
+            },
+            "required": [
+              "rule",
+              "explanation"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "expectedVersion",
+          "content"
+        ]
+      },
+      "PostmortemSubmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "POSTMORTEM"
+          },
+          "expectedVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "content": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "rootCause": {
+                "type": "string",
+                "maxLength": 8192
+              },
+              "blastRadius": {
+                "type": "string",
+                "maxLength": 8192
+              },
+              "mitigation": {
+                "type": "string",
+                "maxLength": 8192
+              },
+              "prevention": {
+                "type": "string",
+                "maxLength": 8192
+              },
+              "evidenceSeqs": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "required": [
+              "rootCause",
+              "blastRadius",
+              "mitigation",
+              "prevention",
+              "evidenceSeqs"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "expectedVersion",
+          "content"
+        ]
+      },
+      "SubmissionCreate": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/FlagSubmission"
+          },
+          {
+            "$ref": "#/components/schemas/ObjectiveSubmission"
+          },
+          {
+            "$ref": "#/components/schemas/PatchSubmission"
+          },
+          {
+            "$ref": "#/components/schemas/DetectionSubmission"
+          },
+          {
+            "$ref": "#/components/schemas/PostmortemSubmission"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "FLAG": "#/components/schemas/FlagSubmission",
+            "OBJECTIVE": "#/components/schemas/ObjectiveSubmission",
+            "PATCH": "#/components/schemas/PatchSubmission",
+            "DETECTION": "#/components/schemas/DetectionSubmission",
+            "POSTMORTEM": "#/components/schemas/PostmortemSubmission"
+          }
+        }
+      },
+      "Evaluation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "SYSTEM_ERROR"
+            ]
+          },
+          "patchGate": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "NOT_VERIFIED",
+              "INCONCLUSIVE"
+            ]
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "evidenceIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "score",
+                "evidenceIds"
+              ]
+            }
+          },
+          "gates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "result": {
+                  "type": "string",
+                  "enum": [
+                    "PASS",
+                    "FAIL",
+                    "INCONCLUSIVE"
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "result"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "policyVersion",
+          "verdict",
+          "dimensions",
+          "gates"
+        ]
+      },
+      "Submission": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "FLAG",
+              "OBJECTIVE",
+              "PATCH",
+              "DETECTION",
+              "POSTMORTEM"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "EVALUATING",
+              "EVALUATED",
+              "EVALUATION_FAILED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evaluation": {
+            "$ref": "#/components/schemas/Evaluation"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "kind",
+          "status",
+          "createdAt"
+        ]
+      },
+      "Action": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "REVOKE_TOKEN"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "tokenId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "tokenId"
+                ]
+              },
+              "expectedVersion": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type",
+              "parameters",
+              "expectedVersion"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "DISABLE_ENDPOINT"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "routeGroup": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "routeGroup"
+                ]
+              },
+              "expectedVersion": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type",
+              "parameters",
+              "expectedVersion"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "ISOLATE_WORKLOAD"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "workloadId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "workloadId"
+                ]
+              },
+              "expectedVersion": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type",
+              "parameters",
+              "expectedVersion"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "const": "ENABLE_AUDIT"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "AUTH",
+                      "ACCESS",
+                      "APPLICATION"
+                    ]
+                  }
+                },
+                "required": [
+                  "source"
+                ]
+              },
+              "expectedVersion": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "type",
+              "parameters",
+              "expectedVersion"
+            ]
+          }
+        ]
+      },
+      "SystemState": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "tick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "leakedSyntheticRecords": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "availability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "workloadSuccess": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "evidenceCoverage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "tick",
+          "leakedSyntheticRecords",
+          "availability",
+          "workloadSuccess",
+          "evidenceCoverage"
+        ]
+      },
+      "ActionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "representation": {
+            "const": "SIMULATED"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SystemState"
+          }
+        },
+        "required": [
+          "seq",
+          "version",
+          "representation",
+          "state"
+        ]
+      },
+      "HintRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          }
+        },
+        "required": [
+          "challengeId",
+          "level"
+        ]
+      },
+      "Hint": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "text": {
+            "type": "string"
+          },
+          "totalPointDeduction": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "challengeId",
+          "level",
+          "text",
+          "totalPointDeduction"
+        ]
+      },
+      "Evidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string"
+          },
+          "trustLevel": {
+            "type": "string",
+            "enum": [
+              "SERVER_VERIFIED",
+              "OBSERVED",
+              "USER_REPORTED",
+              "SIMULATED"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ingestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payloadDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "seq",
+          "type",
+          "trustLevel",
+          "occurredAt",
+          "ingestedAt",
+          "payloadDigest",
+          "hash",
+          "summary"
+        ]
+      },
+      "EvidencePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "nextSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextSeq",
+          "hasMore"
+        ]
+      },
+      "Report": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "evaluationRefs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "summary": {
+            "type": "string"
+          },
+          "exposure": {
+            "type": "string",
+            "enum": [
+              "INDEPENDENT",
+              "GUIDED",
+              "SOLUTION_EXPOSED"
+            ]
+          },
+          "evidenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "recommendedScenarioVersionIds": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "scopeLimitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "sessionId",
+          "revision",
+          "evaluationRefs",
+          "summary",
+          "exposure",
+          "evidenceIds",
+          "recommendedScenarioVersionIds",
+          "scopeLimitations"
+        ]
+      },
+      "ReplayManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "engineVersion": {
+            "type": "string"
+          },
+          "firstSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastSeq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "chunks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fromSeq": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "toSeq": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "downloadPath": {
+                  "type": "string"
+                },
+                "digest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "fromSeq",
+                "toSeq",
+                "downloadPath",
+                "digest"
+              ]
+            }
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fromSeq": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "toSeq": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fromSeq",
+                "toSeq",
+                "reason"
+              ]
+            }
+          }
+        },
+        "required": [
+          "sessionId",
+          "engineVersion",
+          "firstSeq",
+          "lastSeq",
+          "chunks",
+          "gaps"
+        ]
+      },
+      "SkillPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "policyVersion": {
+            "type": "string"
+          },
+          "taxonomyVersion": {
+            "type": "string"
+          },
+          "watermark": {
+            "type": "string"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "level": {
+                  "type": "string",
+                  "enum": [
+                    "UNKNOWN",
+                    "DEVELOPING",
+                    "PRACTICING",
+                    "DEMONSTRATED"
+                  ]
+                },
+                "confidence": {
+                  "type": "string",
+                  "enum": [
+                    "LOW",
+                    "MEDIUM",
+                    "HIGH"
+                  ]
+                },
+                "sampleCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "familyCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "evidenceIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "level",
+                "confidence",
+                "sampleCount",
+                "familyCount",
+                "evidenceIds"
+              ]
+            }
+          }
+        },
+        "required": [
+          "policyVersion",
+          "taxonomyVersion",
+          "watermark",
+          "skills"
+        ]
+      },
+      "ExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": []
+      },
+      "AsyncReceipt": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACCEPTED",
+              "RUNNING",
+              "COMPLETED",
+              "FAILED"
+            ]
+          },
+          "pollPath": {
+            "type": "string"
+          },
+          "downloadPath": {
+            "type": "string",
+            "description": "완료된 export에만 존재하며 owner 확인 경로"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "pollPath"
+        ]
+      },
+      "DeletionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "ACCOUNT",
+              "SESSION"
+            ]
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "confirmationToken": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "scope",
+          "confirmationToken"
+        ],
+        "oneOf": [
+          {
+            "properties": {
+              "scope": {
+                "const": "ACCOUNT"
+              }
+            },
+            "not": {
+              "required": [
+                "sessionId"
+              ]
+            }
+          },
+          {
+            "properties": {
+              "scope": {
+                "const": "SESSION"
+              }
+            },
+            "required": [
+              "sessionId"
+            ]
+          }
+        ]
+      },
+      "ScenarioDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scenarioVersionId",
+          "title",
+          "brief",
+          "modes",
+          "competencyTags",
+          "challenges",
+          "allowedTargets",
+          "estimatedMinutes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scenarioVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "brief": {
+            "type": "string"
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "CTF",
+                "WARGAME",
+                "PURPLE",
+                "PATCH",
+                "DETECTION",
+                "INVESTIGATE"
+              ]
+            }
+          },
+          "competencyTags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "challenges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "objective",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "objective": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "FLAG",
+                    "OBJECTIVE"
+                  ]
+                }
+              }
+            }
+          },
+          "allowedTargets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "estimatedMinutes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "구조화 오류",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

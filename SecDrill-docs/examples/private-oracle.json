@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "visibility": "GRADER_ONLY",
+  "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+  "verifier": {"kind": "independent-api-observer", "requires": ["actorTenant != resourceTenant", "syntheticOrderReturned", "sessionChallengeBound"]},
+  "flag": {"algorithm": "HMAC-SHA256", "secretRef": "CONTROL_ONLY_PLACEHOLDER", "bind": ["sessionId", "challengeId", "nonce"], "plaintextLogging": false},
+  "hiddenTests": [
+    {"id": "direct-other-tenant", "expected": "deny"},
+    {"id": "list-other-tenant", "expected": "deny"},
+    {"id": "legacy-route-other-tenant", "expected": "deny"},
+    {"id": "own-tenant-read", "expected": "allow"},
+    {"id": "own-tenant-list", "expected": "allow"},
+    {"id": "unauthenticated-read", "expected": "deny"}
+  ],
+  "mutants": ["deny-everything", "fix-only-direct-route", "trust-client-tenant", "uuid-means-safe", "tamper-test-framework"],
+  "detection": {"groundTruthUnit": "attackEpisode", "normalWindowSeconds": 30, "minRecall": 0.9, "minPrecision": 0.8, "maxP95LatencySeconds": 30, "attackLabelVisibleToRule": false},
+  "weights": {"attack": 15, "observation": 10, "detection": 15, "response": 15, "patch": 25, "regression": 10, "postmortem": 10},
+  "gate": {"mandatorySecurityTests": "ALL", "mandatoryRegressionTests": "ALL", "platformFailure": "INCONCLUSIVE"},
+  "referencePatchRef": "PLACEHOLDER_REQUIRES_VALIDATED_PRIVATE_ARTIFACT",
+  "publishable": false
+}

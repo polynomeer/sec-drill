@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "10000000-0000-4000-8000-000000000001",
+  "scenarioVersionId": "10000000-0000-4000-8000-000000000002",
+  "version": 1,
+  "title": "SecDrill 테넌트 주문 데이터 유출",
+  "family": "tenant-orders",
+  "modes": ["CTF", "WARGAME", "PURPLE"],
+  "phases": ["ANALYZE", "ATTACK", "OBSERVE", "DETECT", "CONTAIN", "PATCH", "VERIFY", "POSTMORTEM"],
+  "competencyTags": ["AUTHORIZATION", "ATTACK_REASONING", "DETECTION", "RESPONSE", "SECURE_PATCHING"],
+  "brief": "고객이 다른 회사 주문이 보인다고 신고했습니다. 허용된 합성 서비스에서 문제를 확인하고 수정 효과를 증명하십시오.",
+  "scope": {"allowedTargets": ["app.lab.internal"], "syntheticDataOnly": true, "externalNetwork": false},
+  "runtime": {"profile": "lab-strong", "imageDigest": "PLACEHOLDER_REQUIRES_SIGNED_IMAGE_DIGEST", "vcpus": 2, "memoryMiB": 2048, "diskMiB": 4096, "pids": 256, "idleTtlSeconds": 900, "hardTtlSeconds": 3600},
+  "versions": {"rubric": "purple-v1", "engine": "ir-v1", "randomization": "tenant-ids-v1"},
+  "challenges": [{"id": "10000000-0000-4000-8000-000000000003", "key": "cross-tenant-order", "kind": "FLAG", "objective": "허용된 합성 주문 서비스에서 테넌트 경계 위반을 증명하십시오.", "basePoints": 100}],
+  "patch": {"language": "Python", "allowedPaths": ["app/orders.py", "app/authz.py"], "maxCompressedBytes": 5242880, "maxExpandedBytes": 20971520, "maxFiles": 100},
+  "actions": ["REVOKE_TOKEN", "DISABLE_ENDPOINT", "ISOLATE_WORKLOAD", "ENABLE_AUDIT"],
+  "completionRequirements": {"CTF": ["objective_confirmed"], "WARGAME": ["objective_confirmed", "root_cause_reported"], "PURPLE": ["objective_confirmed", "detection_evaluated", "action_applied", "patch_verified", "postmortem_submitted"]},
+  "transferScenarioFamily": "tenant-invoices",
+  "publishable": false
+}
