@@ -1,0 +1,26 @@
+// Control Plane application: assembles modules, owns HTTP error handling, health and DB migrations.
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.spring)
+    alias(libs.plugins.spring.boot)
+}
+
+dependencies {
+    implementation(platform(libs.spring.boot.bom))
+    implementation(project(":shared:kernel"))
+    implementation(libs.spring.boot.starter.webmvc)
+    implementation(libs.spring.boot.starter.actuator)
+    implementation(libs.spring.boot.starter.jdbc)
+    implementation(libs.spring.boot.starter.flyway)
+    implementation(libs.flyway.database.postgresql)
+    implementation(libs.jackson.module.kotlin)
+    implementation(libs.kotlin.reflect)
+    runtimeOnly(libs.postgresql)
+
+    testImplementation(libs.spring.boot.starter.test)
+    testImplementation(libs.spring.boot.testcontainers)
+    testImplementation(libs.testcontainers.postgresql)
+    testImplementation(libs.testcontainers.junit.jupiter)
+    testImplementation(libs.kotlin.test.junit5)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}

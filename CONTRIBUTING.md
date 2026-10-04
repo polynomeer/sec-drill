@@ -12,7 +12,11 @@
    .venv/bin/python scripts/check.py --strict
    ```
 
-   이 검사는 문서·계약·설정만 확인한다. 앱 build·test가 생기기 전에는 해당 항목을 통과로 표시하지 않는다.
+   ```bash
+   ./gradlew check
+   ```
+
+   앞은 문서·계약·설정, 뒤는 빌드·단위·경계·PostgreSQL 테스트다. 의존성을 바꾸면 `./gradlew dependencies --write-locks`로 lockfile을 갱신해 같은 변경에 포함한다.
 4. 실행하지 못한 검증(실제 PostgreSQL, strong runtime, 성능, 카오스 등)은 "미검증"으로 적는다.
 
 ## 커밋 메시지

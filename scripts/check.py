@@ -114,27 +114,55 @@ def check_manifest():
     return f"{len(listed)} entries"
 
 
-@check("contracts: enums agree across 00, schema.sql, OpenAPI")
+@check("contracts: enums.json catalog agrees with 00, schema.sql, OpenAPI, event schema")
 def check_enums():
+    catalog = load_json(PACK / "contracts/enums.json")
+    enums = {name: spec["values"] for name, spec in catalog["enums"].items()}
+    codes = [code for code in catalog["errorCodes"] if not code.startswith("$")]
     common = (PACK / "docs/00-common-contract.md").read_text(encoding="utf-8")
-    api = load_json(PACK / "contracts/openapi.yaml")["components"]["schemas"]
+    api = load_json(PACK / "contracts/openapi.yaml")
+    schemas = api["components"]["schemas"]
+    event = load_json(PACK / "contracts/event.schema.json")
     sql = sql_enums()
-    pairs = {
-        "mode": (backtick_enum(common, "모드 enum"), sql["sessions.mode"], api["Session"]["properties"]["mode"]["enum"]),
-        "phase": (backtick_enum(common, "학습 단계 enum"), sql["sessions.phase"], api["Session"]["properties"]["phase"]["enum"]),
-        "session.status": (sql["sessions.status"], api["Session"]["properties"]["status"]["enum"]),
-        "lab.state": (sql["labs.state"], api["Lab"]["properties"]["state"]["enum"]),
-        "submission.kind": (sql["submissions.kind"], api["Submission"]["properties"]["kind"]["enum"]),
-        "submission.status": (sql["submissions.status"], api["Submission"]["properties"]["status"]["enum"]),
-        "evaluation.verdict": (sql["evaluations.verdict"], api["Evaluation"]["properties"]["verdict"]["enum"]),
-        "evaluation.patchGate": (sql["evaluations.patch_gate"], api["Evaluation"]["properties"]["patchGate"]["enum"]),
-        "evidence.trustLevel": (sql["evidence.trust_level"], api["Evidence"]["properties"]["trustLevel"]["enum"]),
-        "challenge.kind": (sql["challenges.kind"], api["ScenarioDetail"]["properties"]["challenges"]["items"]["properties"]["kind"]["enum"]),
+    session_created = next(rule for rule in event["allOf"] if rule["if"]["properties"]["type"]["const"] == "SessionCreated")
+    sources = {
+        "Mode": [backtick_enum(common, "모드 enum"), sql["sessions.mode"], schemas["Session"]["properties"]["mode"]["enum"],
+                 schemas["SessionCreate"]["properties"]["mode"]["enum"], schemas["Scenario"]["properties"]["modes"]["items"]["enum"],
+                 schemas["ScenarioDetail"]["properties"]["modes"]["items"]["enum"],
+                 api["paths"]["/scenarios"]["get"]["parameters"][0]["schema"]["enum"],
+                 session_created["then"]["properties"]["payload"]["properties"]["mode"]["enum"]],
+        "Phase": [backtick_enum(common, "학습 단계 enum"), sql["sessions.phase"], schemas["Session"]["properties"]["phase"]["enum"]],
+        "SessionStatus": [sql["sessions.status"], schemas["Session"]["properties"]["status"]["enum"]],
+        "LabState": [sql["labs.state"], schemas["Lab"]["properties"]["state"]["enum"]],
+        "JobKind": [sql["jobs.kind"]],
+        "JobState": [sql["jobs.state"]],
+        "SubmissionKind": [sql["submissions.kind"], schemas["Submission"]["properties"]["kind"]["enum"]],
+        "SubmissionStatus": [sql["submissions.status"], schemas["Submission"]["properties"]["status"]["enum"]],
+        "Verdict": [sql["evaluations.verdict"], schemas["Evaluation"]["properties"]["verdict"]["enum"]],
+        "PatchGate": [sql["evaluations.patch_gate"], schemas["Evaluation"]["properties"]["patchGate"]["enum"]],
+        "GateResult": [schemas["Evaluation"]["properties"]["gates"]["items"]["properties"]["result"]["enum"]],
+        "ScenarioVersionStatus": [sql["scenario_versions.status"]],
+        "ChallengeKind": [sql["challenges.kind"], schemas["ScenarioDetail"]["properties"]["challenges"]["items"]["properties"]["kind"]["enum"]],
+        "ArtifactSensitivity": [sql["artifacts.sensitivity"]],
+        "EvidenceSource": [sql["evidence.source"]],
+        "TrustLevel": [sql["evidence.trust_level"], schemas["Evidence"]["properties"]["trustLevel"]["enum"]],
+        "EventType": [event["properties"]["type"]["enum"]],
     }
-    mismatched = [name for name, sources in pairs.items() if any(set(s) != set(sources[0]) for s in sources)]
-    if mismatched:
-        raise AssertionError("mismatch: " + ", ".join(mismatched))
-    return f"{len(pairs)} enums"
+    problems = [f"{name} has no catalog entry" for name in sources if name not in enums]
+    for name, values in sources.items():
+        for index, other in enumerate(values):
+            if set(other) != set(enums.get(name, [])):
+                problems.append(f"{name} source #{index}: {sorted(set(other) ^ set(enums.get(name, [])))}")
+    if enums["Phase"] != backtick_enum(common, "학습 단계 enum") or enums["Phase"] != schemas["Session"]["properties"]["phase"]["enum"]:
+        problems.append("Phase order differs")
+    unchecked = sorted(set(enums) - set(sources) - {"ObjectiveState"})
+    if unchecked:
+        problems.append(f"catalog enums without a contract source: {unchecked}")
+    if schemas["Error"]["properties"]["code"]["enum"] != codes:
+        problems.append("Error.code differs from errorCodes")
+    if problems:
+        raise AssertionError("; ".join(problems))
+    return f"{len(enums)} enums, {len(codes)} error codes"
 
 
 @check("contracts: event types agree across 16 and event.schema.json")
@@ -147,6 +175,53 @@ def check_events():
     if not (set(declared) == set(conditional) == set(documented)):
         raise AssertionError(f"schema={sorted(declared)} payloadRules={sorted(conditional)} doc16={sorted(documented)}")
     return f"{len(declared)} types, each with a payload rule"
+
+
+@check("contracts: fixtures accepted/rejected by event schema and OpenAPI schemas")
+def check_fixtures():
+    try:
+        from jsonschema import Draft202012Validator, FormatChecker
+        from openapi_schema_validator import OAS31Validator
+    except ImportError:
+        return ("SKIP", check_fixtures.check_name, "jsonschema/openapi-schema-validator unavailable")
+    event_validator = Draft202012Validator(load_json(PACK / "contracts/event.schema.json"), format_checker=FormatChecker())
+    events = load_json(PACK / "contracts/fixtures/events.json")
+    problems = []
+    for event in events["valid"]:
+        errors = list(event_validator.iter_errors(event))
+        if errors:
+            problems.append(f"valid {event['type']} rejected: {errors[0].message}")
+    for case in events["invalid"]:
+        if not list(event_validator.iter_errors(case["event"])):
+            problems.append(f"invalid event accepted: {case['reason']}")
+    covered = {event["type"] for event in events["valid"]}
+    declared = set(load_json(PACK / "contracts/event.schema.json")["properties"]["type"]["enum"])
+    if covered != declared:
+        problems.append(f"event types without a valid fixture: {sorted(declared - covered)}")
+    api = load_json(PACK / "contracts/openapi.yaml")
+    cases = load_json(PACK / "contracts/fixtures/api.json")["cases"]
+    for case in cases:
+        root = dict(api, **{"$ref": f"#/components/schemas/{case['schema']}"})
+        accepted = not list(OAS31Validator(root, format_checker=FormatChecker()).iter_errors(case["value"]))
+        if accepted != case["valid"]:
+            problems.append(f"{case['schema']} {'accepted' if accepted else 'rejected'}: {case.get('reason', 'valid case')}")
+    if problems:
+        raise AssertionError("; ".join(problems))
+    return f"{len(events['valid'])} valid + {len(events['invalid'])} invalid events, {len(cases)} API cases"
+
+
+@check("db: migration V1 matches the reviewed contracts/schema.sql")
+def check_migration():
+    def statements(text):
+        lines = [line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("--")]
+        return [line for line in lines if line.strip() not in {"BEGIN;", "COMMIT;"}]
+    migration = REPO / "control-plane/app/src/main/resources/db/migration/V1__core_schema.sql"
+    design = statements((PACK / "contracts/schema.sql").read_text(encoding="utf-8"))
+    released = statements(migration.read_text(encoding="utf-8"))
+    if design != released:
+        first = next(i for i, (a, b) in enumerate(zip(design + [""], released + [""])) if a != b)
+        raise AssertionError(f"first difference at statement line {first + 1}: schema.sql={design[first:first + 1]} V1={released[first:first + 1]}")
+    return f"{len(released)} SQL lines identical (comments ignored); live behavior is tested by Gradle"
 
 
 @check("examples: scenario and oracle agree with contracts")
@@ -200,6 +275,24 @@ def check_traceability():
     return f"{len(traced)} requirements, {len(tasks)} tasks"
 
 
+@check("prompts: numbering and referenced design documents")
+def check_prompts():
+    prompts = sorted((REPO / "docs/development/prompts").glob("*.md"))
+    assert [int(path.name[:2]) for path in prompts] == list(range(23)), "expected prompts 00 through 22"
+    known = {path.stem for path in (PACK / "docs").glob("*.md")}
+    problems = []
+    for path in prompts:
+        text = path.read_text(encoding="utf-8")
+        if not text.startswith("# ") or text.count("```") % 2:
+            problems.append(f"{path.name}: heading or code fence")
+        unknown = set(re.findall(r"\b\d{2}-[a-z][a-z-]+", text)) - known
+        if unknown:
+            problems.append(f"{path.name}: unknown design docs {sorted(unknown)}")
+    if problems:
+        raise AssertionError("; ".join(problems))
+    return f"{len(prompts)} prompts"
+
+
 @check("repo docs: local Markdown links resolve")
 def check_repo_links():
     broken, count = [], 0
@@ -244,10 +337,12 @@ def check_gitignore():
     must_ignore = [".env", ".env.local", "app/.env.production", ".claude/settings.local.json", "CLAUDE.local.md",
                    ".venv/bin/python", "certs/server.pem", "keys/id_ed25519", "SecDrill-development-docs-v0.1.zip",
                    ".DS_Store", "SecDrill-docs/.DS_Store", "lab-logs/run.log", "submissions/raw/a.json",
-                   "scripts/__pycache__/x.pyc"]
+                   "scripts/__pycache__/x.pyc", "control-plane/app/build/libs/app.jar", ".gradle/9.8.0/x", ".kotlin/sessions/x",
+                   "dist/SecDrill-development-docs-v0.1.zip"]
     must_track = [".claude/settings.json", ".claude/hooks/check-edited-file.py", "AGENTS.md", "CLAUDE.md",
                   "SecDrill-docs/contracts/openapi.yaml", "SecDrill-docs/tools/build_pack.py", "example.env",
-                  "requirements-dev.txt"]
+                  "requirements-dev.txt", "gradle/wrapper/gradle-wrapper.jar", "control-plane/app/gradle.lockfile",
+                  "control-plane/app/src/main/resources/db/migration/V1__core_schema.sql", "SecDrill-prompts/README.md"]
 
     def ignored(path):
         return subprocess.run(["git", "check-ignore", "-q", "--no-index", path], cwd=REPO).returncode == 0
@@ -259,8 +354,8 @@ def check_gitignore():
     return f"{len(must_ignore)} excluded, {len(must_track)} kept"
 
 
-CHECKS = [check_pack, check_manifest, check_enums, check_events, check_examples, check_traceability,
-          check_repo_links, check_config, check_gitignore]
+CHECKS = [check_pack, check_manifest, check_enums, check_events, check_fixtures, check_migration, check_examples, check_traceability,
+          check_prompts, check_repo_links, check_config, check_gitignore]
 
 
 def main():
@@ -275,7 +370,8 @@ def main():
     failed = [r for r in results if r[0] == "FAIL" or (arguments.strict and r[0] == "SKIP")]
     counts = {status: sum(1 for r in results if r[0] == status) for status in ("PASS", "FAIL", "SKIP")}
     print(f"\n{counts['PASS']} passed, {counts['FAIL']} failed, {counts['SKIP']} skipped"
-          " — documents/contracts/config only; no product build, runtime, live PostgreSQL or isolation test.")
+          " — documents/contracts/config only. Run ./gradlew check for build, unit and PostgreSQL tests;"
+          " no strong-isolation, performance or chaos test exists yet.")
     return 1 if failed else 0
 
 

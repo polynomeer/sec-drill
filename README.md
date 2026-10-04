@@ -4,7 +4,7 @@ SecDrill은 격리된 환경에서 취약점을 찾고 공격을 재현한 뒤, 
 
 ## 현재 상태
 
-개발 저장소 초기화 단계다. **제품 코드, 공격 Lab, 실행 서버는 아직 없다.** 설계 문서는 v0.1 제안 초안이며 수치·스택은 검증할 가정이다. 진행 상황은 [IMPLEMENTATION_STATUS](docs/development/IMPLEMENTATION_STATUS.md)에 있다.
+T01(공통 계약과 최소 실행 골격)까지 진행했다. Control Plane은 health와 오류 봉투만 제공하며 **제품 기능, 공격 Lab, 채점은 아직 없다.** 설계 문서는 v0.1 제안 초안이며 수치·스택은 검증할 가정이다. 진행 상황은 [IMPLEMENTATION_STATUS](docs/development/IMPLEMENTATION_STATUS.md)에 있다.
 
 ## 문서 진입점
 
@@ -16,12 +16,13 @@ SecDrill은 격리된 환경에서 취약점을 찾고 공격을 재현한 뒤, 
 | [docs/development/WORKFLOW.md](docs/development/WORKFLOW.md) | 작업 흐름, 새 대화에서 읽을 파일, 완료 기준, 에이전트 간 인계 |
 | [docs/development/DECISIONS_REQUIRED.md](docs/development/DECISIONS_REQUIRED.md) | 결정이 필요한 항목과 권장안 |
 | [docs/development/DESIGN_BASELINE.md](docs/development/DESIGN_BASELINE.md) | 설계 분류와 계약 검토 발견 사항 |
-| [docs/development/T01_PLAN.md](docs/development/T01_PLAN.md) | 다음 구현 작업 |
+| [docs/development/T01_PLAN.md](docs/development/T01_PLAN.md) | T01 계획과 결과 |
+| [docs/development/prompts/](docs/development/prompts/) | 단계별 작업 프롬프트(00~22) |
 | [docs/adr/](docs/adr/README.md) | 검토된 실제 설계 결정 |
 
 ## 준비
 
-요구 사항: Python 3.14(검증기 고정 버전 기준), Git. 의존성은 저장소 로컬 `.venv`에만 설치한다.
+요구 사항: Git, Python 3.14(검증기), JDK 21, Docker(DB 테스트·로컬 DB). Python 의존성은 저장소 로컬 `.venv`에만 설치하고, Gradle은 wrapper를 쓴다.
 
 ```bash
 python3 -m venv .venv
@@ -35,6 +36,12 @@ python3 -m venv .venv
 .venv/bin/python scripts/check.py
 ```
 
-검사는 문서·계약·설정만 확인한다. 범위와 미검증 항목은 [VERIFICATION](docs/development/VERIFICATION.md)에 있다.
+```bash
+./gradlew check
+```
+
+로컬 실행: `docker compose up -d`로 개발 DB를 띄우고 [example.env](example.env)의 값을 환경변수로 설정한 뒤 `./gradlew :control-plane:app:bootRun`. health는 `/actuator/health/readiness`.
+
+검사 범위와 미검증 항목은 [VERIFICATION](docs/development/VERIFICATION.md)에 있다.
 
 Claude Code 사용자는 공유 설정 `.claude/settings.json`을 그대로 쓰고, 개인 설정은 `.claude/settings.local.json`에 둔다(Git 제외).

@@ -14,4 +14,4 @@
 
 | 번호 | 제목 | 상태 | 원 초안 |
 |---|---|---|---|
-| — | 아직 없음 | — | — |
+| [0001](0001-control-plane-stack-and-migrations.md) | Control Plane 개발 스택과 migration | Proposed | ADR-001 일부 |

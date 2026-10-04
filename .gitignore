@@ -42,3 +42,6 @@ raw-logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Kotlin compiler state
+.kotlin/

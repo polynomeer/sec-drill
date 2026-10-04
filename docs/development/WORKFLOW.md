@@ -7,10 +7,19 @@
 1. [AGENTS.md](../../AGENTS.md): 공통 규칙(Claude Code는 `CLAUDE.md`로 자동 로드)
 2. [IMPLEMENTATION_STATUS](IMPLEMENTATION_STATUS.md): 현재 단계, 활성 Task, blocker
 3. [DECISIONS_REQUIRED](DECISIONS_REQUIRED.md): 작업에 걸린 결정
-4. 활성 Task의 계획 문서(예: [T01_PLAN](T01_PLAN.md))
+4. 활성 단계의 프롬프트([prompts/](prompts/))와 Task 계획 문서(예: [T01_PLAN](T01_PLAN.md))
 5. 해당 Task가 지정한 설계 문서와 계약만. 공통 계약 [00](../../SecDrill-docs/docs/00-common-contract.md)은 항상 포함한다.
 
 `ALL-IN-ONE.md`나 문서 전체를 한 번에 읽지 않는다. 필요한 개별 문서만 연다.
+
+## 단계별 프롬프트
+
+[prompts/](prompts/)의 파일이 단계별 작업 지침이다. 프롬프트 번호와 Task ID는 다르다(예: 04 = T05).
+
+- 00(초기화)은 완료했다. 01~19를 번호 순서로 한 단계씩 실행하고, 20(재개)·21(변경·수정)·22(커밋 전 검토)는 필요할 때 쓴다.
+- 여러 프롬프트를 한 요청에 묶지 않는다. 다음 단계의 전제는 앞 단계의 실제 검증 증거다. 보고만 있고 증거가 없으면 앞 단계를 Done으로 보지 않는다.
+- 프롬프트가 요구하는 결정이 [DECISIONS_REQUIRED](DECISIONS_REQUIRED.md)에서 Open이면 권장안을 제시하고 결정을 받은 뒤 진행한다.
+- 프롬프트와 이 저장소의 계획 문서가 다르면 프롬프트 범위를 따르고 계획 문서를 고친다.
 
 ## 단계
 

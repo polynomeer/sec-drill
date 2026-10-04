@@ -8,18 +8,19 @@
 
 | ID | 항목 | 시점 | 상태 |
 |---|---|---|---|
-| D-01 | 계약 파일 위치 | 지금 | Open |
-| D-02 | migration 형식과 PostgreSQL 버전 | 지금 | Open |
-| D-03 | DDL 누락 보완(F-01~F-04, F-06, F-08) | 지금 | Open |
+| D-01 | 계약 파일 위치 | 지금 | Decided: A(현 위치 유지), 2026-10-04 |
+| D-02 | migration 도구와 PostgreSQL 검증 방식 | 지금 | Decided: Flyway + Testcontainers, 2026-10-04 |
+| D-03 | DDL 누락 보완(F-01~F-04, F-06, F-08) | 지금 | Decided: T01에서 6건 모두 보완, 2026-10-04 |
 | D-04 | canonical digest와 hash chain | T05 전 | Open |
-| D-05 | Control Plane 언어·프레임워크 | T02 전 | Open |
+| D-05 | Control Plane 언어·프레임워크 | 지금 | Decided: Kotlin + Spring Boot + Gradle + JDK 21, 2026-10-04 ([ADR 0001](../adr/0001-control-plane-stack-and-migrations.md) Proposed, 파일럿 전 재검토) |
 | D-06 | Web 스택 | T11 전 | Deferred |
-| D-07 | build_pack 재생성 동작 | 팩 첫 수정 전 | Open |
+| D-07 | build_pack 재생성 동작 | 팩 첫 수정 전 | Decided: B(도구 수정), 2026-10-04 |
 | D-08 | message broker | T05 publisher 전 | Deferred |
 | D-09 | OIDC provider | T02 실연동 전 / 파일럿 전 | Deferred |
 | D-10 | 호스팅과 strong runtime | T06 실검증 전 / 파일럿 전 | Deferred |
 | D-11 | 운영·법무 항목 | 파일럿 전 | Deferred |
 | D-12 | 에이전트 간 작업 소유권 | 지금 | Proposed |
+| D-13 | 프롬프트 묶음의 단일 출처 | 지금 | Decided: B(원본 묶음도 커밋), 2026-10-04 |
 
 ## 상세
 
@@ -29,11 +30,11 @@
 - 선택지: (A) `SecDrill-docs/contracts/`를 계속 출처로 사용 (B) T01 첫 커밋에서 루트 `contracts/`로 `git mv`하고 팩 README·build_pack 참조 갱신.
 - 권장: **A로 시작하고 T01 첫 변경에서 B 여부를 결정**. B를 택하면 복제하지 않고 이동만 한다. 앱 코드는 상수 하나로 경로를 참조해 이동 비용을 줄인다.
 
-### D-02 migration 형식과 PostgreSQL 버전 (지금)
+### D-02 migration 도구와 PostgreSQL 검증 방식 (지금)
 
-- 영향: T01 완료 증거인 "SQL integration".
-- 선택지: (A) 번호 있는 순수 SQL(`V0001__core.sql`, Flyway 호환 이름) + 고정 digest의 PostgreSQL 컨테이너로 적용 테스트 (B) Flyway/Liquibase를 앱 스택과 함께 즉시 도입.
-- 권장: **A**. 앱 스택(D-05)에 묶이지 않고, 나중에 Flyway가 같은 파일을 그대로 읽는다. PostgreSQL major는 착수 시 지원 상태를 확인해 정하고 이미지 digest로 고정한다. 로컬에는 Docker가 있다. 이미지 pull은 T01 착수 시 승인을 받는다.
+- 영향: T01 완료 증거인 "SQL integration"과 프롬프트 02의 "실제 PostgreSQL에서 migration과 주요 제약 검사".
+- 선택지: 도구 (A) Flyway 순수 SQL migration (B) Liquibase (C) 자체 SQL runner. 검증 (가) Testcontainers로 테스트마다 PostgreSQL 컨테이너 기동 (나) docker compose로 띄운 DB에 테스트 연결.
+- 권장: **A+가**. 프롬프트 02가 앱 골격을 포함하므로 D-05(Spring)와 함께 쓰는 Flyway가 가장 단순하고, migration이 순수 SQL로 남는다. Testcontainers는 테스트가 DB 수명을 스스로 관리해 CI와 로컬 결과가 같다. PostgreSQL major는 착수 시 지원 상태를 확인해 정하고 이미지 digest로 고정한다. 로컬에는 Docker가 있다. 이미지 pull은 착수 시 승인을 받는다.
 
 ### D-03 DDL 누락 보완 (지금)
 
@@ -47,9 +48,9 @@
 - 선택지: (A) RFC 8785 JCS + SHA-256, genesis hash `0`×64 (B) 구현 언어의 정렬 JSON 직렬화.
 - 권장: **A**. 언어 독립적이고 Web·Agent·Control이 같은 값을 계산한다. ADR로 결정하고 cross-language fixture를 계약 테스트에 넣는다.
 
-### D-05 Control Plane 언어·프레임워크 (T02 전)
+### D-05 Control Plane 언어·프레임워크 (지금)
 
-- 영향: 모든 백엔드 Task, 빌드 도구, 의존성 고정 방식.
+- 영향: 모든 백엔드 Task, 빌드 도구, 의존성 고정 방식. 프롬프트 02가 T01에서 "확정된 스택"으로 Control Plane 골격을 만들도록 요구하므로 T01 전에 정한다(초기화 때는 T02 전으로 분류했음).
 - 선택지: (A) 11의 제안대로 Kotlin/Spring Boot + JDK 21 LTS(로컬 설치됨) + Gradle wrapper (B) 다른 스택.
 - 권장: **A를 개발용 가벼운 선택으로 채택**하고 ADR-001과 함께 Proposed ADR로 기록한다. patch 버전은 착수 시 지원 상태를 확인해 lockfile로 고정한다. 외부 파일럿 전에 재검토한다.
 
@@ -82,3 +83,10 @@
 ### D-12 에이전트 간 작업 소유권 (지금, Proposed)
 
 - 권장안: [WORKFLOW](WORKFLOW.md#여러-에이전트를-함께-사용할-때)의 Task 단위 소유권과 인계 절차를 사용한다. 공통 enum·contracts·migrations·job protocol은 한 번에 한 소유자만 변경한다. 소유자 승인으로 Accepted가 된다.
+
+### D-13 프롬프트 묶음의 단일 출처 (지금)
+
+- 영향: 같은 프롬프트가 `SecDrill-prompts/prompts/`와 `docs/development/prompts/` 두 곳에 있다. 묶음 README가 후자로 복사하도록 지시하고 "개별 파일이 단일 출처"라고 한다.
+- 선택지: (A) `docs/development/prompts/`만 추적하고 `SecDrill-prompts/`는 커밋하지 않음(삭제 또는 로컬 보관) (B) 원본 묶음도 커밋해 출처 기록으로 남김(내용 중복, ALL-PROMPTS·MANIFEST가 수정 시 어긋남).
+- 권장: A. 복사본은 원본과 동일함을 확인했다.
+- 결정: **B**. `SecDrill-prompts/`는 출처 스냅숏으로 커밋하고 수정하지 않는다. 작업용 단일 출처는 `docs/development/prompts/`다.

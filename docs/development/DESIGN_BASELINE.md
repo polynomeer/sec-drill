@@ -35,3 +35,22 @@
 | F-13 | 31 | 수정 금지 참조 디렉터리로 `sources/`를 언급하지만 존재하지 않는다 | 없음 | 무시. 생성물 3종을 수정 금지로 대신 지정 |
 
 F-01~F-06은 T01·T02·T05를 막는 누락이다. F-07~F-13은 정리 사항이다.
+
+## 처리 상태 (2026-10-04)
+
+| ID | 상태 | 반영 |
+|---|---|---|
+| F-01 | 해결 | schema.sql·V1 CHECK, 13 Lab 절. DB 테스트 3건 |
+| F-02 | 해결 | jobs `lab_id`·kind별 대상 CHECK·`UNIQUE(lab_id,kind,revision)`, 13·14. DB 테스트 |
+| F-03 | 해결 | parent+owner 복합 FK, 14. DB 테스트 |
+| F-04 | 해결 | `idempotency_records` 테이블, 14·15(`client_request_id` = Idempotency-Key). DB 테스트 |
+| F-05 | 미해결 | D-04, T05 전 결정 |
+| F-06 | 해결 | `contracts/enums.json` errorCodes, OpenAPI `Error.code` enum·details schema, 500 `INTERNAL_ERROR` 추가, 15 |
+| F-07 | 미해결 | 시나리오 매니페스트 개정 시(T03) |
+| F-08 | 해결 | event schema·16·build_pack 예제 `scenarioVersionId` |
+| F-09 | 해결 | D-01: 현 위치 유지 |
+| F-10 | 해결 | D-07: `.DS_Store` 제외, ZIP은 `dist/`, 개수 하드코딩 제거 |
+| F-11 | 유지 | JSON 형식 유지 규칙(AGENTS.md) |
+| F-12 | 미해결 | T04에서 422 테스트 |
+| F-13 | 해당 없음 | — |
+

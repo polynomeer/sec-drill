@@ -5,6 +5,10 @@
     "allow": [
       "Bash(.venv/bin/python scripts/check.py)",
       "Bash(.venv/bin/python scripts/check.py *)",
+      "Bash(./gradlew check)",
+      "Bash(./gradlew check *)",
+      "Bash(./gradlew test)",
+      "Bash(./gradlew test *)",
       "Bash(git diff *)",
       "Bash(git log *)",
       "Bash(git show *)",
