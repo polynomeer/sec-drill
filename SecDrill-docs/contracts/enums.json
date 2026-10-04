@@ -19,7 +19,11 @@
     "ArtifactSensitivity": {"values": ["LEARNER", "PRIVATE_ORACLE", "RAW_LOG", "PUBLIC_SUMMARY"], "source": "14"},
     "EvidenceSource": {"values": ["CONTROL", "VERIFIER", "SUPERVISOR", "COLLECTOR", "USER", "SIMULATOR"], "source": "14"},
     "TrustLevel": {"values": ["SERVER_VERIFIED", "OBSERVED", "USER_REPORTED", "SIMULATED"], "source": "14"},
-    "EventType": {"values": ["SessionCreated", "LabRequested", "LabReady", "SubmissionAccepted", "ExecutionCompleted", "EvaluationCommitted", "ActionApplied", "LabTerminationRequested", "LabTerminated", "SessionFinished"], "source": "16"}
+    "EventType": {"values": ["SessionCreated", "LabRequested", "LabReady", "SubmissionAccepted", "ExecutionCompleted", "EvaluationCommitted", "ActionApplied", "LabTerminationRequested", "LabTerminated", "SessionFinished"], "source": "16"},
+    "AuthTokenKind": {"values": ["ACCESS", "REFRESH"], "source": "14"},
+    "AuthRevokeReason": {"values": ["LOGOUT", "REFRESH_REUSE", "OPERATOR"], "source": "14"},
+    "OperatorRole": {"values": ["OPERATOR", "SECURITY_ADMIN"], "source": "19"},
+    "AuditActorType": {"values": ["OPERATOR", "SYSTEM"], "source": "14"}
   },
   "errorCodes": {
     "$comment": "Error envelope `code` values (15). httpStatus and retryable are fixed per code.",

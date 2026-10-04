@@ -584,7 +584,11 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 
 | 테이블 | 핵심 컬럼 | 제약·인덱스 |
 |---|---|---|
-| users | id, pseudonym, created_at | email은 별도 암호화 identity record |
+| users | id, pseudonym, created_at | email은 별도 암호화 identity record(MVP는 저장하지 않음) |
+| user_identities | issuer, subject, user_id | issuer+subject PK; OIDC claim은 sub만 사용 |
+| auth_sessions / auth_tokens | user_id, csrf_hash, revoked_at, revoke_reason / token_hash, kind, expires_at, superseded_at | 비밀은 SHA-256 hash만 저장; 로그인당 live refresh 1개 partial unique |
+| operator_tokens | token_hash, operator_id, role, purpose, expires_at, revoked_at | 최대 12시간; learner 세션과 별도 |
+| audit_events | actor_type, actor_id, purpose, action, occurred_at | UPDATE/DELETE trigger 거절 |
 | scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest | unique scenario_id+version_no; published immutable |
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
 | sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
@@ -597,7 +601,7 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
-추가 구현 테이블: auth_sessions(token_hash, expires_at, revoked_at), applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), audit_events(actor, purpose, action), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
+추가 구현 테이블: applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
 
 ## 원자 작업
 
@@ -626,7 +630,13 @@ MVP 공개 계약은 [OpenAPI](contracts/openapi.yaml)에 정의한다. 아래�
 
 ## 인증과 공통 동작
 
-개인 웹 로그인은 OIDC provider에서 확인하고 플랫폼의 opaque auth session으로 연결하는 제안을 사용한다. access session은 15분, refresh는 7일·회전·reuse 감지를 적용한다. browser cookie는 HttpOnly/Secure/SameSite, mutation은 CSRF token과 Origin 검사로 보호한다. OpenAPI cookieAuth는 access session cookie이며 운영자 API는 별도 workload/operator bearer다. provider 선택은 ADR-009의 미결정 항목이다.
+개인 웹 로그인은 OIDC provider에서 확인하고 플랫폼의 opaque auth session으로 연결하는 제안을 사용한다. access session은 15분, refresh는 7일·회전·reuse 감지를 적용한다. browser cookie는 HttpOnly/Secure/SameSite, mutation은 CSRF token과 Origin 검사로 보호한다. OpenAPI cookieAuth는 access session cookie이며 운영자 API는 별도 workload/operator bearer다. provider 선택은 ADR-009의 미결정 항목이며 구현은 provider 중립 OIDC(Authorization Code+PKCE)다.
+
+로그인은 `/oauth2/authorization/oidc`에서 시작하고 callback 성공 시 세 cookie를 발급한다. `access_session`(HttpOnly·Secure·SameSite=Lax·Path=/, 15분), `refresh_session`(HttpOnly·Secure·SameSite=Strict·Path=/v1/auth, 7일), `csrf_token`(Secure·SameSite=Strict, JS가 읽어 `X-CSRF-Token`으로 전송). 서버는 세 값 모두 SHA-256 hash만 저장한다. `POST /v1/auth/refresh`는 refresh를 회전하고 이전 access를 무효화한다. 이미 회전된 refresh가 다시 오면 그 로그인 전체를 `REFRESH_REUSE`로 폐기하고 401을 반환한다. `POST /v1/auth/logout`은 로그인을 폐기하고 cookie를 지운다. 폐기·만료된 access는 즉시 401이다.
+
+모든 unsafe method(POST·PUT·PATCH·DELETE)는 `Origin`이 허용 목록과 정확히 일치해야 하며 없으면 403 `FORBIDDEN`이다. 로그인된 요청은 추가로 `X-CSRF-Token`이 해당 로그인의 csrf hash와 일치해야 한다. refresh는 Origin만 검사한다. 운영자 경로 `/ops/**`는 `Authorization: Bearer` operator token만 받고 learner cookie를 무시하며, `/v1/**`는 operator bearer를 인증 수단으로 받지 않는다. 운영자 요청은 처리 전 audit_events에 기록하고 기록 실패 시 거절한다.
+
+다른 owner의 Session·Submission·Artifact·Report·Evidence는 존재하지 않는 자원과 같은 404 `NOT_FOUND`로 응답한다(존재 은폐). 공통 owner guard가 이를 판정하며 각 API는 구현 시 guard를 거쳐야 한다. 개발용 `POST /v1/auth/dev-login`은 `local` profile에서만 켤 수 있고, 다른 profile에서 켜면 기동이 실패한다. 공개 OpenAPI에는 포함하지 않는다.
 
 POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시간 저장하고 canonical body digest가 다른 재사용은 409 `IDEMPOTENCY_CONFLICT`다. 상태 변경은 body expectedVersion으로 CAS한다. 원래 응답의 재반환은 version 충돌 검사보다 우선한다. 제출 생성의 `submissions.client_request_id`는 이 Idempotency-Key 값이다.
 

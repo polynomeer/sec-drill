@@ -147,6 +147,10 @@ def check_enums():
         "EvidenceSource": [sql["evidence.source"]],
         "TrustLevel": [sql["evidence.trust_level"], schemas["Evidence"]["properties"]["trustLevel"]["enum"]],
         "EventType": [event["properties"]["type"]["enum"]],
+        "AuthTokenKind": [sql["auth_tokens.kind"]],
+        "AuthRevokeReason": [sql["auth_sessions.revoke_reason"]],
+        "OperatorRole": [sql["operator_tokens.role"]],
+        "AuditActorType": [sql["audit_events.actor_type"]],
     }
     problems = [f"{name} has no catalog entry" for name in sources if name not in enums]
     for name, values in sources.items():
@@ -210,18 +214,21 @@ def check_fixtures():
     return f"{len(events['valid'])} valid + {len(events['invalid'])} invalid events, {len(cases)} API cases"
 
 
-@check("db: migration V1 matches the reviewed contracts/schema.sql")
+@check("db: migrations V1..Vn together match the reviewed contracts/schema.sql")
 def check_migration():
     def statements(text):
         lines = [line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("--")]
         return [line for line in lines if line.strip() not in {"BEGIN;", "COMMIT;"}]
-    migration = REPO / "control-plane/app/src/main/resources/db/migration/V1__core_schema.sql"
+    directory = REPO / "control-plane/app/src/main/resources/db/migration"
+    files = sorted(directory.glob("V*__*.sql"), key=lambda path: int(re.match(r"V(\d+)__", path.name).group(1)))
+    versions = [int(re.match(r"V(\d+)__", path.name).group(1)) for path in files]
+    assert versions == list(range(1, len(files) + 1)), f"migration versions must be contiguous: {versions}"
     design = statements((PACK / "contracts/schema.sql").read_text(encoding="utf-8"))
-    released = statements(migration.read_text(encoding="utf-8"))
+    released = [line for path in files for line in statements(path.read_text(encoding="utf-8"))]
     if design != released:
         first = next(i for i, (a, b) in enumerate(zip(design + [""], released + [""])) if a != b)
-        raise AssertionError(f"first difference at statement line {first + 1}: schema.sql={design[first:first + 1]} V1={released[first:first + 1]}")
-    return f"{len(released)} SQL lines identical (comments ignored); live behavior is tested by Gradle"
+        raise AssertionError(f"first difference at SQL line {first + 1}: schema.sql={design[first:first + 1]} migrations={released[first:first + 1]}")
+    return f"V1..V{len(files)}: {len(released)} SQL lines identical (comments ignored); live behavior is tested by Gradle"
 
 
 @check("examples: scenario and oracle agree with contracts")

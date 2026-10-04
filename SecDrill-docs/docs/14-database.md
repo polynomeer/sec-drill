@@ -6,7 +6,11 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 
 | 테이블 | 핵심 컬럼 | 제약·인덱스 |
 |---|---|---|
-| users | id, pseudonym, created_at | email은 별도 암호화 identity record |
+| users | id, pseudonym, created_at | email은 별도 암호화 identity record(MVP는 저장하지 않음) |
+| user_identities | issuer, subject, user_id | issuer+subject PK; OIDC claim은 sub만 사용 |
+| auth_sessions / auth_tokens | user_id, csrf_hash, revoked_at, revoke_reason / token_hash, kind, expires_at, superseded_at | 비밀은 SHA-256 hash만 저장; 로그인당 live refresh 1개 partial unique |
+| operator_tokens | token_hash, operator_id, role, purpose, expires_at, revoked_at | 최대 12시간; learner 세션과 별도 |
+| audit_events | actor_type, actor_id, purpose, action, occurred_at | UPDATE/DELETE trigger 거절 |
 | scenarios / scenario_versions | id, slug / scenario_id, version_no, digests, manifest | unique scenario_id+version_no; published immutable |
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
 | sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
@@ -19,7 +23,7 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
-추가 구현 테이블: auth_sessions(token_hash, expires_at, revoked_at), applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), audit_events(actor, purpose, action), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
+추가 구현 테이블: applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
 
 ## 원자 작업
 

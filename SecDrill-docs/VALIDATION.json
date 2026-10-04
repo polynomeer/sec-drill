@@ -1,6 +1,6 @@
 {
   "documentCount": 35,
-  "apiOperationCount": 19,
+  "apiOperationCount": 22,
   "checksPassed": [
     "35 documents and numbering",
     "local links",
@@ -19,5 +19,5 @@
     "Product implementation, strong runtime, performance and chaos tests not executed",
     "Markdown display and Mermaid rendering depend on reader"
   ],
-  "textBytes": 118619
+  "textBytes": 120836
 }

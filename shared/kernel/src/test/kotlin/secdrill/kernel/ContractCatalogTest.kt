@@ -30,6 +30,10 @@ class ContractCatalogTest {
         "EvidenceSource" to EvidenceSource.entries,
         "TrustLevel" to TrustLevel.entries,
         "EventType" to EventType.entries,
+        "AuthTokenKind" to AuthTokenKind.entries,
+        "AuthRevokeReason" to AuthRevokeReason.entries,
+        "OperatorRole" to OperatorRole.entries,
+        "AuditActorType" to AuditActorType.entries,
     )
 
     private fun strings(node: JsonNode): List<String> = node.values().map { it.asString() }

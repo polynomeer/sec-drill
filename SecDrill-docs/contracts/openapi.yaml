@@ -2417,6 +2417,177 @@
           }
         }
       }
+    },
+    "/auth/session": {
+      "get": {
+        "operationId": "getAuthSession",
+        "summary": "getAuthSession",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "현재 로그인",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "operationId": "refreshAuthSession",
+        "summary": "refreshAuthSession",
+        "description": "refresh token 회전. Origin 검사 필수. 재사용 감지 시 로그인 전체를 폐기하고 401",
+        "security": [
+          {
+            "refreshCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "성공. Set-Cookie로 access_session·refresh_session·csrf_token을 갱신하거나 삭제"
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "summary": "logout",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "성공. Set-Cookie로 access_session·refresh_session·csrf_token을 갱신하거나 삭제"
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2424,7 +2595,14 @@
       "cookieAuth": {
         "type": "apiKey",
         "in": "cookie",
-        "name": "access_session"
+        "name": "access_session",
+        "description": "HttpOnly·Secure·SameSite=Lax access session(15분). 서버는 SHA-256 hash만 저장"
+      },
+      "refreshCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "refresh_session",
+        "description": "HttpOnly·SameSite=Strict, Path=/v1/auth. 회전 시 새 값으로 교체; 이미 회전된 값 재사용은 해당 로그인 전체 폐기"
       }
     },
     "parameters": {
@@ -2446,7 +2624,8 @@
           "type": "string",
           "minLength": 16,
           "maxLength": 256
-        }
+        },
+        "description": "로그인 시 발급되는 csrf_token cookie(SameSite=Strict, JS 읽기 가능) 값. 서버는 hash로 비교하고 Origin도 허용 목록과 일치해야 함"
       }
     },
     "schemas": {
@@ -4025,6 +4204,24 @@
             "minimum": 1
           }
         }
+      },
+      "AuthSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accessExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "userId",
+          "accessExpiresAt"
+        ]
       }
     },
     "responses": {

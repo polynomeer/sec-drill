@@ -53,3 +53,12 @@ enum class EventType {
     SessionCreated, LabRequested, LabReady, SubmissionAccepted, ExecutionCompleted,
     EvaluationCommitted, ActionApplied, LabTerminationRequested, LabTerminated, SessionFinished
 }
+
+enum class AuthTokenKind { ACCESS, REFRESH }
+
+enum class AuthRevokeReason { LOGOUT, REFRESH_REUSE, OPERATOR }
+
+/** Platform operator roles (19). Lab-internal admin rights are unrelated. */
+enum class OperatorRole { OPERATOR, SECURITY_ADMIN }
+
+enum class AuditActorType { OPERATOR, SYSTEM }
