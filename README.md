@@ -4,7 +4,7 @@ SecDrill은 격리된 환경에서 취약점을 찾고 공격을 재현한 뒤, 
 
 ## 현재 상태
 
-T09 기반(Evidence Ledger·Artifact)까지 진행했다. Control Plane은 인증·owner guard, 제출 수락(Idempotency·Outbox), RabbitMQ 전달, job lease·fencing, 검증 가능한 Evidence Ledger와 조회 API, 개발용 private Artifact store를 제공한다. 개인정보 삭제 실행은 아직 없다. 채점은 **fake worker**(local 전용, 결과에 fake 표시)만 있으며 **Session·Lab API, 실제 채점, 공격 Lab은 아직 없다.** 설계 문서는 v0.1 제안 초안이며 수치·스택은 검증할 가정이다. 진행 상황은 [IMPLEMENTATION_STATUS](docs/development/IMPLEMENTATION_STATUS.md)에 있다.
+T03 기반(콘텐츠 저작·검증·출판)까지 진행했다. 서명된 콘텐츠 번들을 CLI와 내부 API로 등록·검증·독립 승인·출판·차단하지만, 실제 runtime 검증이 없어 기본 설정으로는 출판되지 않는다. Control Plane은 인증·owner guard, 제출 수락(Idempotency·Outbox), RabbitMQ 전달, job lease·fencing, 검증 가능한 Evidence Ledger와 조회 API, 개발용 private Artifact store를 제공한다. 개인정보 삭제 실행은 아직 없다. 채점은 **fake worker**(local 전용, 결과에 fake 표시)만 있으며 **Session·Lab API, 실제 채점, 공격 Lab은 아직 없다.** 설계 문서는 v0.1 제안 초안이며 수치·스택은 검증할 가정이다. 진행 상황은 [IMPLEMENTATION_STATUS](docs/development/IMPLEMENTATION_STATUS.md)에 있다.
 
 ## 문서 진입점
 
@@ -16,7 +16,7 @@ T09 기반(Evidence Ledger·Artifact)까지 진행했다. Control Plane은 인�
 | [docs/development/WORKFLOW.md](docs/development/WORKFLOW.md) | 작업 흐름, 새 대화에서 읽을 파일, 완료 기준, 에이전트 간 인계 |
 | [docs/development/DECISIONS_REQUIRED.md](docs/development/DECISIONS_REQUIRED.md) | 결정이 필요한 항목과 권장안 |
 | [docs/development/DESIGN_BASELINE.md](docs/development/DESIGN_BASELINE.md) | 설계 분류와 계약 검토 발견 사항 |
-| [T01](docs/development/T01_PLAN.md), [T02](docs/development/T02.md), [T05](docs/development/T05.md), [T09](docs/development/T09.md) | Task별 계획과 결과 |
+| [T01](docs/development/T01_PLAN.md), [T02](docs/development/T02.md), [T05](docs/development/T05.md), [T09](docs/development/T09.md), [T03](docs/development/T03.md) | Task별 계획과 결과 |
 | [docs/development/prompts/](docs/development/prompts/) | 단계별 작업 프롬프트(00~22) |
 | [docs/adr/](docs/adr/README.md) | 검토된 실제 설계 결정 |
 

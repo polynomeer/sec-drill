@@ -9,6 +9,7 @@ dependencies {
     implementation(platform(libs.spring.boot.bom))
     implementation(project(":shared:kernel"))
     implementation(project(":control-plane:identity"))
+    implementation(project(":control-plane:catalog"))
     implementation(project(":control-plane:platform"))
     implementation(project(":control-plane:evidence"))
     implementation(project(":control-plane:submission"))
@@ -24,6 +25,7 @@ dependencies {
 
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.starter.security.test)
+    testImplementation(testFixtures(project(":content:format")))
     testImplementation(libs.spring.boot.starter.security.oauth2.client)
     testImplementation(libs.mock.oauth2.server)
     testImplementation(libs.spring.boot.testcontainers)

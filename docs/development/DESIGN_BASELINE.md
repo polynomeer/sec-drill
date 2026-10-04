@@ -53,4 +53,5 @@ F-01~F-06은 T01·T02·T05를 막는 누락이다. F-07~F-13은 정리 사항이
 | F-11 | 유지 | JSON 형식 유지 규칙(AGENTS.md) |
 | F-12 | 미해결 | T04에서 422 테스트 |
 | F-13 | 해당 없음 | — |
-
+| F-14 | 해결 | 예제 manifest에 OpenAPI `Scenario`·`ScenarioDetail`이 요구하는 difficulty·estimatedMinutes가 없었음. 예제에 추가(T03) |
+| F-15 | 해결 | 예제 oracle의 detection 비율이 부동소수였음. canonical digest(ADR 0003)와 맞게 basis point 정수로 변경(T03) |

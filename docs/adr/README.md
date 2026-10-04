@@ -19,3 +19,4 @@
 | [0003](0003-canonical-digest-and-evidence-hash.md) | Canonical digest와 Evidence hash chain | Accepted | — |
 | [0004](0004-outbox-rabbitmq-and-job-leases.md) | Outbox·RabbitMQ 전달과 job lease | Proposed | ADR-003, ADR-004 |
 | [0005](0005-evidence-trust-artifacts-and-runtime-role.md) | Evidence 신뢰 규칙, private Artifact, 런타임 DB 역할 | Proposed | ADR-006 |
+| [0006](0006-content-bundles-signing-and-publish-gate.md) | 콘텐츠 번들, 서명, 출판 게이트 | Proposed | ADR-010 |

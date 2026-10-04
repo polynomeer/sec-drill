@@ -23,6 +23,7 @@
 | D-13 | 프롬프트 묶음의 단일 출처 | 지금 | Decided: B(원본 묶음도 커밋), 2026-10-04 |
 | D-14 | DB 역할 배포와 소유자 분리 | T14 전 | Open |
 | D-15 | private Artifact store 구현 | T14 전 / 파일럿 전 | Open |
+| D-16 | 콘텐츠 서명 키 운영과 이미지 서명 | T06 전 / 파일럿 전 | Open |
 
 ## 상세
 
@@ -104,4 +105,10 @@
 - 영향: 제출 bundle·raw log·export 저장(11). 지금은 개발용 local filesystem store만 있고 `prod`에서 기동을 거부한다.
 - 선택지: (A) S3 호환 object store(MinIO·클라우드) + 버킷 정책·versioning·암호화 (B) DB large object.
 - 권장: **A**. 11의 제안과 같고 보관기간·versioning·서명 URL을 store가 제공한다. 호스팅(D-10)과 함께 정한다.
+
+### D-16 콘텐츠 서명 키 운영과 이미지 서명 (T06 전 / 파일럿 전)
+
+- 영향: 출판 게이트의 신뢰 근거(ADR 0006). 지금은 Ed25519 공개키를 설정(`secdrill.content.trusted-keys`)에 두고, 컨테이너 이미지는 digest만 manifest 서명에 포함된다.
+- 선택지: 키 보관 (A) CI secret store의 Ed25519 키 + 정기 교체·폐기 목록 (B) KMS/HSM 서명. 이미지 (가) cosign 키 서명 (나) sigstore keyless.
+- 권장: **A + 가**로 시작한다. 키 id별 유효기간과 폐기 목록을 설정에 두고, runner(T06)가 이미지 서명을 검증한 뒤에만 Lab을 만든다. 파일럿 전에 B 전환 여부를 재검토한다.
 

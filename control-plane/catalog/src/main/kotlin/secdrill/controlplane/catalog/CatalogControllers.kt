@@ -1,0 +1,91 @@
+package secdrill.controlplane.catalog
+
+import jakarta.servlet.http.HttpServletRequest
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.jdbc.core.simple.JdbcClient
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
+import secdrill.controlplane.access.ResourceNotFoundException
+import secdrill.controlplane.identity.LearnerPrincipal
+import secdrill.controlplane.identity.OperatorPrincipal
+import secdrill.kernel.ApiException
+import secdrill.kernel.ErrorCode
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
+import java.util.UUID
+
+/** Internal content API on the operator chain (15: `/ops/scenario-versions/{id}/approve`). No operator UI yet. */
+@RestController
+class ContentOpsController(private val content: ContentService, private val properties: ContentProperties, private val json: JsonMapper) {
+    @PostMapping("/ops/v1/content/bundles")
+    fun register(@AuthenticationPrincipal principal: OperatorPrincipal, request: HttpServletRequest, @RequestBody body: ByteArray): ResponseEntity<RegisteredVersion> {
+        if (body.size > properties.maxUploadBytes) throw ApiException(ErrorCode.PAYLOAD_TOO_LARGE, "Bundle upload is too large")
+        val tree = runCatching { json.readTree(body) }.getOrNull() ?: throw ApiException(ErrorCode.MALFORMED_REQUEST, "Request body is not valid JSON")
+        return ResponseEntity.status(HttpStatus.CREATED).body(content.register(principal, tree))
+    }
+
+    @PostMapping("/ops/v1/scenario-versions/{id}/validations")
+    fun validate(@AuthenticationPrincipal principal: OperatorPrincipal, @PathVariable id: UUID) =
+        ResponseEntity.status(HttpStatus.CREATED).body(content.validate(principal, id))
+
+    @PostMapping("/ops/v1/scenario-versions/{id}/approve")
+    fun approve(@AuthenticationPrincipal principal: OperatorPrincipal, @PathVariable id: UUID): ResponseEntity<Void> {
+        content.approve(principal, id)
+        return ResponseEntity.noContent().build()
+    }
+
+    data class QuarantineRequest(val reason: String = "")
+
+    @PostMapping("/ops/v1/scenario-versions/{id}/quarantine")
+    fun quarantine(@AuthenticationPrincipal principal: OperatorPrincipal, @PathVariable id: UUID, @RequestBody body: JsonNode): ResponseEntity<Void> {
+        content.quarantine(principal, id, body["reason"]?.asString() ?: "")
+        return ResponseEntity.noContent().build()
+    }
+}
+
+/** OpenAPI `ScenarioDetail`. Built field by field from the public manifest only; the oracle is never read here. */
+data class ScenarioDetailView(
+    val id: UUID,
+    val scenarioVersionId: UUID,
+    val title: String,
+    val brief: String,
+    val modes: List<String>,
+    val competencyTags: List<String>,
+    val challenges: List<ChallengeView>,
+    val allowedTargets: List<String>,
+    val estimatedMinutes: Int,
+)
+
+data class ChallengeView(val id: UUID, val objective: String, val kind: String)
+
+/** `GET /v1/scenarios/{id}` (15): only PUBLISHED versions; drafts, unapproved and quarantined versions are 404. */
+@RestController
+class ScenarioController(private val jdbc: JdbcClient, private val json: JsonMapper) {
+    @GetMapping("/v1/scenarios/{id}")
+    fun detail(@AuthenticationPrincipal principal: LearnerPrincipal, @PathVariable id: UUID, @RequestParam(required = false) versionId: UUID?): ScenarioDetailView {
+        val sql = "SELECT id, public_manifest::text FROM scenario_versions WHERE scenario_id = ? AND status = 'PUBLISHED'" +
+            (if (versionId != null) " AND id = ?" else "") + " ORDER BY version_no DESC LIMIT 1"
+        val args = listOfNotNull(id, versionId)
+        val (version, manifestText) = jdbc.sql(sql).params(args).query { rs, _ -> rs.getObject(1, UUID::class.java) to rs.getString(2) }
+            .optional().orElseThrow { ResourceNotFoundException() }
+        val manifest = json.readTree(manifestText)
+        fun strings(node: JsonNode?) = node?.values()?.map { it.asString() } ?: emptyList()
+        return ScenarioDetailView(
+            id = id,
+            scenarioVersionId = version,
+            title = manifest["title"].asString(),
+            brief = manifest["brief"].asString(),
+            modes = strings(manifest["modes"]),
+            competencyTags = strings(manifest["competencyTags"]),
+            challenges = manifest["challenges"].values().map { ChallengeView(UUID.fromString(it["id"].asString()), it["objective"].asString(), it["kind"].asString()) },
+            allowedTargets = strings(manifest["scope"]["allowedTargets"]),
+            estimatedMinutes = manifest["estimatedMinutes"].asInt(),
+        )
+    }
+}

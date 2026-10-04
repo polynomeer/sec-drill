@@ -35,7 +35,8 @@ val controlDbModules = listOf(
 data class Boundary(val modules: List<String>, val projects: (String) -> Boolean, val reason: String)
 
 fun boundaryFor(path: String): Boundary? = when {
-    path.startsWith(":execution:") || path.startsWith(":shared:") ->
+    // Authoring tools run on author machines and CI; they never reach the Control DB either.
+    path.startsWith(":execution:") || path.startsWith(":shared:") || path.startsWith(":content:") ->
         Boundary(controlDbModules, { it.startsWith(":control-plane:") }, "Control DB or Control Plane modules")
     // Domain modules cooperate through application services and events (11); only the app assembles them.
     path.startsWith(":control-plane:") && path != ":control-plane:app" ->
