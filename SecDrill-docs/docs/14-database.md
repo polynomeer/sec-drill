@@ -20,7 +20,8 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | jobs | submission_id, lab_id, kind, state, attempt, fencing_token, worker_id, lease_until, last_error, result_digest | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK; LEASED/RUNNING일 때만 lease·worker |
 | idempotency_records | owner_id, route(실제 경로), idempotency_key, request_digest, response_status, response_body(text), expires_at | owner+route+key PK; 만료 index; 첫 응답을 byte 그대로 재반환 |
 | evaluations | submission_id, revision, policy_version, verdict, dimensions, active | submission+revision unique; 활성 partial unique |
-| ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard; 첫 hash는 `0`×64, 각 hash는 이전 hash를 포함한 JCS 객체의 SHA-256 |
+| ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard; 첫 hash는 `0`×64, 각 hash는 이전 hash를 포함한 JCS 객체의 SHA-256; source별 허용 trustLevel CHECK(USER는 USER_REPORTED만); session+source_event_id unique |
+| deletion_requests / deletion_tombstones | owner, scope, session, status, decided, receipt / subject_type, subject_id, request | SESSION scope는 owner 일치 복합 FK; 완료는 receipt 필수; tombstone은 runtime 역할에 INSERT만 |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
 추가 구현 테이블: applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
@@ -35,7 +36,7 @@ MVP는 B-tree index와 기간별 삭제로 시작한다. evidence·telemetry 양
 
 ## 보관과 개인정보 삭제
 
-Evidence metadata는 기본 180일, raw Lab 로그는 30일, 객체는 sensitivity별 TTL이다. append-only는 일반 앱 권한에 적용한다. 삭제 담당 전용 역할은 승인된 deletion request에 따라 객체 bytes·identity 연결을 삭제하고 전체 만료 Session의 원장·head를 같이 제거할 수 있다. retained Ledger에는 가명 ID와 digest만 남기고 보고서에 payload unavailable을 표시한다. hash chain 유지가 개인정보 영구 보존의 근거는 아니다. backup 복원 후 deletion tombstone을 재적용한다.
+Evidence metadata는 기본 180일, raw Lab 로그는 30일, 객체는 sensitivity별 TTL이다. append-only는 일반 앱 권한에 적용한다. 런타임 역할 `control_app`은 evidence·audit_events·deletion_tombstones에 UPDATE/DELETE 권한이 없고 trigger도 끌 수 없다. 삭제 담당 전용 역할은 승인된 deletion request에 따라 객체 bytes·identity 연결을 삭제하고 전체 만료 Session의 원장·head를 같이 제거할 수 있다. retained Ledger에는 가명 ID와 digest만 남기고 보고서에 payload unavailable을 표시한다. hash chain 유지가 개인정보 영구 보존의 근거는 아니다. backup 복원 후 deletion tombstone을 재적용한다.
 
 제공 DDL의 evidence trigger는 기본 불변성만 강제한다. 운영용 privacy erasure는 별도 migration에서 일반 앱에 부여하지 않는 전용 역할·승인 요청·대상 Session 검증·감사 receipt를 갖는 제한 SECURITY DEFINER 함수로 구현한다. 함수의 search_path는 고정하고 실행 권한을 삭제 담당에게만 부여한다. 일반 API가 trigger를 끄는 방식은 금지한다. 이 함수와 실제 삭제 통합 테스트가 없으면 FR-10 출시 게이트를 통과하지 못한다.
 

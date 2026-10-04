@@ -154,6 +154,9 @@ def check_enums():
         "OperatorRole": [sql["operator_tokens.role"]],
         "AuditActorType": [sql["audit_events.actor_type"]],
         "JobFailure": [sql["jobs.last_error"]],
+        "DeletionScope": [sql["deletion_requests.scope"], schemas["DeletionRequest"]["properties"]["scope"]["enum"]],
+        "DeletionStatus": [sql["deletion_requests.status"]],
+        "TombstoneSubject": [sql["deletion_tombstones.subject_type"]],
     }
     problems = [f"{name} has no catalog entry" for name in sources if name not in enums]
     for name, values in sources.items():

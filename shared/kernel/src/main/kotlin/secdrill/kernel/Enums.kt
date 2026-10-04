@@ -65,3 +65,9 @@ enum class AuditActorType { OPERATOR, SYSTEM }
 
 /** Why a job attempt did not produce an official result (16, 20). Never a learner failure. */
 enum class JobFailure { DISPATCH_TIMEOUT, LEASE_EXPIRED, PLATFORM_ERROR, CONTENT_INVALID }
+
+enum class DeletionScope { ACCOUNT, SESSION }
+
+enum class DeletionStatus { REQUESTED, APPROVED, REJECTED, COMPLETED }
+
+enum class TombstoneSubject { USER, SESSION, ARTIFACT }
