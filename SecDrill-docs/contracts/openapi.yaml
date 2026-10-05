@@ -1865,6 +1865,15 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         ],
         "responses": {
@@ -2125,6 +2134,284 @@
             }
           }
         }
+      }
+    },
+    "/sessions/{id}/replay/chunks/{fromSeq}": {
+      "get": {
+        "operationId": "getReplayChunk",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "fromSeq",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "manifest chunk의 근거 항목(신뢰 수준·Artifact 상태 포함)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayChunk"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "getReplayChunk",
+        "description": "manifest chunk의 근거 항목(신뢰 수준·Artifact 상태 포함)"
+      }
+    },
+    "/sessions/{id}/replay/state": {
+      "get": {
+        "operationId": "getReplayState",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tick",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "가장 가까운 이전 checkpoint에서 재계산한 IR 모델 상태(SIMULATED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReplayState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "getReplayState",
+        "description": "가장 가까운 이전 checkpoint에서 재계산한 IR 모델 상태(SIMULATED)"
       }
     },
     "/sessions/{id}/stream": {
@@ -4121,6 +4408,125 @@
             "items": {
               "type": "string"
             }
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "key",
+                "status",
+                "representation",
+                "evidenceIds"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "PASS",
+                    "FAIL",
+                    "INCONCLUSIVE",
+                    "NOT_ATTEMPTED",
+                    "NOT_EVALUATED"
+                  ]
+                },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "representation": {
+                  "type": "string",
+                  "enum": [
+                    "SERVER_VERIFIED",
+                    "OBSERVED",
+                    "USER_REPORTED",
+                    "SIMULATED"
+                  ]
+                },
+                "evaluationId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "evidenceIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          },
+          "recommendations": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "scenarioId",
+                "scenarioVersionId",
+                "title",
+                "scoreBps",
+                "reasons",
+                "terms"
+              ],
+              "properties": {
+                "scenarioId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "scenarioVersionId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "scoreBps": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000
+                },
+                "reasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "EVIDENCE_GAP",
+                      "LOW_INDEPENDENT_SUCCESS",
+                      "NEW_FAMILY",
+                      "PREFERRED_MODE",
+                      "TRANSFER_AFTER_HELP"
+                    ]
+                  }
+                },
+                "terms": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  }
+                }
+              }
+            }
+          },
+          "changeReason": {
+            "type": "string",
+            "description": "revision이 바뀐 이유(재채점 등)"
           }
         },
         "required": [
@@ -4131,7 +4537,11 @@
           "exposure",
           "evidenceIds",
           "recommendedScenarioVersionIds",
-          "scopeLimitations"
+          "scopeLimitations",
+          "policyVersion",
+          "createdAt",
+          "dimensions",
+          "recommendations"
         ]
       },
       "ReplayManifest": {
@@ -4207,6 +4617,31 @@
                 "reason"
               ]
             }
+          },
+          "lastTick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "checkpoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tick",
+                "stateDigest"
+              ],
+              "properties": {
+                "tick": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "stateDigest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            }
           }
         },
         "required": [
@@ -4215,7 +4650,9 @@
           "firstSeq",
           "lastSeq",
           "chunks",
-          "gaps"
+          "gaps",
+          "lastTick",
+          "checkpoints"
         ]
       },
       "SkillPage": {
@@ -4271,6 +4708,15 @@
                     "type": "string",
                     "format": "uuid"
                   }
+                },
+                "successBps": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 10000,
+                  "description": "가중 성공률. 표본이 없으면 null. 숙련 확률이 아니다."
                 }
               },
               "required": [
@@ -4660,6 +5106,133 @@
           "representation",
           "events"
         ]
+      },
+      "ReplayItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "seq",
+          "type",
+          "trustLevel",
+          "occurredAt",
+          "summary",
+          "artifact"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "type": {
+            "type": "string"
+          },
+          "trustLevel": {
+            "type": "string",
+            "enum": [
+              "SERVER_VERIFIED",
+              "OBSERVED",
+              "USER_REPORTED",
+              "SIMULATED"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "원장의 safe payload(식별자·digest·작은 값만)"
+          },
+          "artifact": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "AVAILABLE",
+              "EXPIRED",
+              "DELETED"
+            ],
+            "description": "근거 Artifact 상태. 만료·삭제되면 metadata·digest만 남는다."
+          }
+        }
+      },
+      "ReplayChunk": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fromSeq",
+          "toSeq",
+          "digest",
+          "items"
+        ],
+        "properties": {
+          "fromSeq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "toSeq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/ReplayItem"
+            }
+          }
+        }
+      },
+      "ReplayState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tick",
+          "representation",
+          "engineVersion",
+          "state",
+          "stateDigest",
+          "fromCheckpointTick"
+        ],
+        "properties": {
+          "tick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "representation": {
+            "const": "SIMULATED"
+          },
+          "engineVersion": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SystemState"
+          },
+          "stateDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "fromCheckpointTick": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "recordedDigest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "이 tick에 기록된 digest(액션 직후). seek 결과와 같아야 한다."
+          }
+        }
       }
     },
     "responses": {

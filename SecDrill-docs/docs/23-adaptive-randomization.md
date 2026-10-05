@@ -14,7 +14,7 @@ MVP 변형은 합성 사용자·리소스 ID·이름·정상 로그 순서·공�
 
 추천 후보는 공개·지원 모드·선수 역량·미노출 사건 계열·실행 예산 조건을 만족해야 한다. 점수는 `0.4 × 역량 evidence gap + 0.3 × 낮은 최근 독립 성공 + 0.2 × 사건 계열 novelty + 0.1 × 선호 적합`으로 초기 가정한다. 단위는 모두 0~1로 정규화하며 UNKNOWN은 낮은 성공률로 간주하지 않고 evidence gap으로만 반영한다.
 
-추천 상위 3개를 이유·예상 시간·필요 Lab 자원과 함께 제공한다. confidence LOW면 진단 과제, 독립 gate 실패가 반복되면 개념 drill, 해설 성공이면 다른 계열 Transfer를 추천한다. 사용자는 추천을 무시하거나 원하는 모드를 선택할 수 있다.
+추천 상위 3개를 이유·예상 시간·필요 Lab 자원과 함께 제공한다. confidence LOW면 진단 과제, 독립 gate 실패가 반복되면 개념 drill, 해설 성공이면 다른 계열 Transfer를 추천한다. 사용자는 추천을 무시하거나 원하는 모드를 선택할 수 있다. 구현(T12, `recommend-v1`): 점수는 basis point로 계산하고 UNKNOWN은 근거 부족(1.0), LOW·MEDIUM·HIGH confidence는 0.6·0.3·0.1로 반영한다. 낮은 독립 성공은 측정된 역량만 쓴다. 해설을 본 계열은 제외하고, 방금 끝낸 사건도 뺀다. 이유 코드(EVIDENCE_GAP·LOW_INDEPENDENT_SUCCESS·NEW_FAMILY·PREFERRED_MODE·TRANSFER_AFTER_HELP)와 네 항의 값을 함께 보여주며, 리포트 생성 때마다 watermark·후보 수·선택·노출 이력을 recommendations에 기록한다. 선수 역량·실행 예산 조건은 아직 없다.
 
 ## 추천 provenance
 

@@ -334,6 +334,183 @@
           "evidenceCoverage": 0.6666
         }
       }
+    },
+    {
+      "schema": "Report",
+      "valid": true,
+      "value": {
+        "sessionId": "10000000-0000-4000-8000-0000000000c1",
+        "revision": 2,
+        "evaluationRefs": [
+          "10000000-0000-4000-8000-0000000000c2"
+        ],
+        "summary": "요약",
+        "exposure": "GUIDED",
+        "evidenceIds": [
+          "10000000-0000-4000-8000-0000000000c3"
+        ],
+        "recommendedScenarioVersionIds": [
+          "10000000-0000-4000-8000-0000000000c4"
+        ],
+        "scopeLimitations": [
+          "격리 미검증 데모"
+        ],
+        "policyVersion": "report-v1",
+        "createdAt": "2026-10-05T00:00:00Z",
+        "dimensions": [
+          {
+            "key": "patch",
+            "status": "PASS",
+            "score": 100,
+            "representation": "OBSERVED",
+            "evaluationId": "10000000-0000-4000-8000-0000000000c2",
+            "evidenceIds": [
+              "10000000-0000-4000-8000-0000000000c3"
+            ]
+          },
+          {
+            "key": "response",
+            "status": "NOT_ATTEMPTED",
+            "representation": "SIMULATED",
+            "evidenceIds": []
+          }
+        ],
+        "recommendations": [
+          {
+            "scenarioId": "10000000-0000-4000-8000-0000000000c5",
+            "scenarioVersionId": "10000000-0000-4000-8000-0000000000c4",
+            "title": "다음 사건",
+            "scoreBps": 7200,
+            "reasons": [
+              "EVIDENCE_GAP",
+              "NEW_FAMILY"
+            ],
+            "terms": {
+              "evidenceGap": 10000
+            }
+          }
+        ],
+        "changeReason": "재채점"
+      }
+    },
+    {
+      "schema": "Report",
+      "valid": false,
+      "reason": "at most three recommendations",
+      "value": {
+        "sessionId": "10000000-0000-4000-8000-0000000000c1",
+        "revision": 1,
+        "evaluationRefs": [],
+        "summary": "s",
+        "exposure": "INDEPENDENT",
+        "evidenceIds": [],
+        "recommendedScenarioVersionIds": [],
+        "scopeLimitations": [],
+        "policyVersion": "report-v1",
+        "createdAt": "2026-10-05T00:00:00Z",
+        "dimensions": [],
+        "recommendations": [
+          {
+            "scenarioId": "10000000-0000-4000-8000-0000000000c5",
+            "scenarioVersionId": "10000000-0000-4000-8000-0000000000c4",
+            "title": "t",
+            "scoreBps": 1,
+            "reasons": [],
+            "terms": {}
+          },
+          {
+            "scenarioId": "10000000-0000-4000-8000-0000000000c5",
+            "scenarioVersionId": "10000000-0000-4000-8000-0000000000c4",
+            "title": "t",
+            "scoreBps": 1,
+            "reasons": [],
+            "terms": {}
+          },
+          {
+            "scenarioId": "10000000-0000-4000-8000-0000000000c5",
+            "scenarioVersionId": "10000000-0000-4000-8000-0000000000c4",
+            "title": "t",
+            "scoreBps": 1,
+            "reasons": [],
+            "terms": {}
+          },
+          {
+            "scenarioId": "10000000-0000-4000-8000-0000000000c5",
+            "scenarioVersionId": "10000000-0000-4000-8000-0000000000c4",
+            "title": "t",
+            "scoreBps": 1,
+            "reasons": [],
+            "terms": {}
+          }
+        ]
+      }
+    },
+    {
+      "schema": "ReplayState",
+      "valid": true,
+      "value": {
+        "tick": 4,
+        "representation": "SIMULATED",
+        "engineVersion": "ir-v1",
+        "state": {
+          "tick": 4,
+          "leakedSyntheticRecords": 3,
+          "availability": 1,
+          "workloadSuccess": 0.9,
+          "evidenceCoverage": 1
+        },
+        "stateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "fromCheckpointTick": 3,
+        "recordedDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "schema": "ReplayState",
+      "valid": false,
+      "reason": "model state is never presented as observed",
+      "value": {
+        "tick": 4,
+        "representation": "OBSERVED",
+        "engineVersion": "ir-v1",
+        "state": {
+          "tick": 4,
+          "leakedSyntheticRecords": 3,
+          "availability": 1,
+          "workloadSuccess": 0.9,
+          "evidenceCoverage": 1
+        },
+        "stateDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "fromCheckpointTick": 3
+      }
+    },
+    {
+      "schema": "ReplayChunk",
+      "valid": true,
+      "value": {
+        "fromSeq": 1,
+        "toSeq": 2,
+        "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "items": [
+          {
+            "seq": 1,
+            "type": "SessionCreated",
+            "trustLevel": "SERVER_VERIFIED",
+            "occurredAt": "2026-10-05T00:00:00Z",
+            "summary": {},
+            "artifact": "NONE",
+            "id": "30000000-0000-4000-8000-000000000001"
+          },
+          {
+            "seq": 2,
+            "type": "HYPOTHESIS_REPORTED",
+            "trustLevel": "USER_REPORTED",
+            "occurredAt": "2026-10-05T00:00:00Z",
+            "summary": {},
+            "artifact": "EXPIRED",
+            "id": "30000000-0000-4000-8000-000000000002"
+          }
+        ]
+      }
     }
   ]
 }

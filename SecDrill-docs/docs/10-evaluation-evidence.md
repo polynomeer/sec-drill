@@ -30,8 +30,8 @@ hash는 canonical JSON과 직전 hash의 SHA-256으로 계산한다. DB UPDATE/D
 
 각 사건 계열·세부 역량에서 하루 한 개의 가장 강한 판정만 표본으로 채택한다. base weight는 CTF objective 0.5, Wargame 독립 증명 1.0, Purple gate 통과 1.5, 무힌트 Transfer 2.0이다. H1~H2는 0.7, H3~H4·해설은 0.3 도움 배수를 적용한다. 시스템 오류·사용자 단순 로그 조회·오답 플래그는 표본에서 제외한다. Transfer와 원본 사건의 상관된 증거를 독립 표본으로 중복 세지 않는다.
 
-관측 성공률은 `sum(weight × outcome)/sum(weight)`이며 outcome은 해당 역량 gate의 0 또는 1이다. 연속 점수를 심리측정상 숙련 확률로 주장하지 않는다. level은 표본 3개·서로 다른 계열 2개 미만이면 UNKNOWN, 이후 성공률 <0.5 DEVELOPING, <0.8 PRACTICING, >=0.8 DEMONSTRATED다. DEMONSTRATED에는 서로 다른 계열의 무힌트 Transfer 2개가 추가로 필요하다. confidence는 LOW(표본 <5 또는 계열 <3), MEDIUM(5~9 및 계열 >=3), HIGH(>=10 및 계열 >=4)로 별도 표시한다. 이는 제품용 초기 휴리스틱이며 파일럿 calibration 대상이다.
+관측 성공률은 `sum(weight × outcome)/sum(weight)`이며 outcome은 해당 역량 gate의 0 또는 1이다. 연속 점수를 심리측정상 숙련 확률로 주장하지 않는다. level은 표본 3개·서로 다른 계열 2개 미만이면 UNKNOWN, 이후 성공률 <0.5 DEVELOPING, <0.8 PRACTICING, >=0.8 DEMONSTRATED다. DEMONSTRATED에는 서로 다른 계열의 무힌트 Transfer 2개가 추가로 필요하다. confidence는 LOW(표본 <5 또는 계열 <3), MEDIUM(5~9 및 계열 >=3), HIGH(>=10 및 계열 >=4)로 별도 표시한다. 이는 제품용 초기 휴리스틱이며 파일럿 calibration 대상이다. 구현(T12, `skill-v1`·`taxonomy-v1`): 표본은 활성 평가만 쓰고 demo 결과(fake worker·격리 미검증)와 회고(experimental)를 뺀다. 제출 종류별 역량은 FLAG·OBJECTIVE→ATTACK_REASONING, DETECTION→DETECTION, PATCH→SECURE_PATCHING이다. 힌트는 parent Session에서 이어받으며 H1~H2는 0.7, H3는 0.3, H4(해설)는 0.3·해설 노출이다. parent chain 하나와 역량 하나에서는 가장 강한 표본 하나만 센다. 다른 계열의 parent를 가진 Session이 Transfer다. 결과는 매 요청 계산하며 watermark는 활성 평가 id 집합의 digest다.
 
 ## 정정과 설명 가능성
 
-재채점은 새 EvaluationRevision을 추가하고 동일 policyVersion의 최신 활성 revision만 projection에 반영한다. 이전 리포트에는 당시 revision을 고정하고 새 결과로 변경된 이유를 표시한다. 사용자에게 점수·근거·도움·평가 범위·정책 버전을 제공하고 이의를 기록해 운영자 검수로 연결한다.
+구현(T12): 리포트는 차원마다 status(PASS·FAIL·INCONCLUSIVE·NOT_ATTEMPTED·NOT_EVALUATED), 근거 종류(관측·서버 확인·모델 재계산·학습자 보고)와 evidence id anchor를 갖는다. 관측·조사는 timeline 답안 채점이 없어 NOT_EVALUATED, 대응은 IR 모델 재계산으로 contained일 때 정상 업무 성공률을 점수로 한다. 도움 수준은 parent chain을 포함하고 판정 범위(데모·모델·도움·플랫폼 판정 보류)를 함께 적는다. 재채점은 새 EvaluationRevision을 추가하고 동일 policyVersion의 최신 활성 revision만 projection에 반영한다. 이전 리포트에는 당시 revision을 고정하고 새 결과로 변경된 이유를 표시한다. 사용자에게 점수·근거·도움·평가 범위·정책 버전을 제공하고 이의를 기록해 운영자 검수로 연결한다.

@@ -446,11 +446,11 @@ hash는 canonical JSON과 직전 hash의 SHA-256으로 계산한다. DB UPDATE/D
 
 각 사건 계열·세부 역량에서 하루 한 개의 가장 강한 판정만 표본으로 채택한다. base weight는 CTF objective 0.5, Wargame 독립 증명 1.0, Purple gate 통과 1.5, 무힌트 Transfer 2.0이다. H1~H2는 0.7, H3~H4·해설은 0.3 도움 배수를 적용한다. 시스템 오류·사용자 단순 로그 조회·오답 플래그는 표본에서 제외한다. Transfer와 원본 사건의 상관된 증거를 독립 표본으로 중복 세지 않는다.
 
-관측 성공률은 `sum(weight × outcome)/sum(weight)`이며 outcome은 해당 역량 gate의 0 또는 1이다. 연속 점수를 심리측정상 숙련 확률로 주장하지 않는다. level은 표본 3개·서로 다른 계열 2개 미만이면 UNKNOWN, 이후 성공률 <0.5 DEVELOPING, <0.8 PRACTICING, >=0.8 DEMONSTRATED다. DEMONSTRATED에는 서로 다른 계열의 무힌트 Transfer 2개가 추가로 필요하다. confidence는 LOW(표본 <5 또는 계열 <3), MEDIUM(5~9 및 계열 >=3), HIGH(>=10 및 계열 >=4)로 별도 표시한다. 이는 제품용 초기 휴리스틱이며 파일럿 calibration 대상이다.
+관측 성공률은 `sum(weight × outcome)/sum(weight)`이며 outcome은 해당 역량 gate의 0 또는 1이다. 연속 점수를 심리측정상 숙련 확률로 주장하지 않는다. level은 표본 3개·서로 다른 계열 2개 미만이면 UNKNOWN, 이후 성공률 <0.5 DEVELOPING, <0.8 PRACTICING, >=0.8 DEMONSTRATED다. DEMONSTRATED에는 서로 다른 계열의 무힌트 Transfer 2개가 추가로 필요하다. confidence는 LOW(표본 <5 또는 계열 <3), MEDIUM(5~9 및 계열 >=3), HIGH(>=10 및 계열 >=4)로 별도 표시한다. 이는 제품용 초기 휴리스틱이며 파일럿 calibration 대상이다. 구현(T12, `skill-v1`·`taxonomy-v1`): 표본은 활성 평가만 쓰고 demo 결과(fake worker·격리 미검증)와 회고(experimental)를 뺀다. 제출 종류별 역량은 FLAG·OBJECTIVE→ATTACK_REASONING, DETECTION→DETECTION, PATCH→SECURE_PATCHING이다. 힌트는 parent Session에서 이어받으며 H1~H2는 0.7, H3는 0.3, H4(해설)는 0.3·해설 노출이다. parent chain 하나와 역량 하나에서는 가장 강한 표본 하나만 센다. 다른 계열의 parent를 가진 Session이 Transfer다. 결과는 매 요청 계산하며 watermark는 활성 평가 id 집합의 digest다.
 
 ## 정정과 설명 가능성
 
-재채점은 새 EvaluationRevision을 추가하고 동일 policyVersion의 최신 활성 revision만 projection에 반영한다. 이전 리포트에는 당시 revision을 고정하고 새 결과로 변경된 이유를 표시한다. 사용자에게 점수·근거·도움·평가 범위·정책 버전을 제공하고 이의를 기록해 운영자 검수로 연결한다.
+구현(T12): 리포트는 차원마다 status(PASS·FAIL·INCONCLUSIVE·NOT_ATTEMPTED·NOT_EVALUATED), 근거 종류(관측·서버 확인·모델 재계산·학습자 보고)와 evidence id anchor를 갖는다. 관측·조사는 timeline 답안 채점이 없어 NOT_EVALUATED, 대응은 IR 모델 재계산으로 contained일 때 정상 업무 성공률을 점수로 한다. 도움 수준은 parent chain을 포함하고 판정 범위(데모·모델·도움·플랫폼 판정 보류)를 함께 적는다. 재채점은 새 EvaluationRevision을 추가하고 동일 policyVersion의 최신 활성 revision만 projection에 반영한다. 이전 리포트에는 당시 revision을 고정하고 새 결과로 변경된 이유를 표시한다. 사용자에게 점수·근거·도움·평가 범위·정책 버전을 제공하고 이의를 기록해 운영자 검수로 연결한다.
 
 
 출처 파일: `docs/11-architecture.md`
@@ -554,7 +554,7 @@ CTF에서 Purple로 이어가기와 Transfer는 새 Session을 생성하고 pare
 
 `CREATED → ACTIVE → SUBMITTED → EVALUATING → COMPLETED`
 
-CREATED는 Lab ready 후 ACTIVE가 된다. ACTIVE에서 Lab이 만료되어도 기록은 보존되고 새 generation을 요청할 수 있다. 모드별 필수 산출물이 충족되면 finish가 SUBMITTED를 만들고 Lab 종료를 요청한다(CTF: 모든 challenge에 활성 PASS evaluation, 없으면 409 MISSING_GATES `objective_confirmed`). EVALUATING은 최종 리포트 생성 작업을 의미하고 단계별 채점은 ACTIVE 동안에도 수행한다. 사용자 취소는 COMPLETED 이전에 CANCELLED, hard Session 보관 정책상 종료는 EXPIRED로 간다. 최종 리포트 SYSTEM_ERROR는 EVALUATION_FAILED이며 동일 finish job을 새 attempt로 재시도할 수 있다. COMPLETED를 ACTIVE로 되돌리지 않는다.
+CREATED는 Lab ready 후 ACTIVE가 된다. ACTIVE에서 Lab이 만료되어도 기록은 보존되고 새 generation을 요청할 수 있다. 모드별 필수 산출물이 충족되면 finish가 SUBMITTED를 만들고 Lab 종료를 요청한다(CTF: 모든 challenge에 활성 PASS evaluation, 없으면 409 MISSING_GATES `objective_confirmed`). EVALUATING은 최종 리포트 생성 작업을 의미하고(구현: finish가 REPORT job을 만들고 Control Plane worker가 리포트 revision을 쓴 뒤 COMPLETED. 마지막 시도까지 실패하면 EVALUATION_FAILED. 완료된 Session의 재채점은 새 REPORT job으로 새 revision을 만든다) 단계별 채점은 ACTIVE 동안에도 수행한다. 사용자 취소는 COMPLETED 이전에 CANCELLED, hard Session 보관 정책상 종료는 EXPIRED로 간다. 최종 리포트 SYSTEM_ERROR는 EVALUATION_FAILED이며 동일 finish job을 새 attempt로 재시도할 수 있다. COMPLETED를 ACTIVE로 되돌리지 않는다.
 
 ## Lab
 
@@ -612,7 +612,7 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | deletion_requests / deletion_tombstones | owner, scope, session, status, decided, receipt / subject_type, subject_id, request | SESSION scope는 owner 일치 복합 FK; 완료는 receipt 필수; tombstone은 runtime 역할에 INSERT만 |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
-추가 구현 테이블: applied_actions(V8 구현: session, seq, action_type, target, tick, engine_version, state_digest, representation=SIMULATED; session+seq·session+tick unique), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
+추가 구현 테이블: reports(V10: session, revision, policy_version, evaluation_refs, payload; session+revision unique, 쓴 뒤 불변), ir_checkpoints(V10: session, tick, engine, state, state_digest; 3 tick마다), recommendations(V10: user, session, policy_version, source_watermark, payload), applied_actions(V8 구현: session, seq, action_type, target, tick, engine_version, state_digest, representation=SIMULATED; session+seq·session+tick unique), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
 
 ## 원자 작업
 
@@ -667,8 +667,10 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 | POST /sessions/{id}/finish | expectedVersion | 202 Session(SUBMITTED, Lab 종료 요청) | 409 MISSING_GATES |
 | POST /sessions/{id}/stop | expectedVersion | 202 Session | 409 terminal |
 | GET /sessions/{id}/evidence | afterSeq,limit | 200 items,nextSeq,hasMore | 404 |
-| GET /sessions/{id}/report | — | 200 Report | 409 not ready |
-| GET /sessions/{id}/replay | fromSeq,toSeq | 200 manifest/observations | 422 range |
+| GET /sessions/{id}/report | revision? | 200 Report(차원·anchor·도움·범위·추천 3) | 409 NOT_READY, 404 revision |
+| GET /sessions/{id}/replay | fromSeq,toSeq | 200 manifest(chunk·gap·checkpoint) | 422 range |
+| GET /sessions/{id}/replay/chunks/{fromSeq} | toSeq? | 200 근거 항목(신뢰 수준·Artifact 상태) | 422 range |
+| GET /sessions/{id}/replay/state | tick | 200 IR 모델 상태(SIMULATED)·기록 digest | 422 tick |
 | GET /skills/me | policyVersion? | 200 projections | 401 |
 | POST /exports | sessionId? | 202 export job | 429 |
 | POST /deletion-requests | scope, confirmationToken | 202 receipt | 422,401 |
@@ -691,7 +693,7 @@ DETECTION 제출은 PURPLE·DETECTION Session에서만 받고 규칙을 21의 �
 
 채점 내부 API(AGENT): `POST /internal/v1/grade-jobs/{claim,start,heartbeat,observed}`. FLAG GRADE job은 그 Lab을 호스팅한 runner에게만 배정되고 runner는 flag 일치 여부를 받지 않은 채 target의 서버 측 접근 기록을 관측해 보고한다. 일반 worker(fake 포함)는 FLAG job을 받지 않는다. Lab 내부 API(workload bearer, `runner_credentials`): AGENT는 `POST /internal/v1/lab-jobs/{claim,start,heartbeat,provisioned,provision-failed,terminated,cleanup-failed}`와 `POST /internal/v1/labs/reconcile`, GATEWAY는 `GET /internal/v1/gateway/labs/{labId}`와 `POST /internal/v1/gateway/labs/{labId}/activity`만 호출한다. 다른 `/internal/**` 경로와 learner cookie·operator bearer는 거절한다. 모든 callback은 lease의 workerId·fencing token이 일치해야 하며 오래된 token은 `STALE`을 받는다. CLEANUP job은 그 Lab을 만든 runner에게만 배정한다. connect URL은 별도 origin Lab Gateway의 `/connect?token=`이며 token은 labId·generation·owner·만료·nonce를 담은 Ed25519 서명 값으로 60초·1회용이다. 운영 중지는 `POST /ops/v1/labs/{labId}/stop`(OPERATOR·SECURITY_ADMIN)이다. mTLS workload identity(D-17)는 미구현이다.
 
-운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. 콘텐츠 내부 API(operator bearer): `POST /ops/v1/content/bundles`(AUTHOR, 서명 번들 등록 → DRAFT), `POST /ops/v1/scenario-versions/{id}/validations`(AUTHOR·REVIEWER, 검증 보고서), `POST /ops/v1/scenario-versions/{id}/approve`(작성자가 아닌 REVIEWER), `POST /ops/v1/scenario-versions/{id}/quarantine`(OPERATOR·SECURITY_ADMIN·REVIEWER). 학습자 `GET /scenarios/{id}`는 PUBLISHED 버전의 공개 manifest 필드만 반환한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
+운영 재채점(구현, operator bearer OPERATOR·SECURITY_ADMIN): `POST /ops/v1/submissions/{id}/rejudge`가 같은 제출의 새 GRADE job revision을 만들고 감사한다. dry-run·승인 단계는 아직 없다. 운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. 콘텐츠 내부 API(operator bearer): `POST /ops/v1/content/bundles`(AUTHOR, 서명 번들 등록 → DRAFT), `POST /ops/v1/scenario-versions/{id}/validations`(AUTHOR·REVIEWER, 검증 보고서), `POST /ops/v1/scenario-versions/{id}/approve`(작성자가 아닌 REVIEWER), `POST /ops/v1/scenario-versions/{id}/quarantine`(OPERATOR·SECURITY_ADMIN·REVIEWER). 학습자 `GET /scenarios/{id}`는 PUBLISHED 버전의 공개 manifest 필드만 반환한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
 
 
 출처 파일: `docs/16-events-async.md`
@@ -951,7 +953,7 @@ seek는 가장 가까운 이전 checkpoint + 이후 이벤트를 적용한다. �
 
 ## 수용 기준
 
-동일 fixture의 처음부터 재생과 checkpoint seek 상태 digest가 같아야 한다. 구현(T10): IR 상태는 (seed, engine, 수락된 액션)에서 재계산하고 `applied_actions.state_digest`와 비교한다. 이력이 바뀌면 검증이 실패한다. checkpoint·seek·manifest는 T12다. seq 역순·중복·누락·삭제된 artifact·구버전 reducer·권한 없는 anchor를 테스트한다. 실제 네트워크 지연은 Replay에서 원래 observedAt를 보존하고 정렬은 seq 기준으로 일관되게 유지한다.
+동일 fixture의 처음부터 재생과 checkpoint seek 상태 digest가 같아야 한다. 구현(T10): IR 상태는 (seed, engine, 수락된 액션)에서 재계산하고 `applied_actions.state_digest`와 비교한다. 이력이 바뀌면 검증이 실패한다. 구현(T12): manifest는 100 seq chunk(digest·downloadPath), 누락 seq와 만료·삭제 Artifact gap, IR checkpoint(3 tick=30 simulated seconds) 목록을 준다. seek는 digest가 맞는 가장 가까운 이전 checkpoint에서 재계산하고 손상된 checkpoint는 무시한다. 응답은 항상 SIMULATED이며 그 tick에 기록된 digest를 함께 준다. seq 역순·중복·누락·삭제된 artifact·구버전 reducer·권한 없는 anchor를 테스트한다. 실제 네트워크 지연은 Replay에서 원래 observedAt를 보존하고 정렬은 seq 기준으로 일관되게 유지한다.
 
 
 출처 파일: `docs/23-adaptive-randomization.md`
@@ -972,7 +974,7 @@ MVP 변형은 합성 사용자·리소스 ID·이름·정상 로그 순서·공�
 
 추천 후보는 공개·지원 모드·선수 역량·미노출 사건 계열·실행 예산 조건을 만족해야 한다. 점수는 `0.4 × 역량 evidence gap + 0.3 × 낮은 최근 독립 성공 + 0.2 × 사건 계열 novelty + 0.1 × 선호 적합`으로 초기 가정한다. 단위는 모두 0~1로 정규화하며 UNKNOWN은 낮은 성공률로 간주하지 않고 evidence gap으로만 반영한다.
 
-추천 상위 3개를 이유·예상 시간·필요 Lab 자원과 함께 제공한다. confidence LOW면 진단 과제, 독립 gate 실패가 반복되면 개념 drill, 해설 성공이면 다른 계열 Transfer를 추천한다. 사용자는 추천을 무시하거나 원하는 모드를 선택할 수 있다.
+추천 상위 3개를 이유·예상 시간·필요 Lab 자원과 함께 제공한다. confidence LOW면 진단 과제, 독립 gate 실패가 반복되면 개념 drill, 해설 성공이면 다른 계열 Transfer를 추천한다. 사용자는 추천을 무시하거나 원하는 모드를 선택할 수 있다. 구현(T12, `recommend-v1`): 점수는 basis point로 계산하고 UNKNOWN은 근거 부족(1.0), LOW·MEDIUM·HIGH confidence는 0.6·0.3·0.1로 반영한다. 낮은 독립 성공은 측정된 역량만 쓴다. 해설을 본 계열은 제외하고, 방금 끝낸 사건도 뺀다. 이유 코드(EVIDENCE_GAP·LOW_INDEPENDENT_SUCCESS·NEW_FAMILY·PREFERRED_MODE·TRANSFER_AFTER_HELP)와 네 항의 값을 함께 보여주며, 리포트 생성 때마다 watermark·후보 수·선택·노출 이력을 recommendations에 기록한다. 선수 역량·실행 예산 조건은 아직 없다.
 
 ## 추천 provenance
 

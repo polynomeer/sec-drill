@@ -30,8 +30,10 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 | POST /sessions/{id}/finish | expectedVersion | 202 Session(SUBMITTED, Lab 종료 요청) | 409 MISSING_GATES |
 | POST /sessions/{id}/stop | expectedVersion | 202 Session | 409 terminal |
 | GET /sessions/{id}/evidence | afterSeq,limit | 200 items,nextSeq,hasMore | 404 |
-| GET /sessions/{id}/report | — | 200 Report | 409 not ready |
-| GET /sessions/{id}/replay | fromSeq,toSeq | 200 manifest/observations | 422 range |
+| GET /sessions/{id}/report | revision? | 200 Report(차원·anchor·도움·범위·추천 3) | 409 NOT_READY, 404 revision |
+| GET /sessions/{id}/replay | fromSeq,toSeq | 200 manifest(chunk·gap·checkpoint) | 422 range |
+| GET /sessions/{id}/replay/chunks/{fromSeq} | toSeq? | 200 근거 항목(신뢰 수준·Artifact 상태) | 422 range |
+| GET /sessions/{id}/replay/state | tick | 200 IR 모델 상태(SIMULATED)·기록 digest | 422 tick |
 | GET /skills/me | policyVersion? | 200 projections | 401 |
 | POST /exports | sessionId? | 202 export job | 429 |
 | POST /deletion-requests | scope, confirmationToken | 202 receipt | 422,401 |
@@ -54,4 +56,4 @@ DETECTION 제출은 PURPLE·DETECTION Session에서만 받고 규칙을 21의 �
 
 채점 내부 API(AGENT): `POST /internal/v1/grade-jobs/{claim,start,heartbeat,observed}`. FLAG GRADE job은 그 Lab을 호스팅한 runner에게만 배정되고 runner는 flag 일치 여부를 받지 않은 채 target의 서버 측 접근 기록을 관측해 보고한다. 일반 worker(fake 포함)는 FLAG job을 받지 않는다. Lab 내부 API(workload bearer, `runner_credentials`): AGENT는 `POST /internal/v1/lab-jobs/{claim,start,heartbeat,provisioned,provision-failed,terminated,cleanup-failed}`와 `POST /internal/v1/labs/reconcile`, GATEWAY는 `GET /internal/v1/gateway/labs/{labId}`와 `POST /internal/v1/gateway/labs/{labId}/activity`만 호출한다. 다른 `/internal/**` 경로와 learner cookie·operator bearer는 거절한다. 모든 callback은 lease의 workerId·fencing token이 일치해야 하며 오래된 token은 `STALE`을 받는다. CLEANUP job은 그 Lab을 만든 runner에게만 배정한다. connect URL은 별도 origin Lab Gateway의 `/connect?token=`이며 token은 labId·generation·owner·만료·nonce를 담은 Ed25519 서명 값으로 60초·1회용이다. 운영 중지는 `POST /ops/v1/labs/{labId}/stop`(OPERATOR·SECURITY_ADMIN)이다. mTLS workload identity(D-17)는 미구현이다.
 
-운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. 콘텐츠 내부 API(operator bearer): `POST /ops/v1/content/bundles`(AUTHOR, 서명 번들 등록 → DRAFT), `POST /ops/v1/scenario-versions/{id}/validations`(AUTHOR·REVIEWER, 검증 보고서), `POST /ops/v1/scenario-versions/{id}/approve`(작성자가 아닌 REVIEWER), `POST /ops/v1/scenario-versions/{id}/quarantine`(OPERATOR·SECURITY_ADMIN·REVIEWER). 학습자 `GET /scenarios/{id}`는 PUBLISHED 버전의 공개 manifest 필드만 반환한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
+운영 재채점(구현, operator bearer OPERATOR·SECURITY_ADMIN): `POST /ops/v1/submissions/{id}/rejudge`가 같은 제출의 새 GRADE job revision을 만들고 감사한다. dry-run·승인 단계는 아직 없다. 운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. 콘텐츠 내부 API(operator bearer): `POST /ops/v1/content/bundles`(AUTHOR, 서명 번들 등록 → DRAFT), `POST /ops/v1/scenario-versions/{id}/validations`(AUTHOR·REVIEWER, 검증 보고서), `POST /ops/v1/scenario-versions/{id}/approve`(작성자가 아닌 REVIEWER), `POST /ops/v1/scenario-versions/{id}/quarantine`(OPERATOR·SECURITY_ADMIN·REVIEWER). 학습자 `GET /scenarios/{id}`는 PUBLISHED 버전의 공개 manifest 필드만 반환한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
