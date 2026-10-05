@@ -65,6 +65,20 @@ JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL�
 | `CanonicalJsonTest` | RFC 8785 벡터와 Evidence hash를 Python 구현과 동일하게 계산 | TypeScript 구현 |
 | `AuthSafetyTest` | dev-login을 local 밖이나 prod와 함께 켜면, prod에 OIDC·https origin이 없으면 기동 실패 | 운영 배포 설정 |
 
+## Web 검사
+
+```bash
+cd web && npm ci && npm run check:api && npm run build
+PLAYWRIGHT_BROWSERS_PATH=.playwright npx playwright install chromium
+PLAYWRIGHT_BROWSERS_PATH=.playwright npm run e2e
+```
+
+| 검사 | 확인하는 것 | 확인하지 않는 것 |
+|---|---|---|
+| `check:api`·`build` | API 타입이 OpenAPI와 같음, 앱·E2E 코드 타입 검사 | 실제 서버 응답 |
+| Playwright `workspace.spec.ts` | 키보드 흐름, 작은 화면, 출력 escaping, Lab separate origin, SSE 재접속 cursor, 플랫폼 오류와 학습자 실패 안내, 서버 finish gate 표시, Purple 연결 Session, 상태 알림(가짜 API) | 실제 Lab·채점까지의 흐름, 스크린리더 |
+| `WorkspaceApiTest` | 힌트, SSE cursor, Purple finish gate, 연결 Session(실제 서버) | 브라우저 |
+
 ## 수행하지 않은 검증
 
 - E2E 테스트: Web·Session 생성 API 미구현

@@ -24,3 +24,4 @@
 | [0008](0008-ctf-flags-objective-observation-and-demo-results.md) | CTF 플래그, 독립 목표 관측, 데모 결과 표시 | Proposed | — |
 | [0009](0009-python-patch-grading-and-supervisor.md) | Python 패치 채점, 분리된 grading 환경, 외부 supervisor | Proposed | ADR-015 |
 | [0010](0010-detection-dsl-and-incident-model.md) | 탐지 DSL 평가와 사고 대응 모델 | Proposed | ADR-011 일부 |
+| [0011](0011-learner-workspace-web.md) | 학습자 작업 공간 Web | Proposed | ADR-012 일부 |

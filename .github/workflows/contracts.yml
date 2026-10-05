@@ -39,3 +39,26 @@ jobs:
       # Unit, contract-catalog, Control DB boundary and PostgreSQL (Testcontainers) tests.
       - name: Build and test
         run: ./gradlew check --console=plain
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.20"
+      - name: Install exact dependencies
+        run: npm ci --no-audit --no-fund
+      # API types must match the OpenAPI contract; the build type-checks the app and the E2E code.
+      - name: Check API types and build
+        run: |
+          npm run check:api
+          npm run build
+      - name: Browser tests (keyboard, small screen, escaping, origin, reconnect, error messages)
+        run: |
+          PLAYWRIGHT_BROWSERS_PATH=.playwright npx playwright install --with-deps chromium
+          PLAYWRIGHT_BROWSERS_PATH=.playwright npm run e2e

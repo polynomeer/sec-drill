@@ -6,13 +6,13 @@
 
 ## 현재 단계
 
-**T10 탐지 DSL과 사고 대응 모델**(프롬프트 10): 제한된 탐지 규칙 AST, episode 기준 지표, 숨은 holdout 채점과 버전·seed 고정 IR reducer, `POST /sessions/{id}/actions`를 구현하고 검증했다. 모두 합성 데이터 위의 모델이며 `SIMULATED`로 기록한다. T07(CTF)·T08(패치) 결과는 격리 미검증이라 데모다. T01~T10 기반 완료(개인정보 삭제 실행·최종 리포트·Web은 미구현).
+**T11 작업 공간**(프롬프트 11): React + Vite + TypeScript Web(D-06)으로 카탈로그·사건·CTF/Wargame/Purple 작업 공간을 공개 API에 연결하고, 힌트·SSE cursor·Purple finish gate를 서버에 보완했다. 브라우저 E2E는 계약 타입의 가짜 API로 통과했고 실제 Lab까지의 브라우저 전체 흐름은 미검증이다. CTF·패치 결과는 격리 미검증이라 데모다.
 
 ## 활성 Task
 
 | Task | 담당 | 대상 경로 | 시작일 | 메모 |
 |---|---|---|---|---|
-| — | — | — | — | 다음: 프롬프트 11 = T11(Web workspace) |
+| — | — | — | — | 다음: 프롬프트 12 = T12(리포트·Replay·스킬) |
 
 ## 완료 항목
 
@@ -28,7 +28,8 @@
 | T04·T06 Lab 수명·local-trusted 격리 | [T04_T06](T04_T06.md#결과). strong isolation 미검증 |
 | T07 첫 CTF(데모) | [T07](T07.md#결과) |
 | T08 Python 패치 채점(데모) | [T08](T08.md#결과) |
-| T10 탐지·대응 모델 | [T10](T10.md#결과). `./gradlew clean check` 172건 중 168건 통과, 나머지 4건(LabGatewayTest, 컨테이너 기동 시간 초과)은 단독 재실행에서 통과 |
+| T10 탐지·대응 모델 | [T10](T10.md#결과) |
+| T11 작업 공간 | [T11](T11.md#결과). Playwright 16건, `./gradlew clean check` 175건 통과(skip 0) |
 
 ## 미검증 항목
 
@@ -51,6 +52,6 @@
 
 ## 다음 작업
 
-1. 프롬프트 11 = T11(Web CTF/Wargame/Purple workspace, D-06 Web 스택 결정 필요)
+1. 프롬프트 12 = T12(리포트·Replay·스킬 projection)
 2. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 같은 격리 테스트 실행
 3. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))

@@ -13,7 +13,7 @@
 | D-03 | DDL 누락 보완(F-01~F-04, F-06, F-08) | 지금 | Decided: T01에서 6건 모두 보완, 2026-10-04 |
 | D-04 | canonical digest와 hash chain | T05 전 | Decided: RFC 8785 JCS + SHA-256, genesis `0`×64, 2026-10-04 |
 | D-05 | Control Plane 언어·프레임워크 | 지금 | Decided: Kotlin + Spring Boot + Gradle + JDK 21, 2026-10-04 ([ADR 0001](../adr/0001-control-plane-stack-and-migrations.md) Proposed, 파일럿 전 재검토) |
-| D-06 | Web 스택 | T11 전 | Deferred (T07은 정적 HTML·JS 최소 화면, 2026-10-05 소유자 선택) |
+| D-06 | Web 스택 | T11 전 | Decided: React + Vite + TypeScript, E2E Playwright, 2026-10-05 ([ADR 0011](../adr/0011-learner-workspace-web.md)) |
 | D-07 | build_pack 재생성 동작 | 팩 첫 수정 전 | Decided: B(도구 수정), 2026-10-04 |
 | D-08 | message broker | T05 publisher 전 | Decided: RabbitMQ 4.3 quorum queue, 2026-10-04 |
 | D-09 | OIDC provider | 파일럿 전 | Deferred (구현은 provider 중립, [ADR 0002](../adr/0002-learner-and-operator-authentication.md)) |
@@ -58,9 +58,10 @@
 - 선택지: (A) 11의 제안대로 Kotlin/Spring Boot + JDK 21 LTS(로컬 설치됨) + Gradle wrapper (B) 다른 스택.
 - 권장: **A를 개발용 가벼운 선택으로 채택**하고 ADR-001과 함께 Proposed ADR로 기록한다. patch 버전은 착수 시 지원 상태를 확인해 lockfile로 고정한다. 외부 파일럿 전에 재검토한다.
 
-### D-06 Web 스택 (T11 전, 보류)
+### D-06 Web 스택 (T11 전, 결정)
 
 - 11은 TypeScript만 정한다. Web은 공개 OpenAPI만 의존하므로 T11 전까지 미뤄도 다른 Task를 막지 않는다.
+- 결정(2026-10-05): **React + Vite + TypeScript**, 브라우저 E2E는 **Playwright**(저장소 로컬 Chromium). T07의 정적 화면은 대체했다.
 
 ### D-07 build_pack 재생성 동작 (팩 첫 수정 전)
 

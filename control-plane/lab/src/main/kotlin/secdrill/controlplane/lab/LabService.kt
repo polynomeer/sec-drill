@@ -98,7 +98,7 @@ data class LabView(
     val isolationVerified: Boolean,
 )
 
-data class SessionView(val id: UUID, val scenarioVersionId: UUID, val mode: String, val status: String, val phase: String, val version: Long, val createdAt: String, val lab: LabView?)
+data class SessionView(val id: UUID, val scenarioId: UUID, val scenarioVersionId: UUID, val mode: String, val status: String, val phase: String, val version: Long, val createdAt: String, val lab: LabView?)
 
 data class ConnectView(val connectUrl: String, val expiresAt: String)
 
@@ -275,8 +275,10 @@ class LabService(
                     Rfc3339.format(rs.getObject(4, OffsetDateTime::class.java).toInstant()), rs.getBoolean(5))
             }
             .optional().orElse(null)
-        return jdbc.sql("SELECT scenario_version_id, mode, status, phase, version, created_at FROM sessions WHERE id = ?").param(sessionId).query { rs, _ ->
-            SessionView(sessionId, rs.getObject(1, UUID::class.java), rs.getString(2), rs.getString(3), rs.getString(4), rs.getLong(5),
+        return jdbc.sql(
+            "SELECT s.scenario_version_id, s.mode, s.status, s.phase, s.version, s.created_at, sv.scenario_id FROM sessions s JOIN scenario_versions sv ON sv.id = s.scenario_version_id WHERE s.id = ?",
+        ).param(sessionId).query { rs, _ ->
+            SessionView(sessionId, rs.getObject(7, UUID::class.java), rs.getObject(1, UUID::class.java), rs.getString(2), rs.getString(3), rs.getString(4), rs.getLong(5),
                 Rfc3339.format(rs.getObject(6, OffsetDateTime::class.java).toInstant().truncatedTo(ChronoUnit.SECONDS)), lab)
         }.single()
     }

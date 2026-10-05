@@ -52,6 +52,10 @@ class EvidenceController(private val jdbc: JdbcClient, private val guard: Owners
         }
         if (errors.isNotEmpty()) throw ApiException(ErrorCode.VALIDATION_FAILED, "Invalid paging", ErrorDetails(fieldErrors = errors))
         guard.requireOwned(principal, OwnedResource.SESSION, id)
+        return page(id, afterSeq, limit)
+    }
+
+    fun page(id: UUID, afterSeq: Long, limit: Int): EvidencePage {
         val rows = jdbc.sql(
             """SELECT id, seq, event_type, trust_level, occurred_at, ingested_at, payload_digest, hash, safe_payload::text
                FROM evidence WHERE session_id = ? AND seq > ? ORDER BY seq LIMIT ?""",
@@ -65,5 +69,47 @@ class EvidenceController(private val jdbc: JdbcClient, private val guard: Owners
         }.list()
         val page = rows.take(limit)
         return EvidencePage(page, page.lastOrNull()?.seq ?: afterSeq, rows.size > limit)
+    }
+}
+
+/**
+ * `GET /v1/sessions/{id}/stream` (15, 07): SSE with `id` = evidence seq and `event: evidence`. A reconnecting client
+ * sends `Last-Event-ID` and receives only what it missed, so the cursor survives reconnects. Polls the ledger once a
+ * second; the connection closes after [STREAM_TTL_MILLIS] and the client reconnects with its cursor.
+ */
+@RestController
+class EvidenceStreamController(private val evidence: EvidenceController, private val guard: OwnershipGuard) {
+    companion object {
+        const val STREAM_TTL_MILLIS = 300_000L
+    }
+
+    @GetMapping("/v1/sessions/{id}/stream", produces = ["text/event-stream"])
+    fun stream(
+        @AuthenticationPrincipal principal: LearnerPrincipal,
+        @PathVariable id: UUID,
+        @org.springframework.web.bind.annotation.RequestHeader("Last-Event-ID", required = false) lastEventId: String?,
+    ): org.springframework.web.servlet.mvc.method.annotation.SseEmitter {
+        val cursor = lastEventId?.let { it.toLongOrNull()?.takeIf { seq -> seq >= 0 } ?: throw ApiException(ErrorCode.MALFORMED_REQUEST, "Last-Event-ID must be a sequence number") } ?: 0L
+        guard.requireOwned(principal, OwnedResource.SESSION, id)
+        val emitter = org.springframework.web.servlet.mvc.method.annotation.SseEmitter(STREAM_TTL_MILLIS)
+        Thread.ofVirtual().name("evidence-stream-$id").start {
+            var seq = cursor
+            val deadline = System.currentTimeMillis() + STREAM_TTL_MILLIS - 1_000
+            try {
+                while (System.currentTimeMillis() < deadline) {
+                    val page = evidence.page(id, seq, 100)
+                    page.items.forEach { item ->
+                        emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().id(item.seq.toString()).name("evidence").data(item))
+                        seq = item.seq
+                    }
+                    if (!page.hasMore) Thread.sleep(1_000)
+                }
+                emitter.complete()
+            } catch (gone: Exception) {
+                // Client went away or the request ended; it resumes from its Last-Event-ID.
+                runCatching { emitter.completeWithError(gone) }
+            }
+        }
+        return emitter
     }
 }

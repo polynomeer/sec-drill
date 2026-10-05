@@ -1,0 +1,33 @@
+{
+  "name": "secdrill-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "SecDrill learner workspace (T11, D-06: React + Vite + TypeScript). Talks only to the public OpenAPI.",
+  "scripts": {
+    "gen:api": "openapi-typescript ../SecDrill-docs/contracts/openapi.yaml -o src/api/schema.ts",
+    "check:api": "openapi-typescript ../SecDrill-docs/contracts/openapi.yaml -o .api-check.ts && node scripts/same.mjs src/api/schema.ts .api-check.ts",
+    "typecheck": "tsc --noEmit",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "vite": "8.3.2"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

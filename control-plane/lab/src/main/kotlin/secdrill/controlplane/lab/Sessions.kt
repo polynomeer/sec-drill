@@ -115,13 +115,26 @@ class SessionService(
         if (session.version != expectedVersion) throw ApiException(ErrorCode.VERSION_CONFLICT, "Session version changed", ErrorDetails(latestVersion = session.version))
         val required = json.readTree(session.manifest)["completionRequirements"]?.get(session.mode)?.values()?.map { it.asString() } ?: listOf("objective_confirmed")
         val passing = passingEvaluations(sessionId, session.versionId)
-        val missing = required.filterNot { it == "objective_confirmed" && passing != null }
+        // Each gate is a server-side evidence check (07: the UI never decides completion). Unknown gates fail closed.
+        fun has(sql: String) = jdbc.sql(sql).param(sessionId).query(Int::class.java).single() > 0
+        fun activeVerdict(kind: String, verdicts: String) =
+            "SELECT count(*) FROM evaluations e JOIN submissions s ON s.id = e.submission_id WHERE s.session_id = ? AND s.kind = '$kind' AND e.is_active AND e.verdict IN ($verdicts)"
+        val met = mapOf(
+            "objective_confirmed" to { passing != null },
+            "detection_evaluated" to { has(activeVerdict("DETECTION", "'PASS', 'FAIL'")) },
+            "action_applied" to { has("SELECT count(*) FROM applied_actions WHERE session_id = ?") },
+            "patch_verified" to { has(activeVerdict("PATCH", "'PASS'")) },
+            "postmortem_submitted" to { has("SELECT count(*) FROM submissions WHERE session_id = ? AND kind = 'POSTMORTEM'") },
+            "root_cause_reported" to { has("SELECT count(*) FROM submissions WHERE session_id = ? AND kind = 'OBJECTIVE'") },
+        )
+        val missing = required.filterNot { met[it]?.invoke() == true }
         if (missing.isNotEmpty()) throw ApiException(ErrorCode.MISSING_GATES, "Completion requirements are not met", ErrorDetails(missingGates = missing))
 
         jdbc.sql("UPDATE sessions SET status = 'SUBMITTED', version = version + 1 WHERE id = ?").param(sessionId).update()
         jdbc.sql("SELECT id FROM labs WHERE session_id = ? AND cleanup_confirmed_at IS NULL").param(sessionId).query(UUID::class.java).list().filterNotNull()
             .forEach { labs.requestTermination(it, LabTerminateReason.USER_STOP) }
-        val refs = passing.orEmpty().map(UUID::toString)
+        val refs = jdbc.sql("SELECT e.id FROM evaluations e JOIN submissions s ON s.id = e.submission_id WHERE s.session_id = ? AND e.is_active AND e.verdict = 'PASS' ORDER BY e.created_at")
+            .param(sessionId).query(UUID::class.java).list().filterNotNull().map(UUID::toString)
         val evidence = ledger.append(sessionId, EventType.SessionFinished.name, EvidenceSource.CONTROL, TrustLevel.SERVER_VERIFIED,
             mapOf("sessionId" to sessionId, "evaluationRefs" to refs))
         outbox.append(EventType.SessionFinished, sessionId, session.version + 1, sessionId, sessionId,

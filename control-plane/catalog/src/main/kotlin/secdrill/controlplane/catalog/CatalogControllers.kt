@@ -60,6 +60,9 @@ data class ScenarioDetailView(
     val challenges: List<ChallengeView>,
     val allowedTargets: List<String>,
     val estimatedMinutes: Int,
+    val patchPaths: List<String>,
+    val actions: List<String>,
+    val completionRequirements: Map<String, List<String>>,
 )
 
 data class ChallengeView(val id: UUID, val objective: String, val kind: String)
@@ -86,6 +89,9 @@ class ScenarioController(private val jdbc: JdbcClient, private val json: JsonMap
             challenges = manifest["challenges"].values().map { ChallengeView(UUID.fromString(it["id"].asString()), it["objective"].asString(), it["kind"].asString()) },
             allowedTargets = strings(manifest["scope"]["allowedTargets"]),
             estimatedMinutes = manifest["estimatedMinutes"].asInt(),
+            patchPaths = strings(manifest["patch"]?.get("allowedPaths")),
+            actions = strings(manifest["actions"]),
+            completionRequirements = manifest["completionRequirements"]?.properties()?.associate { it.key to strings(it.value) } ?: emptyMap(),
         )
     }
 }

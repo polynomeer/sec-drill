@@ -40,3 +40,9 @@ dependencies {
     testImplementation(libs.kotlin.test.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
+
+// The learner workspace (web/, D-06) is built with npm; when its output exists it is served from /app/.
+// Without a build the API still works and /app/ is not available.
+tasks.processResources {
+    from(rootProject.file("web/dist")) { into("static/app") }
+}
