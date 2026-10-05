@@ -344,7 +344,7 @@ CTF의 플래그 획득은 목표 달성 증거다. 그것만으로 탐지·수�
 
 ## 패키지 구성
 
-공개 manifest에는 schemaVersion, scenarioId, version, title, modes, phases, competencyTags, 시간·자원 한도, 이미지 digest, 제공 파일 목록, 허용 대상, 목표 설명이 포함된다. 비공개 oracle bundle에는 합성 목표, 공격 라벨, hidden tests, reference patch, mutants, hints/solution, rubric을 둔다. 공개·비공개 번들의 digest를 함께 서명하되 API가 비공개 파일 경로와 본문을 노출하지 않는다.
+공개 manifest에는 schemaVersion, scenarioId, version, title, modes, phases, competencyTags, 시간·자원 한도, 이미지 digest, 제공 파일 목록, 허용 대상, 목표 설명이 포함된다. 비공개 oracle bundle에는 합성 목표, 공격 라벨, hidden tests, reference patch, mutants, hints/solution, rubric을 둔다. 공개·비공개 번들의 digest를 함께 서명하되 API가 비공개 파일 경로와 본문을 노출하지 않는다. 패치 채점 콘텐츠는 비공개 `private/hidden-tests.json`(로그인 정보와 test별 요청·기대: `statusIn`, `idsInclude`, `idsExclude`)을 두고, 그 id 집합은 oracle `hiddenTests`와 같아야 한다. 같지 않거나 없으면 채점은 content invalid(SYSTEM_ERROR)다. 비공개 파일은 Lab 이미지 build context에서 제외한다(`.dockerignore`).
 
 `examples/scenario.json`과 `examples/private-oracle.json`은 해당 구조를 설명한다. 예제 digest는 자리표시 값으로 출판 게이트를 통과하지 못하게 한다. 실제 번들 digest는 압축 메타데이터가 아닌 canonical manifest와 파일 digest 목록으로 계산한다.
 
@@ -436,7 +436,7 @@ AI 설명은 선택적 부가 기능이다. 규칙·테스트로 결정된 공�
 
 ## 원장 구조와 신뢰
 
-Evidence에는 id, sessionId, seq, type, source, trustLevel, occurredAt, ingestedAt, artifactRef, payloadDigest, previousHash, hash, schemaVersion이 있다. seq와 해시는 트랜잭션 내 Session 원장 head lock으로 부여한다. 서버가 실제로 수집한 `OBJECTIVE_CONFIRMED`, `TEST_RESULT`, `ACTION_APPLIED`, `HINT_GRANTED`, `POSTMORTEM_SUBMITTED`와 사용자 주장 `HYPOTHESIS_REPORTED`를 구분한다. 사용자가 클릭했다고 소스를 이해했다는 증거를 만들지 않는다. CTF의 `OBJECTIVE_CONFIRMED`는 Lab을 호스팅한 runner의 collector가 target의 서버 측 접근 기록에서 의도된 접근을 관측했을 때만 `COLLECTOR`/`OBSERVED`로 기록하고, 플래그 일치만으로는 기록하지 않는다. 격리가 검증되지 않은 runtime(local-trusted)이나 fake worker의 평가는 `demo`로 표시하며 공식 결과·skill projection의 근거로 쓰지 않는다.
+Evidence에는 id, sessionId, seq, type, source, trustLevel, occurredAt, ingestedAt, artifactRef, payloadDigest, previousHash, hash, schemaVersion이 있다. seq와 해시는 트랜잭션 내 Session 원장 head lock으로 부여한다. 서버가 실제로 수집한 `OBJECTIVE_CONFIRMED`, `TEST_RESULT`, `ACTION_APPLIED`, `HINT_GRANTED`, `POSTMORTEM_SUBMITTED`와 사용자 주장 `HYPOTHESIS_REPORTED`를 구분한다. 사용자가 클릭했다고 소스를 이해했다는 증거를 만들지 않는다. 패치 채점의 `TEST_RESULT`는 grading supervisor의 관측으로 `SUPERVISOR`/`OBSERVED`이며 bundle digest, 결과 종류, 보안·회귀 통과 수와 총수, 출력 digest만 담는다(test id·입력 없음). CTF의 `OBJECTIVE_CONFIRMED`는 Lab을 호스팅한 runner의 collector가 target의 서버 측 접근 기록에서 의도된 접근을 관측했을 때만 `COLLECTOR`/`OBSERVED`로 기록하고, 플래그 일치만으로는 기록하지 않는다. 격리가 검증되지 않은 runtime(local-trusted)이나 fake worker의 평가는 `demo`로 표시하며 공식 결과·skill projection의 근거로 쓰지 않는다.
 
 hash는 canonical JSON과 직전 hash의 SHA-256으로 계산한다. DB UPDATE/DELETE 차단·별도 서명 checkpoint·외부 저장으로 변조 탐지를 강화하지만 DB 최고 권한의 악의까지 불가능하게 만든다고 주장하지 않는다. 원장 row에는 비밀·raw source를 저장하지 않고 별도 보관·삭제 가능한 Artifact 참조만 둔다.
 
@@ -674,7 +674,7 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 
 Submission kind는 `FLAG`, `OBJECTIVE`, `PATCH`, `DETECTION`, `POSTMORTEM`이다. 각 content의 정확한 구조는 OpenAPI의 discriminator oneOf를 따른다. FLAG 오답은 HTTP 오류가 아니라 완료된 FAIL evaluation이다. challengeId는 Session에 고정된 버전의 FLAG challenge여야 하며 아니면 422다. Session당 최근 1분 오답이 10건이면 429 `RATE_LIMITED`와 `Retry-After: 60`을 반환한다. raw flag를 echo하지 않는다. FLAG 요청은 서버가 메모리 안에서 HMAC 검증 후 jobId·challengeId·검증 결과를 가진 서명된 private receipt를 만들고 그 참조만 저장한다. 비동기 verifier는 receipt와 독립 목표 관측을 확인한다. 구현: 일치 여부는 Session의 살아 있는(desired RUNNING) Lab generation별 nonce로만 계산하므로 다른 Session·종료된 Lab의 플래그는 일치하지 않는다. receipt는 flag 원문 없이 matched·labId·generation·keyVersion을 담고 HMAC으로 서명한다. 판정: 불일치 FAIL, 일치+관측 PASS, 일치+관측 없음 SYSTEM_ERROR(objective INCONCLUSIVE), 관측 수집 실패·receipt 검증 실패는 재시도 후 SYSTEM_ERROR. Evaluation의 `demo`는 fake worker나 격리가 검증되지 않은 runtime의 결과에서 true이며 Lab의 `isolationVerified`가 false이면 그 Session 결과는 모두 demo다. 최초 입력은 request digest 계산 뒤 폐기하고 raw flag를 DB·artifact·Outbox에 보관하지 않는다.
 
-MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다. 5 MiB 압축/20 MiB 해제 한도는 후속 bundle 업로드의 자원 상한이며 현재 공개 API가 그 크기의 inline 요청을 허용한다는 뜻이 아니다. 큰 저장소 과제는 scoped upload 완료·digest 검증 계약을 추가한 뒤 지원한다. export/deletion 비동기 receipt의 pollPath는 본인 job을 조회하는 `/v1/async-jobs/{id}`다. export 완료 응답의 downloadPath는 owner 검사를 하는 플랫폼 경로이고 raw store signed URL을 장기 보관하지 않는다.
+MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다. 구현: Session mode가 PATCH·PURPLE이고 고정된 manifest에 `patch`가 있어야 하며(아니면 422 `UNSUPPORTED_MODE`), `files`의 모든 경로가 `patch.allowedPaths`와 정확히 일치해야 한다(아니면 422, 경로를 응답에 되풀이하지 않음). 검증된 grading runtime이 없고 개발 override도 없으면 503이다. canonical bundle은 경로순 `{path, sha256, byteSize}` 목록과 explanation digest의 JCS digest이며 learner 소유 artifact(LEARNER)로 저장한다. PATCH GRADE job은 grading runtime을 가진 runner만 `kinds: [PATCH]`로 claim하고 결과는 `POST /internal/v1/grade-jobs/patch-result`로 보고한다. 5 MiB 압축/20 MiB 해제 한도는 후속 bundle 업로드의 자원 상한이며 현재 공개 API가 그 크기의 inline 요청을 허용한다는 뜻이 아니다. 큰 저장소 과제는 scoped upload 완료·digest 검증 계약을 추가한 뒤 지원한다. export/deletion 비동기 receipt의 pollPath는 본인 job을 조회하는 `/v1/async-jobs/{id}`다. export 완료 응답의 downloadPath는 owner 검사를 하는 플랫폼 경로이고 raw store signed URL을 장기 보관하지 않는다.
 
 ## 페이징과 실시간
 
@@ -857,6 +857,10 @@ guest에는 agent credentials를 주지 않는다. job revoke·node quarantine�
 6. compile → 정상 baseline → 보안 재현 → 변형 공격 → 정상 회귀를 실행한다. 테스트 driver와 oracle는 사용자 수정 경로 밖에 둔다.
 7. supervisor가 timeout·exit·관측 결과를 정형 result로 만들고 digest와 함께 ingest에 보낸다.
 8. Control Plane이 현재 token·attempt·job 상태를 확인하고 EvaluationRevision·Ledger·projection event를 저장한다.
+
+## 현재 구현(T08, local-trusted)
+
+grading-strong microVM이 없어(D-10) runner는 local-trusted Docker에서 job attempt마다 새 환경을 만든다: `--internal` network, learner 허용 파일만 담은 volume(network 없는 helper가 기록), network 없는 compile 컨테이너(seccomp 확인 후 `compileall`, exit 3만 사용자 compile 오류), 패치된 app 컨테이너, 별도 supervisor 컨테이너. supervisor가 비공개 `hidden-tests.json`의 요청을 보내 상태 코드와 주문 id로만 판정하고 test id별 성공 여부만 보고한다. app은 test plan을 받지 않고 supervisor 출력에 쓸 수 없다. Control이 oracle `hiddenTests`의 expected(deny=보안, allow=회귀)로 gate를 계산한다. 학습자에게는 compile·security·regression gate만 보이고 test id·요청·기대값은 보이지 않는다. 결과는 모두 demo다.
 
 ## adapter와 판정
 

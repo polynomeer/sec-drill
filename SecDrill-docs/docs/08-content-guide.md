@@ -4,7 +4,7 @@
 
 ## 패키지 구성
 
-공개 manifest에는 schemaVersion, scenarioId, version, title, modes, phases, competencyTags, 시간·자원 한도, 이미지 digest, 제공 파일 목록, 허용 대상, 목표 설명이 포함된다. 비공개 oracle bundle에는 합성 목표, 공격 라벨, hidden tests, reference patch, mutants, hints/solution, rubric을 둔다. 공개·비공개 번들의 digest를 함께 서명하되 API가 비공개 파일 경로와 본문을 노출하지 않는다.
+공개 manifest에는 schemaVersion, scenarioId, version, title, modes, phases, competencyTags, 시간·자원 한도, 이미지 digest, 제공 파일 목록, 허용 대상, 목표 설명이 포함된다. 비공개 oracle bundle에는 합성 목표, 공격 라벨, hidden tests, reference patch, mutants, hints/solution, rubric을 둔다. 공개·비공개 번들의 digest를 함께 서명하되 API가 비공개 파일 경로와 본문을 노출하지 않는다. 패치 채점 콘텐츠는 비공개 `private/hidden-tests.json`(로그인 정보와 test별 요청·기대: `statusIn`, `idsInclude`, `idsExclude`)을 두고, 그 id 집합은 oracle `hiddenTests`와 같아야 한다. 같지 않거나 없으면 채점은 content invalid(SYSTEM_ERROR)다. 비공개 파일은 Lab 이미지 build context에서 제외한다(`.dockerignore`).
 
 `examples/scenario.json`과 `examples/private-oracle.json`은 해당 구조를 설명한다. 예제 digest는 자리표시 값으로 출판 게이트를 통과하지 못하게 한다. 실제 번들 digest는 압축 메타데이터가 아닌 canonical manifest와 파일 digest 목록으로 계산한다.
 

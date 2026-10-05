@@ -13,6 +13,10 @@
 7. supervisor가 timeout·exit·관측 결과를 정형 result로 만들고 digest와 함께 ingest에 보낸다.
 8. Control Plane이 현재 token·attempt·job 상태를 확인하고 EvaluationRevision·Ledger·projection event를 저장한다.
 
+## 현재 구현(T08, local-trusted)
+
+grading-strong microVM이 없어(D-10) runner는 local-trusted Docker에서 job attempt마다 새 환경을 만든다: `--internal` network, learner 허용 파일만 담은 volume(network 없는 helper가 기록), network 없는 compile 컨테이너(seccomp 확인 후 `compileall`, exit 3만 사용자 compile 오류), 패치된 app 컨테이너, 별도 supervisor 컨테이너. supervisor가 비공개 `hidden-tests.json`의 요청을 보내 상태 코드와 주문 id로만 판정하고 test id별 성공 여부만 보고한다. app은 test plan을 받지 않고 supervisor 출력에 쓸 수 없다. Control이 oracle `hiddenTests`의 expected(deny=보안, allow=회귀)로 gate를 계산한다. 학습자에게는 compile·security·regression gate만 보이고 test id·요청·기대값은 보이지 않는다. 결과는 모두 demo다.
+
 ## adapter와 판정
 
 RuntimeAdapter는 imageDigest, compileCommandTemplate, allowedFiles, resourceProfile, resultParser를 제공한다. shell command에 사용자 입력을 이어 붙이지 않고 argv 배열을 사용한다. MVP Python 한 개부터 구현하고 다른 언어는 해당 adapter의 격리·compile·test contract를 통과한 뒤 추가한다.
