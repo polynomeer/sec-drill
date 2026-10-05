@@ -8,6 +8,7 @@ import secdrill.kernel.FieldError
 import secdrill.kernel.SubmissionKind
 import secdrill.kernel.Uuids
 import tools.jackson.databind.JsonNode
+import java.util.UUID
 
 /**
  * A validated `SubmissionCreate` body (OpenAPI). `digest` is SHA-256 over the RFC 8785 form of the whole body
@@ -21,7 +22,15 @@ class SubmissionRequest private constructor(
     val expectedVersion: Long,
     val digest: String,
     val byteSize: Int,
+    /** FLAG content, held in memory for the HMAC check and then dropped (15). Never stored or logged. */
+    val flag: FlagContent?,
 ) {
+    class FlagContent(val challengeId: UUID, val value: String) {
+        override fun toString() = "FlagContent(challengeId=$challengeId, value=<redacted>)"
+    }
+
+    override fun toString() = "SubmissionRequest(kind=$kind, expectedVersion=$expectedVersion, digest=$digest)"
+
     companion object {
         const val MAX_BYTES = 256 * 1024
 
@@ -45,7 +54,8 @@ class SubmissionRequest private constructor(
             } catch (error: IllegalArgumentException) {
                 invalid(listOf(FieldError("$", "values must be strings, booleans, null, objects, arrays or safe integers")))
             }
-            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize)
+            val flag = if (kind == SubmissionKind.FLAG) FlagContent(Uuids.parse(content!!["challengeId"].asString()), content["flag"].asString()) else null
+            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag)
         }
 
         private fun flagErrors(content: JsonNode): List<FieldError> = buildList {

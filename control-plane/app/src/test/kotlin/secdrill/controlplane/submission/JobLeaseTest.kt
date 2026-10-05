@@ -39,7 +39,8 @@ class JobLeaseTest {
     private val json = JsonMapper.builder().build()
 
     /** Accepts a submission and waits until its GRADE job is claimable. */
-    private fun dispatchedJob(kind: String = "FLAG"): Pair<UUID, UUID> {
+    /** FLAG grading goes to the runner hosting the Lab (CtfGradingTest); generic workers get the other kinds. */
+    private fun dispatchedJob(kind: String = "OBJECTIVE"): Pair<UUID, UUID> {
         val learner = fixtures.learner()
         val session = fixtures.activeSession(learner.userId)
         val body = if (kind == "FLAG") Fixtures.flagBody(0) else """{"kind":"$kind","expectedVersion":0,"content":{}}"""
@@ -72,7 +73,8 @@ class JobLeaseTest {
         assertEquals(1, evaluations(submission))
         assertEquals("FAIL", activeVerdict(submission), "fake defaults to FAIL so it can never grant success")
         assertEquals(FakeGradingWorker.POLICY, fixtures.string("SELECT policy_version FROM evaluations WHERE submission_id = ?", submission))
-        assertEquals("true", fixtures.string("SELECT dimensions->>'fake' FROM evaluations WHERE submission_id = ?", submission))
+        assertEquals("true", fixtures.string("SELECT demo::text FROM evaluations WHERE submission_id = ?", submission))
+        assertEquals("[]", fixtures.string("SELECT dimensions::text FROM evaluations WHERE submission_id = ?", submission))
         assertEquals("SIMULATED", fixtures.string("SELECT trust_level FROM evidence WHERE event_type = 'EvaluationCommitted' AND safe_payload->>'submissionId' = ?", submission.toString()))
         assertEquals("EVALUATED", fixtures.string("SELECT status FROM submissions WHERE id = ?", submission))
         assertEquals(1, fixtures.count("SELECT count(*) FROM outbox_events WHERE event_type = 'EvaluationCommitted' AND aggregate_id = ?", submission))

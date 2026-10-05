@@ -153,6 +153,17 @@ class ArtifactService(
         return ArtifactContent(ref, bytes)
     }
 
+    /** Grader-side read (no learner principal): null when missing, deleted or failing its digest. */
+    fun readInternal(artifactId: UUID): ArtifactContent? {
+        val ref = find(artifactId) ?: return null
+        val bytes = store.get(ref.key) ?: return null
+        if (Digests.sha256Hex(bytes) != ref.digest) {
+            log.error("Artifact {} failed digest verification", artifactId)
+            return null
+        }
+        return ArtifactContent(ref, bytes)
+    }
+
     private fun find(id: UUID): ArtifactRef? = jdbc.sql(
         "SELECT id, session_id, object_key, digest, byte_size, media_type, sensitivity, expires_at FROM artifacts WHERE id = ? AND deleted_at IS NULL",
     ).param(id).query { rs, _ ->

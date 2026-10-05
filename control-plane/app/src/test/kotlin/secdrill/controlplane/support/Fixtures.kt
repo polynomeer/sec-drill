@@ -35,8 +35,8 @@ class Fixtures(
         jdbc.sql("INSERT INTO scenarios(id, slug, title) VALUES (?, ?, 'Synthetic')").params(scenario, "s-$scenario").update()
         jdbc.sql(
             """INSERT INTO scenario_versions(id, scenario_id, version_no, status, content_digest, oracle_digest, oracle_key,
-               rubric_version, engine_version, randomization_version, public_manifest) VALUES (?, ?, 1, 'DRAFT', ?, ?, 'o', 'r', 'e', 'x', '{}')""",
-        ).params(version, scenario, digest, digest).update()
+               rubric_version, engine_version, randomization_version, public_manifest) VALUES (?, ?, 1, 'DRAFT', ?, ?, 'o', 'r', 'e', 'x', ?::jsonb)""",
+        ).params(version, scenario, digest, digest, FIXTURE_MANIFEST).update()
         jdbc.sql(
             """INSERT INTO sessions(id, owner_id, scenario_version_id, mode, status, phase, seed, rubric_version, engine_version, randomization_version)
                VALUES (?, ?, ?, 'CTF', 'ACTIVE', 'ATTACK', '\x01', 'r', 'e', 'x')""",
@@ -58,6 +58,9 @@ class Fixtures(
     }
 
     companion object {
+        /** Public manifest of fixture versions: one FLAG challenge with the id [flagBody] uses. */
+        const val FIXTURE_MANIFEST = """{"challenges":[{"id":"10000000-0000-4000-8000-000000000003","key":"cross-tenant-order","kind":"FLAG","objective":"Synthetic objective."}]}"""
+
         fun flagBody(expectedVersion: Long, flag: String = "SYNTHETIC-FLAG-${UUID.randomUUID()}") =
             """{"kind":"FLAG","expectedVersion":$expectedVersion,"content":{"challengeId":"10000000-0000-4000-8000-000000000003","flag":"$flag"}}"""
     }

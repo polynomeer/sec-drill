@@ -13,7 +13,7 @@
 | D-03 | DDL 누락 보완(F-01~F-04, F-06, F-08) | 지금 | Decided: T01에서 6건 모두 보완, 2026-10-04 |
 | D-04 | canonical digest와 hash chain | T05 전 | Decided: RFC 8785 JCS + SHA-256, genesis `0`×64, 2026-10-04 |
 | D-05 | Control Plane 언어·프레임워크 | 지금 | Decided: Kotlin + Spring Boot + Gradle + JDK 21, 2026-10-04 ([ADR 0001](../adr/0001-control-plane-stack-and-migrations.md) Proposed, 파일럿 전 재검토) |
-| D-06 | Web 스택 | T11 전 | Deferred |
+| D-06 | Web 스택 | T11 전 | Deferred (T07은 정적 HTML·JS 최소 화면, 2026-10-05 소유자 선택) |
 | D-07 | build_pack 재생성 동작 | 팩 첫 수정 전 | Decided: B(도구 수정), 2026-10-04 |
 | D-08 | message broker | T05 publisher 전 | Decided: RabbitMQ 4.3 quorum queue, 2026-10-04 |
 | D-09 | OIDC provider | 파일럿 전 | Deferred (구현은 provider 중립, [ADR 0002](../adr/0002-learner-and-operator-authentication.md)) |

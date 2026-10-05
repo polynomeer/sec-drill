@@ -174,7 +174,7 @@ class LabGatewayTest {
     }
 
     @Test
-    fun `the proxy strips credentials and the Lab cannot set the access cookie`() {
+    fun `the gateway credential never reaches the Lab, the Lab's own credentials do, and the Lab cannot set the access cookie`() {
         val ready = readyLab()
         val cookie = accessCookie(get(connectUrl(ready)))
         upstreamRequests.clear()
@@ -186,8 +186,8 @@ class LabGatewayTest {
         assertEquals(200, response.statusCode(), response.body())
         assertEquals("synthetic-lab /notes?x=1", response.body())
         val seen = upstreamRequests.single()
-        assertFalse("cookie" in seen, "no cookies reach the Lab: $seen")
-        assertFalse("authorization" in seen, "no Authorization reaches the Lab")
+        assertEquals(listOf("app_session=from-browser"), seen["cookie"], "only the Lab's own cookies reach the Lab: $seen")
+        assertEquals(listOf("Bearer synthetic-not-a-secret"), seen["authorization"], "the Lab app's own login header passes through")
         assertFalse("x-forwarded-for" in seen)
         assertEquals(listOf("kept"), seen["x-lab-probe"])
         val setCookies = response.headers().allValues("Set-Cookie")

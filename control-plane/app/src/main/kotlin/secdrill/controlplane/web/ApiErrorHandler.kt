@@ -32,7 +32,11 @@ class ApiErrorHandler {
 
     /** Domain contract errors carry their own code; the message is fixed text chosen by the domain code. */
     @ExceptionHandler(ApiException::class)
-    fun api(error: ApiException) = respond(error.code, error.message ?: error.code.name, error.details)
+    fun api(error: ApiException): ResponseEntity<ErrorEnvelope> {
+        val response = respond(error.code, error.message ?: error.code.name, error.details)
+        val retryAfter = error.retryAfterSeconds ?: return response
+        return ResponseEntity.status(response.statusCode).headers { it.addAll(response.headers); it.set("Retry-After", retryAfter.toString()) }.body(response.body)
+    }
 
     /** Same body as a missing route so other owners' resources stay indistinguishable from absent ones. */
     @ExceptionHandler(ResourceNotFoundException::class)

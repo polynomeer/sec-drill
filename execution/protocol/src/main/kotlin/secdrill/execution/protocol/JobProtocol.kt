@@ -27,7 +27,15 @@ enum class JobOutcome {
     PLATFORM_ERROR,
     /** Signature mismatch or invalid content. SYSTEM_ERROR without automatic retry (20). */
     CONTENT_INVALID,
+    /**
+     * The grader ran but could not confirm the objective independently (09: a correct flag whose target access was
+     * not observed). SYSTEM_ERROR with an INCONCLUSIVE gate, no retry, never FAIL.
+     */
+    INCONCLUSIVE,
 }
+
+/** One gate of an evaluation (OpenAPI `Evaluation.gates`). */
+data class GateReport(val key: String, val result: secdrill.kernel.GateResult)
 
 data class JobResultReport(
     val outcome: JobOutcome,
@@ -37,6 +45,9 @@ data class JobResultReport(
     val policyVersion: String,
     /** True when no real execution happened. Stored with the evaluation and shown as unverified. */
     val fake: Boolean,
+    val gates: List<GateReport> = emptyList(),
+    /** Ran on a runtime without verified isolation; the result is a demo result (prompt 08). */
+    val unverifiedIsolation: Boolean = false,
 ) {
     init {
         require(outcome != JobOutcome.COMPLETED || verdict == Verdict.PASS || verdict == Verdict.FAIL) {
@@ -58,4 +69,28 @@ interface JobControl {
     fun start(lease: JobLease): Ack
     fun heartbeat(lease: JobLease): Ack
     fun complete(lease: JobLease, report: JobResultReport): Ack
+}
+
+/**
+ * What the runner hosting a Lab is asked to observe for a FLAG submission (09, 20). It is not told whether the flag
+ * matched; the Control Plane decides the verdict from its own signed receipt and this observation.
+ */
+data class ObjectiveTask(val labId: UUID, val generation: Int, val challengeKey: String, val requires: List<String>)
+
+/** A GRADE job for a runner: the lease plus, for FLAG submissions, the objective to observe (null: no live Lab). */
+data class GradeAssignment(val lease: JobLease, val objective: ObjectiveTask?)
+
+/**
+ * Independent observation of the target (supervisor-side access records, not learner output).
+ * `observed` is null when the records could not be collected (platform error), false when they were collected and
+ * show no qualifying access.
+ */
+data class ObjectiveObservation(val observed: Boolean?, val matchingRecords: Int, val recordsDigest: String?)
+
+/** Runner side of grading over the internal API (AGENT credential). */
+interface GradeControl {
+    fun claim(): GradeAssignment?
+    fun start(lease: JobLease): Ack
+    fun heartbeat(lease: JobLease): Ack
+    fun observed(lease: JobLease, observation: ObjectiveObservation): Ack
 }

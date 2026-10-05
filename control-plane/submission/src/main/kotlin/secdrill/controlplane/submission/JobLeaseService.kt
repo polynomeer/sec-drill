@@ -54,23 +54,45 @@ class JobLeaseService(
     private fun now(): Instant = clock.instant().truncatedTo(ChronoUnit.MICROS)
     private fun Instant.db(): OffsetDateTime = atOffset(ZoneOffset.UTC)
 
+    /**
+     * Generic workers (the fake worker) never receive FLAG grading: those jobs need the runner hosting the Lab to
+     * observe the objective ([CtfGradingService]).
+     */
     @Transactional
     override fun claimNext(workerId: String, kinds: Set<JobKind>): JobLease? {
         if (kinds.isEmpty()) return null
-        val now = now()
         val row = jdbc.sql(
             """SELECT j.id, j.kind, j.attempt, j.fencing_token, j.submission_id, s.request_digest FROM jobs j
                LEFT JOIN submissions s ON s.id = j.submission_id
-               WHERE j.state = 'DISPATCHED' AND j.kind IN (:kinds) AND j.attempt < :max
+               WHERE j.state = 'DISPATCHED' AND j.kind IN (:kinds) AND j.attempt < :max AND s.kind IS DISTINCT FROM 'FLAG'
                ORDER BY j.dispatched_at, j.id LIMIT 1 FOR UPDATE OF j SKIP LOCKED""",
         ).param("kinds", kinds.map { it.name }).param("max", properties.maxAttempts)
-            .query { rs, _ ->
-                ClaimRow(
-                    rs.getObject(1, UUID::class.java), JobKind.valueOf(rs.getString(2)), rs.getInt(3), rs.getLong(4),
-                    rs.getObject(5, UUID::class.java), rs.getString(6),
-                )
-            }.optional().orElse(null) ?: return null
+            .query { rs, _ -> claimRow(rs) }.optional().orElse(null) ?: return null
+        return lease(row, workerId)
+    }
 
+    /** Leases one specific DISPATCHED job if it is still claimable (used by graders that choose their own jobs). */
+    @Transactional
+    fun claimJob(jobId: UUID, workerId: String): JobLease? {
+        val row = jdbc.sql(
+            """SELECT j.id, j.kind, j.attempt, j.fencing_token, j.submission_id, s.request_digest FROM jobs j
+               LEFT JOIN submissions s ON s.id = j.submission_id
+               WHERE j.id = ? AND j.state = 'DISPATCHED' AND j.attempt < ? FOR UPDATE OF j SKIP LOCKED""",
+        ).params(jobId, properties.maxAttempts).query { rs, _ -> claimRow(rs) }.optional().orElse(null) ?: return null
+        return lease(row, workerId)
+    }
+
+    /** The worker that holds the current lease of [lease]'s job, if any. */
+    fun leaseHolder(lease: JobLease): String? = jdbc.sql("SELECT worker_id FROM jobs WHERE id = ? AND fencing_token = ?")
+        .params(lease.jobId, lease.fencingToken).query(String::class.java).optional().orElse(null)
+
+    private fun claimRow(rs: java.sql.ResultSet) = ClaimRow(
+        rs.getObject(1, UUID::class.java), JobKind.valueOf(rs.getString(2)), rs.getInt(3), rs.getLong(4),
+        rs.getObject(5, UUID::class.java), rs.getString(6),
+    )
+
+    private fun lease(row: ClaimRow, workerId: String): JobLease {
+        val now = now()
         val leaseUntil = now.plus(properties.lease)
         jdbc.sql(
             """UPDATE jobs SET state = 'LEASED', attempt = attempt + 1, fencing_token = fencing_token + 1, worker_id = ?,
@@ -114,7 +136,7 @@ class JobLeaseService(
                     """UPDATE jobs SET state = 'SUCCEEDED', result_digest = ?, worker_id = NULL, lease_until = NULL, version = version + 1
                        WHERE id = ?""",
                 ).params(report.resultDigest, job.id).update()
-                val evaluation = commitEvaluation(job, report.verdict!!, report.policyVersion, report.fake)
+                val evaluation = commitEvaluation(job, report.verdict!!, report.policyVersion, report.fake, report.gates, report.unverifiedIsolation)
                 outbox.append(
                     EventType.ExecutionCompleted, job.id, job.version + 1, job.sessionId, job.submissionId ?: job.id,
                     mapOf("jobId" to job.id.toString(), "attempt" to job.attempt, "fencingToken" to job.token, "resultDigest" to report.resultDigest),
@@ -123,6 +145,12 @@ class JobLeaseService(
             }
             JobOutcome.PLATFORM_ERROR -> retryOrFail(job, JobFailure.PLATFORM_ERROR, report.policyVersion, report.fake)
             JobOutcome.CONTENT_INVALID -> failFinally(job, JobFailure.CONTENT_INVALID, report.policyVersion, report.fake)
+            JobOutcome.INCONCLUSIVE -> {
+                // The grader ran; the objective could not be confirmed. SYSTEM_ERROR + INCONCLUSIVE gate, never FAIL (09).
+                jdbc.sql("UPDATE jobs SET state = 'SUCCEEDED', result_digest = ?, worker_id = NULL, lease_until = NULL, version = version + 1 WHERE id = ?")
+                    .params(report.resultDigest, job.id).update()
+                commitEvaluation(job, Verdict.SYSTEM_ERROR, report.policyVersion, report.fake, report.gates, report.unverifiedIsolation)
+            }
         }
         return Ack.ACCEPTED
     }
@@ -171,7 +199,11 @@ class JobLeaseService(
     }
 
     /** Inserts the next active EvaluationRevision and records it in the ledger and outbox in this transaction. */
-    private fun commitEvaluation(job: LockedJob, verdict: Verdict, policy: String, fake: Boolean): UUID {
+    private fun commitEvaluation(
+        job: LockedJob, verdict: Verdict, policy: String, fake: Boolean,
+        gates: List<secdrill.execution.protocol.GateReport> = emptyList(), unverifiedIsolation: Boolean = false,
+    ): UUID {
+        val demo = fake || unverifiedIsolation
         val submission = checkNotNull(job.submissionId)
         val kind = jdbc.sql("SELECT kind FROM submissions WHERE id = ?").param(submission).query { rs, _ -> SubmissionKind.valueOf(rs.getString(1)) }.single()
         val revision = jdbc.sql("SELECT coalesce(max(revision), 0) + 1 FROM evaluations WHERE submission_id = ?").param(submission).query(Int::class.java).single()
@@ -185,18 +217,20 @@ class JobLeaseService(
             .param(submission).query(UUID::class.java).optional().orElse(null)
         jdbc.sql(
             """INSERT INTO evaluations(id, submission_id, revision, policy_version, verdict, patch_gate, dimensions, gates, supersedes_id, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, '[]', ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, '[]', ?::jsonb, ?, ?)""",
         ).params(
             // The List overload accepts nulls (patch gate and supersedes are optional).
-            listOf(evaluationId, submission, revision, policy, verdict.name, patchGate?.name, json.writeValueAsString(mapOf("fake" to fake)), superseded, now().db()),
+            listOf(evaluationId, submission, revision, policy, verdict.name, patchGate?.name,
+                json.writeValueAsString(gates.map { mapOf("key" to it.key, "result" to it.result.name) }), superseded, now().db()),
         ).update()
+        jdbc.sql("UPDATE evaluations SET demo = ? WHERE id = ?").params(demo, evaluationId).update()
         val status = if (verdict == Verdict.SYSTEM_ERROR) SubmissionStatus.EVALUATION_FAILED else SubmissionStatus.EVALUATED
         jdbc.sql("UPDATE submissions SET status = ? WHERE id = ?").params(status.name, submission).update()
         // A fake worker observed nothing: its result is SIMULATED evidence, never SERVER_VERIFIED.
         val evidence = ledger.append(
             job.sessionId, EventType.EvaluationCommitted.name, EvidenceSource.SUPERVISOR,
             if (fake) TrustLevel.SIMULATED else TrustLevel.SERVER_VERIFIED,
-            mapOf("submissionId" to submission, "evaluationId" to evaluationId, "revision" to revision, "verdict" to verdict.name, "fake" to fake),
+            mapOf("submissionId" to submission, "evaluationId" to evaluationId, "revision" to revision, "verdict" to verdict.name, "fake" to fake, "demo" to demo),
         )
         outbox.append(
             EventType.EvaluationCommitted, submission, revision.toLong(), job.sessionId, submission,

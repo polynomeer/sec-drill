@@ -3,6 +3,7 @@ package secdrill.controlplane.submission
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -33,4 +34,7 @@ class SubmissionController(private val submissions: SubmissionService, private v
         val reply = submissions.accept(principal, id, key, SubmissionRequest.parse(tree, body.size))
         return ResponseEntity.status(reply.status).contentType(MediaType.APPLICATION_JSON).body(reply.body)
     }
+
+    @GetMapping("/v1/submissions/{id}")
+    fun get(@AuthenticationPrincipal principal: LearnerPrincipal, @PathVariable id: UUID) = submissions.view(principal, id)
 }

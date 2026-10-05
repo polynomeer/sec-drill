@@ -20,15 +20,22 @@ import javax.crypto.spec.SecretKeySpec
  * Hardening applied to every Lab: its own `--internal` network (no route out, no host gateway), read-only root,
  * all capabilities dropped, no-new-privileges, the local-trusted seccomp denylist (verified active before the Lab is
  * handed out; Docker Desktop runs containers unconfined by default), non-root user, memory/CPU/PID limits, no host
- * mounts or sockets, no published ports. Resources carry labId, generation, runner id, hard expiry and an HMAC ownership signature;
- * nothing is deleted on name alone.
+ * mounts or sockets, no published ports. Resources carry labId, generation, runner id, hard expiry and an HMAC
+ * ownership signature; nothing is deleted on name alone.
+ *
+ * With `relayImage` set (local development, T07) each Lab also gets an ingress relay: Docker Desktop cannot route
+ * from the host into an `--internal` network, so a hardened relay container joins the Lab network and a per-Lab
+ * bridge, publishes one loopback port and forwards only to `app:8080`. The relay is platform code and has egress
+ * on that bridge; the Lab container itself still has none. Without a relay the endpoint is the in-network address.
  */
 class LocalTrustedDockerAdapter(
     private val runnerId: String,
     private val ownershipKey: ByteArray,
-    private val image: String,
+    /** Image for platform test Labs whose spec names no content image; runs a fixed synthetic page. */
+    private val defaultImage: String?,
     private val clock: Clock = Clock.systemUTC(),
     private val docker: String = "docker",
+    private val relayImage: String? = null,
 ) : RuntimeAdapter {
     override val profile = "local-trusted"
 
@@ -46,57 +53,94 @@ class LocalTrustedDockerAdapter(
     }
 
     private fun name(labId: UUID, generation: Int) = "lab-$labId-$generation"
+    private fun relayName(labId: UUID, generation: Int) = "${name(labId, generation)}-relay"
+    private fun ingressName(labId: UUID, generation: Int) = "${name(labId, generation)}-in"
+
+    private val relayScript: String by lazy {
+        checkNotNull(javaClass.getResourceAsStream("/secdrill/agent/ingress-relay.py")) { "relay script missing" }.use { it.readBytes().toString(Charsets.UTF_8) }
+    }
 
     private fun signature(labId: UUID, generation: Int, expiresAt: Long): String {
         val mac = Mac.getInstance("HmacSHA256").apply { init(SecretKeySpec(ownershipKey, "HmacSHA256")) }
         return mac.doFinal("$labId|$generation|$runnerId|$expiresAt".toByteArray()).joinToString("") { "%02x".format(it) }
     }
 
-    private fun labels(labId: UUID, generation: Int, expiresAt: Long) = listOf(
+    private fun labels(labId: UUID, generation: Int, expiresAt: Long, role: String) = listOf(
         "$L.lab" to labId.toString(), "$L.generation" to generation.toString(), "$L.runner" to runnerId,
-        "$L.hard-expires-at" to expiresAt.toString(), "$L.owner-sig" to signature(labId, generation, expiresAt),
+        "$L.hard-expires-at" to expiresAt.toString(), "$L.owner-sig" to signature(labId, generation, expiresAt), "$L.role" to role,
     ).flatMap { (k, v) -> listOf("--label", "$k=$v") }
+
+    private fun hardening(pids: Int, memoryMiB: Int, vcpus: Int) = listOf(
+        "--read-only", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m",
+        "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--security-opt", "seccomp=$seccompProfile", "--user", "65534:65534",
+        "--pids-limit", pids.toString(), "--memory", "${memoryMiB}m", "--memory-swap", "${memoryMiB}m",
+        "--cpus", vcpus.toString(), "--restart", "no",
+    )
 
     override fun provision(spec: LabSpec): ProvisionedLab {
         val name = name(spec.labId, spec.generation)
         val expires = spec.hardExpiresAt.epochSecond
-        run(listOf("network", "create", "--internal") + labels(spec.labId, spec.generation, expires) + name)
+        val contentImage = spec.image
+        require(contentImage == null || Regex("^sha256:[a-f0-9]{64}$").matches(contentImage)) { "content image must be a sha256 digest" }
+        val image = contentImage ?: checkNotNull(defaultImage) { "no image for this Lab" }
+        // Content images run their own command; platform test Labs serve a fixed synthetic page.
+        val command = if (contentImage != null) emptyList() else
+            listOf("sh", "-c", "mkdir -p /tmp/www && echo synthetic-lab > /tmp/www/index.html && exec httpd -f -p 8080 -h /tmp/www")
+        // Flags reach the container through the docker CLI's environment (`-e NAME`), never through argv.
+        val envNames = spec.targetEnv.keys.onEach { require(Regex("^SECDRILL_FLAG_[A-Z0-9_]{1,64}$").matches(it)) { "unexpected target variable" } }
+        run(listOf("network", "create", "--internal") + labels(spec.labId, spec.generation, expires, "network") + name)
         run(
-            listOf(
-                "run", "-d", "--name", name, "--hostname", "app", "--network", name, "--network-alias", "app",
-                "--read-only", "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m",
-                "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--security-opt", "seccomp=$seccompProfile", "--user", "65534:65534",
-                "--pids-limit", spec.pids.toString(), "--memory", "${spec.memoryMiB}m", "--memory-swap", "${spec.memoryMiB}m",
-                "--cpus", spec.vcpus.toString(), "--restart", "no",
-            ) + labels(spec.labId, spec.generation, expires) + listOf(
-                image, "sh", "-c", "mkdir -p /tmp/www && echo synthetic-lab > /tmp/www/index.html && exec httpd -f -p 8080 -h /tmp/www",
-            ),
+            listOf("run", "-d", "--name", name, "--hostname", "app", "--network", name, "--network-alias", "app") +
+                hardening(spec.pids, spec.memoryMiB, spec.vcpus) + envNames.flatMap { listOf("-e", it) } +
+                labels(spec.labId, spec.generation, expires, "app") + image + command,
+            environment = spec.targetEnv,
         )
-        // Fail closed: a Lab whose processes are not under the seccomp filter is never handed out.
-        val mode = run(listOf("exec", name, "grep", "^Seccomp:", "/proc/1/status"), check = false).output.substringAfter("Seccomp:").trim()
+        requireSeccomp(spec, name)
+        val relayImage = relayImage ?: return ProvisionedLab(runtimeRef = name, endpoint = "http://$name:8080")
+
+        val ingress = ingressName(spec.labId, spec.generation)
+        val relay = relayName(spec.labId, spec.generation)
+        run(listOf("network", "create") + labels(spec.labId, spec.generation, expires, "ingress") + ingress)
+        run(
+            listOf("create", "--name", relay, "--network", ingress, "-p", "127.0.0.1::8080") + hardening(64, 64, 1) +
+                labels(spec.labId, spec.generation, expires, "relay") + listOf(relayImage, "python", "-c", relayScript),
+        )
+        run(listOf("network", "connect", name, relay))
+        run(listOf("start", relay))
+        requireSeccomp(spec, relay)
+        val port = run(listOf("port", relay, "8080/tcp")).output.lines().first { it.startsWith("127.0.0.1:") }.substringAfterLast(":").trim()
+        return ProvisionedLab(runtimeRef = name, endpoint = "http://127.0.0.1:$port")
+    }
+
+    /** Fail closed: a Lab whose processes are not under the seccomp filter is never handed out. */
+    private fun requireSeccomp(spec: LabSpec, container: String) {
+        val mode = run(listOf("exec", container, "grep", "^Seccomp:", "/proc/1/status"), check = false).output.substringAfter("Seccomp:").trim()
         if (mode != "2") {
             terminate(spec.labId, spec.generation)
-            error("seccomp filter is not active for $name (mode '$mode')")
+            error("seccomp filter is not active for $container (mode '$mode')")
         }
-        return ProvisionedLab(runtimeRef = name, endpoint = "http://$name:8080")
     }
 
     override fun terminate(labId: UUID, generation: Int): CleanupReceipt {
         val name = name(labId, generation)
         val removed = mutableListOf<String>()
-        // Order (17): stop processes, delete network, then the container's writable layer goes with it.
-        if (owned("container", name)) {
-            run(listOf("rm", "-f", "-v", name)); removed += "container:$name"
+        // Order (17): cut ingress, stop processes, delete networks; writable layers go with the containers.
+        listOf(relayName(labId, generation), name).forEach { container ->
+            if (owned("container", container, labId, generation)) {
+                run(listOf("rm", "-f", "-v", container)); removed += "container:$container"
+            }
         }
-        if (owned("network", name)) {
-            run(listOf("network", "rm", name)); removed += "network:$name"
+        listOf(ingressName(labId, generation), name).forEach { network ->
+            if (owned("network", network, labId, generation)) {
+                run(listOf("network", "rm", network)); removed += "network:$network"
+            }
         }
         return CleanupReceipt(name, removed, clock.instant())
     }
 
     override fun list(): List<OwnedRuntime> {
         val ids = run(listOf("ps", "-a", "-q", "--filter", "label=$L.runner=$runnerId")).output.lines().filter { it.isNotBlank() }
-        return ids.mapNotNull { id -> inspectLabels("container", id)?.let(::ownedFrom) }
+        return ids.mapNotNull { id -> inspectLabels("container", id)?.let(::ownedFrom) }.distinctBy { it.labId to it.generation }
     }
 
     override fun exec(labId: UUID, generation: Int, argv: List<String>): ExecResult =
@@ -105,7 +149,8 @@ class LocalTrustedDockerAdapter(
     /** Raw inspect of a runtime's Docker settings, for isolation verification. */
     fun inspect(labId: UUID, generation: Int): String = run(listOf("inspect", name(labId, generation))).output
 
-    private fun owned(kind: String, name: String): Boolean = inspectLabels(kind, name)?.let(::ownedFrom) != null
+    private fun owned(kind: String, name: String, labId: UUID, generation: Int): Boolean =
+        inspectLabels(kind, name)?.let(::ownedFrom)?.let { it.labId == labId && it.generation == generation } == true
 
     private fun inspectLabels(kind: String, ref: String): Map<String, String>? {
         val result = run(listOf(kind, "inspect", "--format", if (kind == "network") "{{json .Labels}}" else "{{json .Config.Labels}}", ref), check = false)
@@ -122,8 +167,8 @@ class LocalTrustedDockerAdapter(
     }
 
     /** argv only, never a shell string; output is drained concurrently and capped at [OUTPUT_LIMIT]. */
-    private fun run(args: List<String>, check: Boolean = true, timeoutSeconds: Long = 120): ExecResult {
-        val process = ProcessBuilder(listOf(docker) + args).redirectErrorStream(true).start()
+    private fun run(args: List<String>, check: Boolean = true, timeoutSeconds: Long = 120, environment: Map<String, String> = emptyMap()): ExecResult {
+        val process = ProcessBuilder(listOf(docker) + args).redirectErrorStream(true).also { it.environment().putAll(environment) }.start()
         val capture = BoundedCapture(process.inputStream).also { it.start() }
         if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
             process.destroyForcibly()

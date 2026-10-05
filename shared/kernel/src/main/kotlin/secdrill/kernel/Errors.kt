@@ -46,4 +46,10 @@ class ErrorEnvelope private constructor(
 }
 
 /** A contract error raised by domain code; the HTTP layer renders it as the envelope with [code]'s status. */
-class ApiException(val code: ErrorCode, message: String, val details: ErrorDetails? = null) : RuntimeException(message)
+class ApiException(
+    val code: ErrorCode,
+    message: String,
+    val details: ErrorDetails? = null,
+    /** Sent as `Retry-After` (seconds) for rate limits (09). */
+    val retryAfterSeconds: Long? = null,
+) : RuntimeException(message)

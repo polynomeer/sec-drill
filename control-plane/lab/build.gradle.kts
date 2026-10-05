@@ -10,6 +10,7 @@ dependencies {
     implementation(project(":control-plane:identity"))
     implementation(project(":control-plane:platform"))
     implementation(project(":control-plane:evidence"))
+    implementation(project(":control-plane:ctf"))
     implementation(libs.spring.boot.starter.jdbc)
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.jackson.module.kotlin)

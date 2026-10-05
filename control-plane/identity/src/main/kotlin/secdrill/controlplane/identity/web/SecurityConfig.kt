@@ -38,7 +38,7 @@ class SecurityConfig {
             .addFilterBefore(WorkloadBearerFilter(workloads), AnonymousAuthenticationFilter::class.java)
             .authorizeHttpRequests {
                 it.requestMatchers("/internal/v1/gateway/**").hasAuthority(ROLE_GATEWAY)
-                it.requestMatchers("/internal/v1/lab-jobs/**", "/internal/v1/labs/**").hasAuthority(ROLE_AGENT)
+                it.requestMatchers("/internal/v1/lab-jobs/**", "/internal/v1/labs/**", "/internal/v1/grade-jobs/**").hasAuthority(ROLE_AGENT)
                 it.anyRequest().denyAll()
             }
             .exceptionHandling {
@@ -88,11 +88,17 @@ class SecurityConfig {
                 it.requestMatchers("/actuator/health", "/actuator/health/**", "/error").permitAll()
                 it.requestMatchers("/v1/auth/refresh", "/v1/auth/dev-login").permitAll()
                 it.requestMatchers("/oauth2/authorization/**", "/login/oauth2/code/**").permitAll()
+                // Minimal static UI (T07): public files only; every API call it makes is authenticated.
+                it.requestMatchers(org.springframework.http.HttpMethod.GET, "/app/**").permitAll()
                 it.anyRequest().hasAuthority(ROLE_LEARNER)
             }
             .exceptionHandling {
                 it.authenticationEntryPoint { _, response, _ -> errors.unauthenticated(response) }
                 it.accessDeniedHandler { _, response, _ -> errors.forbidden(response) }
+            }
+            // Same-origin scripts only, no framing, no plugins (the UI has no inline script or style).
+            .headers { headers ->
+                headers.contentSecurityPolicy { it.policyDirectives("default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'") }
             }
             .formLogin { it.disable() }
             .httpBasic { it.disable() }

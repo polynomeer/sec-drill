@@ -45,6 +45,7 @@ class LabJobService(
     private val ledger: LedgerAppender,
     private val outbox: OutboxWriter,
     private val audit: SystemAudit,
+    private val flags: secdrill.controlplane.ctf.FlagService,
     private val json: JsonMapper,
     private val clock: Clock,
 ) {
@@ -85,7 +86,10 @@ class LabJobService(
                 jdbc.sql("UPDATE labs SET state = CASE WHEN state = 'REQUESTED' THEN 'PROVISIONING' ELSE state END, runner_id = ? WHERE id = ?")
                     .params(runnerId, lab.id).update()
             }
-            val spec = LabSpec(lab.id, lab.generation, lab.vcpus, lab.memoryMiB, lab.diskMiB, lab.pids, lab.expiresAt, lab.allowedTargets)
+            val spec = LabSpec(
+                lab.id, lab.generation, lab.vcpus, lab.memoryMiB, lab.diskMiB, lab.pids, lab.expiresAt, lab.allowedTargets,
+                image = lab.image, targetEnv = if (job.action == LabAction.PROVISION) targetEnv(lab) else emptyMap(),
+            )
             return LabAssignment(job.id, job.action, job.attempt + 1, job.token + 1, leaseUntil, spec, lab.runtimeRef)
         }
         return null
@@ -260,6 +264,17 @@ class LabJobService(
                AND lab_id = ? FOR UPDATE""",
         ).params(assignment.jobId, action.name, assignment.fencingToken, runnerId, now().db(), assignment.lab.labId).query(UUID::class.java).optional().isPresent
 
+    /** This generation's Session flags, computed in memory for the target data path (09); never stored. */
+    private fun targetEnv(lab: LockedLab): Map<String, String> {
+        val nonce = lab.flagNonce ?: return emptyMap()
+        val keyVersion = lab.flagKeyVersion ?: return emptyMap()
+        return jdbc.sql("SELECT id, challenge_key FROM challenges WHERE version_id = ? AND kind = 'FLAG' ORDER BY challenge_key").param(lab.versionId)
+            .query { rs, _ -> rs.getObject(1, UUID::class.java) to rs.getString(2) }.list()
+            .associate { (challengeId, key) ->
+                "SECDRILL_FLAG_" + key.uppercase().replace(Regex("[^A-Z0-9]"), "_") to flags.issue(lab.sessionId, challengeId, nonce, keyVersion)
+            }
+    }
+
     private fun finishJob(jobId: UUID, resultDigest: String) {
         jdbc.sql("UPDATE jobs SET state = 'SUCCEEDED', result_digest = ?, worker_id = NULL, lease_until = NULL, version = version + 1 WHERE id = ?")
             .params(resultDigest, jobId).update()
@@ -274,7 +289,8 @@ class LabJobService(
     }
 
     private fun lockLab(id: UUID): LockedLab = jdbc.sql(
-        """SELECT l.id, l.session_id, l.generation, l.state, l.desired_state, l.runtime_ref, l.expires_at, sv.public_manifest::text
+        """SELECT l.id, l.session_id, l.generation, l.state, l.desired_state, l.runtime_ref, l.expires_at, sv.public_manifest::text,
+                  l.flag_nonce, l.flag_key_version, sv.id
            FROM labs l JOIN sessions s ON s.id = l.session_id JOIN scenario_versions sv ON sv.id = s.scenario_version_id WHERE l.id = ? FOR UPDATE OF l""",
     ).param(id).query { rs, _ ->
         val manifest = json.readTree(rs.getString(8))
@@ -283,7 +299,9 @@ class LabJobService(
         fun limit(name: String, max: Int) = (manifest["runtime"]?.get(name)?.asInt() ?: max).coerceIn(1, max)
         LockedLab(rs.getObject(1, UUID::class.java), rs.getObject(2, UUID::class.java), rs.getInt(3), LabState.valueOf(rs.getString(4)),
             rs.getString(5), rs.getString(6), rs.getObject(7, OffsetDateTime::class.java).toInstant(), targets,
-            limit("vcpus", 2), limit("memoryMiB", 2048), limit("diskMiB", 4096), limit("pids", 256))
+            limit("vcpus", 2), limit("memoryMiB", 2048), limit("diskMiB", 4096), limit("pids", 256),
+            manifest["runtime"]?.get("imageDigest")?.takeIf { it.isString }?.asString()?.takeIf { IMAGE.matches(it) },
+            rs.getBytes(9), rs.getString(10), rs.getObject(11, UUID::class.java))
     }.single()
 
     private data class Claimable(val id: UUID, val action: LabAction, val attempt: Int, val token: Long, val labId: UUID)
@@ -292,5 +310,10 @@ class LabJobService(
         val id: UUID, val sessionId: UUID, val generation: Int, val state: LabState, val desired: String,
         val runtimeRef: String?, val expiresAt: Instant, val allowedTargets: List<String>,
         val vcpus: Int, val memoryMiB: Int, val diskMiB: Int, val pids: Int,
+        val image: String?, val flagNonce: ByteArray?, val flagKeyVersion: String?, val versionId: UUID,
     )
+
+    private companion object {
+        val IMAGE = Regex("^sha256:[a-f0-9]{64}$")
+    }
 }

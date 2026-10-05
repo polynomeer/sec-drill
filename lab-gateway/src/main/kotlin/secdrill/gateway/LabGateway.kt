@@ -40,13 +40,15 @@ data class GatewayConfig(
  * - every other request re-checks with Control that the Lab is READY for the same generation and owner
  * - it proxies only to the endpoint Control reports for that Lab, and only if that endpoint is allowlisted;
  *   there is no CONNECT, no absolute-form target, no user-chosen destination
- * - Authorization, the gateway cookie and forwarding headers are never passed upstream
+ * - the gateway's own `lab_access` cookie and forwarding headers are never passed upstream. The Lab's own
+ *   credentials (its cookies, an `Authorization` header for the Lab app) pass through: this origin never receives
+ *   platform credentials, because platform cookies are scoped to the platform host and learners have no bearer token.
  */
 class LabGateway(private val config: GatewayConfig, private val clock: Clock = Clock.systemUTC()) {
     companion object {
         const val COOKIE = "lab_access"
         private val hopByHop = setOf("connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade", "host", "content-length")
-        private val neverForward = setOf("cookie", "authorization", "forwarded", "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto", "x-real-ip")
+        private val neverForward = setOf("cookie", "forwarded", "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto", "x-real-ip")
         private val methods = setOf("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
     }
 
@@ -119,6 +121,7 @@ class LabGateway(private val config: GatewayConfig, private val clock: Clock = C
             val lower = name.lowercase()
             if (lower !in hopByHop && lower !in neverForward) values.forEach { runCatching { request.header(name, it) } }
         }
+        labCookies(exchange)?.let { request.header("Cookie", it) }
         val response = http.send(request.build(), HttpResponse.BodyHandlers.ofInputStream())
         val bytes = response.body().use { it.readNBytes(config.maxResponseBytes + 1) }
         if (bytes.size > config.maxResponseBytes) return respond(exchange, 502, "lab response too large")
@@ -155,6 +158,11 @@ class LabGateway(private val config: GatewayConfig, private val clock: Clock = C
             .timeout(Duration.ofSeconds(5)).method(method, HttpRequest.BodyPublishers.noBody()).build(),
         HttpResponse.BodyHandlers.ofString(),
     )
+
+    /** The request's cookies without the gateway's own access cookie, or null if none remain. */
+    private fun labCookies(exchange: HttpExchange): String? = exchange.requestHeaders["Cookie"].orEmpty()
+        .flatMap { it.split(";") }.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("$COOKIE=") }
+        .takeIf { it.isNotEmpty() }?.joinToString("; ")
 
     private fun cookie(exchange: HttpExchange, name: String): String? = exchange.requestHeaders["Cookie"].orEmpty()
         .flatMap { it.split(";") }.map { it.trim() }.firstOrNull { it.startsWith("$name=") }?.substringAfter("=")?.takeIf { it.isNotEmpty() }

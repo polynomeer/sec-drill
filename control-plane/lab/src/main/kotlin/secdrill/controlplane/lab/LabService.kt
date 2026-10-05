@@ -51,6 +51,15 @@ data class LabProperties(
     val connectSigningKey: String? = null,
     val cleanupRetryDelay: Duration = Duration.ofSeconds(30),
     val cleanupAlertAfter: Duration = Duration.ofMinutes(5),
+    /** Isolation profile the runner pool provides (17). */
+    val runtimeProfile: String = "local-trusted",
+    /** Set only when the strong runtime passed the 17 release checks; nothing sets it today (D-10). */
+    val isolationVerified: Boolean = false,
+    /**
+     * Development only: run content that requires `lab-strong` on a weaker pool. Every such Lab and result is marked
+     * demo. Off by default (fail closed) and refused under `prod`.
+     */
+    val allowUnverifiedIsolation: Boolean = false,
 )
 
 @Configuration(proxyBeanMethods = false)
@@ -66,7 +75,11 @@ class LabSafetyCheck(
 ) : SmartInitializingSingleton {
     override fun afterSingletonsInstantiated() {
         properties.connectSigningKey?.let(ConnectTokens::privateKey)
+        check(!properties.isolationVerified || properties.runtimeProfile == "lab-strong") {
+            "Unsafe lab configuration: only the lab-strong profile can be marked isolation-verified"
+        }
         if ("prod" in environment.activeProfiles) {
+            check(!properties.allowUnverifiedIsolation) { "Unsafe lab configuration: prod cannot run Labs on unverified isolation" }
             check(properties.connectSigningKey != null && properties.gatewayBaseUrl.startsWith("https://")) {
                 "Unsafe lab configuration: prod requires secdrill.lab.connect-signing-key and an https gateway origin"
             }
@@ -79,7 +92,11 @@ class LabSafetyCheck(
     }
 }
 
-data class LabView(val id: UUID, val sessionId: UUID, val generation: Int, val state: LabState, val expiresAt: String)
+data class LabView(
+    val id: UUID, val sessionId: UUID, val generation: Int, val state: LabState, val expiresAt: String,
+    /** False for local-trusted or any runtime whose isolation was not verified: results are demo results. */
+    val isolationVerified: Boolean,
+)
 
 data class SessionView(val id: UUID, val scenarioVersionId: UUID, val mode: String, val status: String, val phase: String, val version: Long, val createdAt: String, val lab: LabView?)
 
@@ -98,6 +115,7 @@ class LabService(
     private val ledger: LedgerAppender,
     private val outbox: OutboxWriter,
     private val properties: LabProperties,
+    private val flags: secdrill.controlplane.ctf.FlagService,
     private val json: JsonMapper,
     private val clock: Clock,
 ) {
@@ -135,15 +153,25 @@ class LabService(
 
         val now = now()
         val manifest = json.readTree(jdbc.sql("SELECT public_manifest::text FROM scenario_versions WHERE id = ?").param(session.third).query(String::class.java).single())
+        // Fail closed (17): content requiring a strong runtime does not run on a weaker pool unless development
+        // explicitly allows it, and then every result is a demo result. A manifest without a profile counts as strong.
+        val required = manifest["runtime"]?.get("profile")?.takeIf { it.isString }?.asString() ?: "lab-strong"
+        if (required != properties.runtimeProfile && !properties.allowUnverifiedIsolation) {
+            throw ApiException(ErrorCode.SERVICE_UNAVAILABLE, "No runtime with the required isolation is available")
+        }
+        val verified = properties.isolationVerified && properties.runtimeProfile == "lab-strong"
         val hardTtl = manifest["runtime"]?.get("hardTtlSeconds")?.asLong()?.let(Duration::ofSeconds)?.coerceAtMost(properties.hardTtl) ?: properties.hardTtl
         val idleTtl = manifest["runtime"]?.get("idleTtlSeconds")?.asLong()?.let(Duration::ofSeconds)?.coerceAtMost(properties.idleTtl) ?: properties.idleTtl
         val labId = UUID.randomUUID()
         val generation = jdbc.sql("SELECT coalesce(max(generation), 0) + 1 FROM labs WHERE session_id = ?").param(sessionId).query(Int::class.java).single()
         try {
             jdbc.sql(
-                """INSERT INTO labs(id, session_id, owner_id, generation, state, desired_state, expires_at, idle_expires_at, created_at)
-                   VALUES (?, ?, ?, ?, 'REQUESTED', 'RUNNING', ?, ?, ?)""",
-            ).params(labId, sessionId, owner, generation, now.plus(hardTtl).db(), now.plus(idleTtl).db(), now.db()).update()
+                """INSERT INTO labs(id, session_id, owner_id, generation, state, desired_state, expires_at, idle_expires_at, created_at,
+                   flag_nonce, flag_key_version, runtime_profile, isolation_verified) VALUES (?, ?, ?, ?, 'REQUESTED', 'RUNNING', ?, ?, ?, ?, ?, ?, ?)""",
+            ).params(
+                labId, sessionId, owner, generation, now.plus(hardTtl).db(), now.plus(idleTtl).db(), now.db(),
+                flags.newNonce(), flags.activeKeyVersion, properties.runtimeProfile, verified,
+            ).update()
         } catch (error: DuplicateKeyException) {
             throw ApiException(ErrorCode.QUOTA_EXCEEDED, "You already have an active Lab")
         }
@@ -155,7 +183,7 @@ class LabService(
             mapOf("labId" to labId, "generation" to generation))
         outbox.append(EventType.LabRequested, labId, 0, sessionId, labId,
             mapOf("labId" to labId.toString(), "generation" to generation, "templateDigest" to templateDigest), seq = evidence.seq)
-        val body = json.writeValueAsString(LabView(labId, sessionId, generation, LabState.REQUESTED, Rfc3339.format(now.plus(hardTtl))))
+        val body = json.writeValueAsString(LabView(labId, sessionId, generation, LabState.REQUESTED, Rfc3339.format(now.plus(hardTtl)), verified))
         idempotency.record(owner, route, key, requestDigest, 202, body)
         return 202 to body
     }
@@ -241,8 +269,11 @@ class LabService(
     }
 
     fun sessionView(sessionId: UUID): SessionView {
-        val lab = jdbc.sql("SELECT id, generation, state, expires_at FROM labs WHERE session_id = ? ORDER BY generation DESC LIMIT 1").param(sessionId)
-            .query { rs, _ -> LabView(rs.getObject(1, UUID::class.java), sessionId, rs.getInt(2), LabState.valueOf(rs.getString(3)), Rfc3339.format(rs.getObject(4, OffsetDateTime::class.java).toInstant())) }
+        val lab = jdbc.sql("SELECT id, generation, state, expires_at, isolation_verified FROM labs WHERE session_id = ? ORDER BY generation DESC LIMIT 1").param(sessionId)
+            .query { rs, _ ->
+                LabView(rs.getObject(1, UUID::class.java), sessionId, rs.getInt(2), LabState.valueOf(rs.getString(3)),
+                    Rfc3339.format(rs.getObject(4, OffsetDateTime::class.java).toInstant()), rs.getBoolean(5))
+            }
             .optional().orElse(null)
         return jdbc.sql("SELECT scenario_version_id, mode, status, phase, version, created_at FROM sessions WHERE id = ?").param(sessionId).query { rs, _ ->
             SessionView(sessionId, rs.getObject(1, UUID::class.java), rs.getString(2), rs.getString(3), rs.getString(4), rs.getLong(5),

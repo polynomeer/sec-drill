@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":control-plane:evidence"))
     implementation(project(":control-plane:submission"))
     implementation(project(":control-plane:lab"))
+    implementation(project(":control-plane:ctf"))
     implementation(project(":execution:fake-worker"))
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.actuator)

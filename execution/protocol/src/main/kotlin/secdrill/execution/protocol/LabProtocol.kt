@@ -6,8 +6,11 @@ import java.util.UUID
 enum class LabAction { PROVISION, CLEANUP }
 
 /**
- * What a runner needs to create one Lab generation (00, 17). The runner never receives owner identity, flags,
- * oracle data or Control Plane credentials; `hardExpiresAt` lets it enforce the TTL even when Control is down.
+ * What a runner needs to create one Lab generation (00, 17). The runner never receives owner identity, oracle data,
+ * flag keys or Control Plane credentials; `hardExpiresAt` lets it enforce the TTL even when Control is down.
+ *
+ * `targetEnv` carries this generation's Session flags into the Lab's target data path only (09). The runner passes
+ * it to the runtime without logging it; [toString] redacts it.
  */
 data class LabSpec(
     val labId: UUID,
@@ -18,7 +21,12 @@ data class LabSpec(
     val pids: Int,
     val hardExpiresAt: Instant,
     val allowedTargets: List<String>,
-)
+    /** Content image digest (`sha256:...`); null only for platform test Labs. */
+    val image: String? = null,
+    val targetEnv: Map<String, String> = emptyMap(),
+) {
+    override fun toString() = "LabSpec(labId=$labId, generation=$generation, image=$image, targetEnv=${targetEnv.keys.map { "$it=<redacted>" }})"
+}
 
 /** A leased PROVISION or CLEANUP job. Every report must carry the job id and current fencing token. */
 data class LabAssignment(

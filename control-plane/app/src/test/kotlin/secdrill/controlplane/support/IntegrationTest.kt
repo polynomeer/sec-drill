@@ -30,6 +30,8 @@ val STARTUP_TIMEOUT: Duration = Duration.ofMinutes(3)
         "secdrill.auth.allowed-origins=$TEST_ORIGIN",
         // Tests drive the publisher and sweeper step by step.
         "secdrill.async.scheduling-enabled=false",
+        // No strong runtime exists (D-10); tests run Labs on local-trusted/fake runtimes and every result is demo.
+        "secdrill.lab.allow-unverified-isolation=true",
     ],
 )
 @Import(TestInfrastructure::class)

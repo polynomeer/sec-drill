@@ -6,13 +6,13 @@
 
 ## 현재 단계
 
-**T04·T06 Lab 수명과 실행 격리**(프롬프트 07): Lab 수명·quota·TTL·회수·Gateway와 `local-trusted`(hardened Docker) adapter를 구현하고 로컬에서 검증했다. **strong isolation(`lab-strong` microVM)은 이 호스트에 KVM이 없어 미검증이며 blocker다.** 외부 공개하지 않는다. T01·T02·T03·T05·T09 기반 완료(개인정보 삭제 실행은 미구현). 채점은 fake worker만 있고 Session 생성·조회 API와 실제 채점은 아직 없다.
+**T07 첫 CTF 수직 기능**(프롬프트 08): 합성 tenant-orders 사건의 Session·Lab·Gateway·플래그·독립 관측·결과·회수 흐름을 API로 구현하고 실제 Docker(local-trusted)에서 검증했다. **모든 결과는 데모(격리 미검증)이며 외부 공개하지 않는다.** strong runtime(D-10)이 없어 공식 결과는 없다. 최소 정적 UI는 로그인·사건 목록까지만 브라우저로 확인했다. T01~T06·T09 기반 완료(개인정보 삭제 실행·최종 리포트는 미구현).
 
 ## 활성 Task
 
 | Task | 담당 | 대상 경로 | 시작일 | 메모 |
 |---|---|---|---|---|
-| — | — | — | — | 다음: 프롬프트 08 = T07(첫 CTF 수직 기능) |
+| — | — | — | — | 다음: 프롬프트 09 = T08(패치 채점) |
 
 ## 완료 항목
 
@@ -25,7 +25,8 @@
 | T05 비동기 작업 기반 | [T05](T05.md#결과). broker outage 테스트 3회 반복 통과 |
 | T09 Evidence·Artifact 기반 | [T09](T09.md#결과) |
 | T03 콘텐츠 출판 기반 | [T03](T03.md#결과) |
-| T04·T06 Lab 수명·local-trusted 격리 | [T04_T06](T04_T06.md#결과). `./gradlew clean check` 134건 통과(skip 0). strong isolation 미검증 |
+| T04·T06 Lab 수명·local-trusted 격리 | [T04_T06](T04_T06.md#결과). strong isolation 미검증 |
+| T07 첫 CTF(데모) | [T07](T07.md#결과). `./gradlew clean check` 146건 통과(skip 0) |
 
 ## 미검증 항목
 
@@ -37,7 +38,8 @@
 - 다중 인스턴스·broker cluster·부하: T14·T17 범위
 - strong runtime(`lab-strong`) 격리 전체: KVM 없는 호스트라 실행 불가(D-10). local-trusted 결과는 강한 격리 증거가 아니다
 - rootless Docker daemon, Gateway→runner network 경로, 터미널 websocket, runner quarantine, mTLS(D-17), 이미지 registry 서명(D-16)
-- 콘텐츠 runtime 검증(참조 해답·mutant·seed): T08
+- 콘텐츠 runtime 검증(참조 해답·mutant·seed): T08. 그 전에는 local profile에서도 콘텐츠를 출판할 수 없어 UI 전체 흐름을 브라우저로 검증하지 못했다
+- CTF 관측이 guest 안 기록에 의존(ADR 0008), 로컬 runner·Gateway 실행 진입점 없음, 최종 리포트(T12)·힌트·점수
 - 성능·카오스: 해당 구현 없음
 
 ## Blocker
@@ -46,6 +48,6 @@
 
 ## 다음 작업
 
-1. 프롬프트 08 = T07(첫 CTF 수직 기능: Session 생성·조회 API 포함, local-trusted Lab 위에서)
+1. 프롬프트 09 = T08(패치 채점: grading-strong 미검증 상태에서 fake/demo 경로와 blocker 분리)
 2. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 같은 격리 테스트 실행
 3. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))
