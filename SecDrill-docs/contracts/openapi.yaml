@@ -866,6 +866,136 @@
         }
       }
     },
+    "/sessions/{id}/detection-dataset": {
+      "get": {
+        "operationId": "getDetectionDataset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "training 로그",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectionDataset"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "summary": "getDetectionDataset",
+        "description": "탐지 규칙 작성용 visible training 합성 로그. 정답 label·attack episode·holdout은 포함하지 않는다. 채점은 이름·시간이 다른 숨은 holdout으로 한다."
+      }
+    },
     "/submissions/{id}": {
       "get": {
         "operationId": "getSubmission",
@@ -4372,6 +4502,91 @@
         "required": [
           "connectUrl",
           "expiresAt"
+        ]
+      },
+      "DetectionEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "time": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "simulated seconds"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tenantId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resourceTenantId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "routeGroup": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "eventId",
+          "time",
+          "eventType",
+          "actorId",
+          "tenantId",
+          "resourceTenantId",
+          "status",
+          "routeGroup"
+        ]
+      },
+      "DetectionDataset": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "variant": {
+            "const": "TRAINING"
+          },
+          "generator": {
+            "type": "string"
+          },
+          "representation": {
+            "const": "SIMULATED"
+          },
+          "events": {
+            "type": "array",
+            "maxItems": 20000,
+            "items": {
+              "$ref": "#/components/schemas/DetectionEvent"
+            }
+          }
+        },
+        "required": [
+          "variant",
+          "generator",
+          "representation",
+          "events"
         ]
       }
     },

@@ -42,6 +42,7 @@ class ContractCatalogTest {
         "LabDesiredState" to LabDesiredState.entries,
         "LabTerminateReason" to LabTerminateReason.entries,
         "WorkloadKind" to WorkloadKind.entries,
+        "IrActionType" to IrActionType.entries,
     )
 
     private fun strings(node: JsonNode): List<String> = node.values().map { it.asString() }

@@ -81,3 +81,6 @@ enum class LabTerminateReason { USER_STOP, IDLE_TTL, HARD_TTL, OPERATOR, PROVISI
 
 /** Non-human callers of the internal API (19). Never valid on learner or operator routes. */
 enum class WorkloadKind { AGENT, GATEWAY }
+
+/** Incident-response model actions (21). Applying one changes the SIMULATED model only. */
+enum class IrActionType { REVOKE_TOKEN, DISABLE_ENDPOINT, ISOLATE_WORKLOAD, ENABLE_AUDIT }

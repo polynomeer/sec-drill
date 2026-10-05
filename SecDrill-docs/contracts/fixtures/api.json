@@ -244,6 +244,94 @@
         "state": "READY",
         "expiresAt": "2026-01-01T01:00:00Z"
       }
+    },
+    {
+      "schema": "DetectionDataset",
+      "valid": true,
+      "value": {
+        "variant": "TRAINING",
+        "generator": "tenant-orders-logs/1",
+        "representation": "SIMULATED",
+        "events": [
+          {
+            "eventId": "e-training-1",
+            "time": 12,
+            "eventType": "resource.read",
+            "actorId": "u-synth1",
+            "tenantId": "t-a",
+            "resourceTenantId": "t-b",
+            "status": 200,
+            "routeGroup": "orders"
+          }
+        ]
+      }
+    },
+    {
+      "schema": "DetectionDataset",
+      "valid": false,
+      "reason": "ground-truth labels never reach the learner",
+      "value": {
+        "variant": "TRAINING",
+        "generator": "tenant-orders-logs/1",
+        "representation": "SIMULATED",
+        "events": [
+          {
+            "eventId": "e-training-1",
+            "time": 12,
+            "eventType": "resource.read",
+            "actorId": "u-synth1",
+            "tenantId": "t-a",
+            "resourceTenantId": "t-b",
+            "status": 200,
+            "routeGroup": "orders",
+            "attackLabel": "attack"
+          }
+        ]
+      }
+    },
+    {
+      "schema": "DetectionDataset",
+      "valid": false,
+      "reason": "the hidden holdout is never served",
+      "value": {
+        "variant": "HOLDOUT",
+        "generator": "tenant-orders-logs/1",
+        "representation": "SIMULATED",
+        "events": []
+      }
+    },
+    {
+      "schema": "ActionResult",
+      "valid": true,
+      "value": {
+        "seq": 7,
+        "version": 3,
+        "representation": "SIMULATED",
+        "state": {
+          "tick": 2,
+          "leakedSyntheticRecords": 4,
+          "availability": 1,
+          "workloadSuccess": 0.9,
+          "evidenceCoverage": 0.6666
+        }
+      }
+    },
+    {
+      "schema": "ActionResult",
+      "valid": false,
+      "reason": "model actions are never presented as observed Lab changes",
+      "value": {
+        "seq": 7,
+        "version": 3,
+        "representation": "OBSERVED",
+        "state": {
+          "tick": 2,
+          "leakedSyntheticRecords": 4,
+          "availability": 1,
+          "workloadSuccess": 0.9,
+          "evidenceCoverage": 0.6666
+        }
+      }
     }
   ]
 }

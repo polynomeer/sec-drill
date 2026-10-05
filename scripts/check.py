@@ -164,6 +164,7 @@ def check_enums():
         "LabDesiredState": [sql["labs.desired_state"]],
         "LabTerminateReason": [sql["labs.terminate_reason"]],
         "WorkloadKind": [sql["runner_credentials.kind"]],
+        "IrActionType": [sql["applied_actions.action_type"], [rule["properties"]["type"]["const"] for rule in schemas["Action"]["oneOf"]]],
     }
     problems = [f"{name} has no catalog entry" for name in sources if name not in enums]
     for name, values in sources.items():

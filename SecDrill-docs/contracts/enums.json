@@ -31,7 +31,8 @@
     "ValidationStatus": {"values": ["PASS", "FAIL", "INCOMPLETE"], "source": "08"},
     "LabDesiredState": {"values": ["RUNNING", "TERMINATED"], "source": "13"},
     "LabTerminateReason": {"values": ["USER_STOP", "IDLE_TTL", "HARD_TTL", "OPERATOR", "PROVISION_FAILED", "RUNTIME_LOST", "ORPHAN"], "source": "17"},
-    "WorkloadKind": {"values": ["AGENT", "GATEWAY"], "source": "19"}
+    "WorkloadKind": {"values": ["AGENT", "GATEWAY"], "source": "19"},
+    "IrActionType": {"values": ["REVOKE_TOKEN", "DISABLE_ENDPOINT", "ISOLATE_WORKLOAD", "ENABLE_AUDIT"], "source": "21"}
   },
   "errorCodes": {
     "$comment": "Error envelope `code` values (15). httpStatus and retryable are fixed per code.",

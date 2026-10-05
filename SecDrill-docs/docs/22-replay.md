@@ -26,4 +26,4 @@ seek는 가장 가까운 이전 checkpoint + 이후 이벤트를 적용한다. �
 
 ## 수용 기준
 
-동일 fixture의 처음부터 재생과 checkpoint seek 상태 digest가 같아야 한다. seq 역순·중복·누락·삭제된 artifact·구버전 reducer·권한 없는 anchor를 테스트한다. 실제 네트워크 지연은 Replay에서 원래 observedAt를 보존하고 정렬은 seq 기준으로 일관되게 유지한다.
+동일 fixture의 처음부터 재생과 checkpoint seek 상태 digest가 같아야 한다. 구현(T10): IR 상태는 (seed, engine, 수락된 액션)에서 재계산하고 `applied_actions.state_digest`와 비교한다. 이력이 바뀌면 검증이 실패한다. checkpoint·seek·manifest는 T12다. seq 역순·중복·누락·삭제된 artifact·구버전 reducer·권한 없는 anchor를 테스트한다. 실제 네트워크 지연은 Replay에서 원래 observedAt를 보존하고 정렬은 seq 기준으로 일관되게 유지한다.

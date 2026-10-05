@@ -436,7 +436,7 @@ AI 설명은 선택적 부가 기능이다. 규칙·테스트로 결정된 공�
 
 ## 원장 구조와 신뢰
 
-Evidence에는 id, sessionId, seq, type, source, trustLevel, occurredAt, ingestedAt, artifactRef, payloadDigest, previousHash, hash, schemaVersion이 있다. seq와 해시는 트랜잭션 내 Session 원장 head lock으로 부여한다. 서버가 실제로 수집한 `OBJECTIVE_CONFIRMED`, `TEST_RESULT`, `ACTION_APPLIED`, `HINT_GRANTED`, `POSTMORTEM_SUBMITTED`와 사용자 주장 `HYPOTHESIS_REPORTED`를 구분한다. 사용자가 클릭했다고 소스를 이해했다는 증거를 만들지 않는다. 패치 채점의 `TEST_RESULT`는 grading supervisor의 관측으로 `SUPERVISOR`/`OBSERVED`이며 bundle digest, 결과 종류, 보안·회귀 통과 수와 총수, 출력 digest만 담는다(test id·입력 없음). CTF의 `OBJECTIVE_CONFIRMED`는 Lab을 호스팅한 runner의 collector가 target의 서버 측 접근 기록에서 의도된 접근을 관측했을 때만 `COLLECTOR`/`OBSERVED`로 기록하고, 플래그 일치만으로는 기록하지 않는다. 격리가 검증되지 않은 runtime(local-trusted)이나 fake worker의 평가는 `demo`로 표시하며 공식 결과·skill projection의 근거로 쓰지 않는다.
+Evidence에는 id, sessionId, seq, type, source, trustLevel, occurredAt, ingestedAt, artifactRef, payloadDigest, previousHash, hash, schemaVersion이 있다. seq와 해시는 트랜잭션 내 Session 원장 head lock으로 부여한다. 서버가 실제로 수집한 `OBJECTIVE_CONFIRMED`, `TEST_RESULT`, `ACTION_APPLIED`, `HINT_GRANTED`, `POSTMORTEM_SUBMITTED`와 사용자 주장 `HYPOTHESIS_REPORTED`를 구분한다. 사용자가 클릭했다고 소스를 이해했다는 증거를 만들지 않는다. 탐지 채점의 `TEST_RESULT`는 합성 로그 계산이므로 `SIMULATOR`/`SIMULATED`이고 holdout의 TP·FP·FN·TN과 p95 지연만 담는다. 탐지 설명은 학습자 주장으로 `HYPOTHESIS_REPORTED`(`USER`/`USER_REPORTED`), IR 모델 액션은 `ActionApplied`(`SIMULATOR`/`SIMULATED`)다. 패치 채점의 `TEST_RESULT`는 grading supervisor의 관측으로 `SUPERVISOR`/`OBSERVED`이며 bundle digest, 결과 종류, 보안·회귀 통과 수와 총수, 출력 digest만 담는다(test id·입력 없음). CTF의 `OBJECTIVE_CONFIRMED`는 Lab을 호스팅한 runner의 collector가 target의 서버 측 접근 기록에서 의도된 접근을 관측했을 때만 `COLLECTOR`/`OBSERVED`로 기록하고, 플래그 일치만으로는 기록하지 않는다. 격리가 검증되지 않은 runtime(local-trusted)이나 fake worker의 평가는 `demo`로 표시하며 공식 결과·skill projection의 근거로 쓰지 않는다.
 
 hash는 canonical JSON과 직전 hash의 SHA-256으로 계산한다. DB UPDATE/DELETE 차단·별도 서명 checkpoint·외부 저장으로 변조 탐지를 강화하지만 DB 최고 권한의 악의까지 불가능하게 만든다고 주장하지 않는다. 원장 row에는 비밀·raw source를 저장하지 않고 별도 보관·삭제 가능한 Artifact 참조만 둔다.
 
@@ -612,7 +612,7 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | deletion_requests / deletion_tombstones | owner, scope, session, status, decided, receipt / subject_type, subject_id, request | SESSION scope는 owner 일치 복합 FK; 완료는 receipt 필수; tombstone은 runtime 역할에 INSERT만 |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
 
-추가 구현 테이블: applied_actions(session, seq, parameters, state_digest), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
+추가 구현 테이블: applied_actions(V8 구현: session, seq, action_type, target, tick, engine_version, state_digest, representation=SIMULATED; session+seq·session+tick unique), reports(session, revision, evaluation_refs), skill_projections(user, policy, watermark, payload), export_jobs, deletion_requests. 실제 데이터와 같은 schema에서 마이그레이션으로 추가하고 API 작업 전 통합 테스트한다.
 
 ## 원자 작업
 
@@ -661,7 +661,8 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 | POST /sessions/{id}/labs/{labId}/connect | — | 200 connectUrl,expiresAt | 409 NOT_READY,404 |
 | POST /sessions/{id}/submissions | kind, content, expectedVersion | 202 Submission | 422 input,413 size |
 | GET /submissions/{id} | — | 200 verdict/progress | 404 |
-| POST /sessions/{id}/actions | type,parameters,expectedVersion | 200 seq/version/state | 409 stale,422 action |
+| POST /sessions/{id}/actions | type,parameters,expectedVersion | 200 seq/version/state(SIMULATED) | 409 stale·효과 없음,422 action·미제공,422 UNSUPPORTED_MODE(PURPLE 아님) |
+| GET /sessions/{id}/detection-dataset | — | 200 training 합성 로그(label 없음) | 422 UNSUPPORTED_MODE |
 | POST /sessions/{id}/hints | challengeId,level | 200 Hint | 422 unknown,429 limit |
 | POST /sessions/{id}/finish | expectedVersion | 202 Session(SUBMITTED, Lab 종료 요청) | 409 MISSING_GATES |
 | POST /sessions/{id}/stop | expectedVersion | 202 Session | 409 terminal |
@@ -674,7 +675,7 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 
 Submission kind는 `FLAG`, `OBJECTIVE`, `PATCH`, `DETECTION`, `POSTMORTEM`이다. 각 content의 정확한 구조는 OpenAPI의 discriminator oneOf를 따른다. FLAG 오답은 HTTP 오류가 아니라 완료된 FAIL evaluation이다. challengeId는 Session에 고정된 버전의 FLAG challenge여야 하며 아니면 422다. Session당 최근 1분 오답이 10건이면 429 `RATE_LIMITED`와 `Retry-After: 60`을 반환한다. raw flag를 echo하지 않는다. FLAG 요청은 서버가 메모리 안에서 HMAC 검증 후 jobId·challengeId·검증 결과를 가진 서명된 private receipt를 만들고 그 참조만 저장한다. 비동기 verifier는 receipt와 독립 목표 관측을 확인한다. 구현: 일치 여부는 Session의 살아 있는(desired RUNNING) Lab generation별 nonce로만 계산하므로 다른 Session·종료된 Lab의 플래그는 일치하지 않는다. receipt는 flag 원문 없이 matched·labId·generation·keyVersion을 담고 HMAC으로 서명한다. 판정: 불일치 FAIL, 일치+관측 PASS, 일치+관측 없음 SYSTEM_ERROR(objective INCONCLUSIVE), 관측 수집 실패·receipt 검증 실패는 재시도 후 SYSTEM_ERROR. Evaluation의 `demo`는 fake worker나 격리가 검증되지 않은 runtime의 결과에서 true이며 Lab의 `isolationVerified`가 false이면 그 Session 결과는 모두 demo다. 최초 입력은 request digest 계산 뒤 폐기하고 raw flag를 DB·artifact·Outbox에 보관하지 않는다.
 
-MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다. 구현: Session mode가 PATCH·PURPLE이고 고정된 manifest에 `patch`가 있어야 하며(아니면 422 `UNSUPPORTED_MODE`), `files`의 모든 경로가 `patch.allowedPaths`와 정확히 일치해야 한다(아니면 422, 경로를 응답에 되풀이하지 않음). 검증된 grading runtime이 없고 개발 override도 없으면 503이다. canonical bundle은 경로순 `{path, sha256, byteSize}` 목록과 explanation digest의 JCS digest이며 learner 소유 artifact(LEARNER)로 저장한다. PATCH GRADE job은 grading runtime을 가진 runner만 `kinds: [PATCH]`로 claim하고 결과는 `POST /internal/v1/grade-jobs/patch-result`로 보고한다. 5 MiB 압축/20 MiB 해제 한도는 후속 bundle 업로드의 자원 상한이며 현재 공개 API가 그 크기의 inline 요청을 허용한다는 뜻이 아니다. 큰 저장소 과제는 scoped upload 완료·digest 검증 계약을 추가한 뒤 지원한다. export/deletion 비동기 receipt의 pollPath는 본인 job을 조회하는 `/v1/async-jobs/{id}`다. export 완료 응답의 downloadPath는 owner 검사를 하는 플랫폼 경로이고 raw store signed URL을 장기 보관하지 않는다.
+DETECTION 제출은 PURPLE·DETECTION Session에서만 받고 규칙을 21의 제한으로 수락 시 검사한다(위반은 422, 문제 경로를 fieldErrors로). 규칙과 설명은 learner artifact로 저장하고 설명은 USER_REPORTED Evidence가 된다. 채점은 Control Plane이 숨은 holdout으로 한다(일반 worker 미배정). MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다. 구현: Session mode가 PATCH·PURPLE이고 고정된 manifest에 `patch`가 있어야 하며(아니면 422 `UNSUPPORTED_MODE`), `files`의 모든 경로가 `patch.allowedPaths`와 정확히 일치해야 한다(아니면 422, 경로를 응답에 되풀이하지 않음). 검증된 grading runtime이 없고 개발 override도 없으면 503이다. canonical bundle은 경로순 `{path, sha256, byteSize}` 목록과 explanation digest의 JCS digest이며 learner 소유 artifact(LEARNER)로 저장한다. PATCH GRADE job은 grading runtime을 가진 runner만 `kinds: [PATCH]`로 claim하고 결과는 `POST /internal/v1/grade-jobs/patch-result`로 보고한다. 5 MiB 압축/20 MiB 해제 한도는 후속 bundle 업로드의 자원 상한이며 현재 공개 API가 그 크기의 inline 요청을 허용한다는 뜻이 아니다. 큰 저장소 과제는 scoped upload 완료·digest 검증 계약을 추가한 뒤 지원한다. export/deletion 비동기 receipt의 pollPath는 본인 job을 조회하는 `/v1/async-jobs/{id}`다. export 완료 응답의 downloadPath는 owner 검사를 하는 플랫폼 경로이고 raw store signed URL을 장기 보관하지 않는다.
 
 ## 페이징과 실시간
 
@@ -894,11 +895,11 @@ user code가 test framework·result file·DB fixture를 바꾸는 mutant를 포�
 
 ## 탐지 DSL과 데이터
 
-MVP 규칙은 JSON AST로 제한한다. 필드는 eventType, actorId, tenantId, resourceTenantId, status, routeGroup, count, windowSeconds이며 연산은 eq, neq, and, or, count_gte다. eq/neq는 literal value 또는 compareField 중 하나와 비교한다. 예를 들어 tenantId neq compareField resourceTenantId는 정규화된 서버 로그 필드를 비교한다. 누락 필드 비교는 false, count 집계는 actorId+routeGroup과 window 기준이며 같은 eventId는 한 번만 센다. 임의 SQL·정규식 무제한·외부 함수·shell을 허용하지 않는다. 깊이 8, 노드 64, window 300초, 평가 timeout 5초를 제한한다.
+MVP 규칙은 JSON AST로 제한한다. 필드는 eventType, actorId, tenantId, resourceTenantId, status, routeGroup, count, windowSeconds이며 연산은 eq, neq, and, or, count_gte다. eq/neq는 literal value 또는 compareField 중 하나와 비교한다. 예를 들어 tenantId neq compareField resourceTenantId는 정규화된 서버 로그 필드를 비교한다. 누락 필드 비교는 false, count 집계는 actorId+routeGroup과 window 기준이며 같은 eventId는 한 번만 센다. 임의 SQL·정규식 무제한·외부 함수·shell을 허용하지 않는다. 깊이 8, 노드 64, window 300초, 평가 timeout 5초를 제한한다. 구현(T10): count_gte 안의 count_gte는 거절한다(평가를 이벤트 수에 선형으로 유지). 평가 예산 초과는 사용자 자원 한도(FAIL, gate `resource_limit`)다.
 
 탐지 입력은 eventTime 기반 합성 로그이며 rule에 정답 attackLabel을 주지 않는다. visible training과 hidden holdout을 분리하고 actor·IP·route 이름을 변형한다. ground truth는 caseId·attackEpisodeId·유효 탐지 window로 정의한다. 단순 이벤트 여러 개로 같은 공격을 여러 TP로 세지 않는다.
 
-TP는 공격 episode window 안의 첫 유효 alert, FN은 탐지되지 않은 episode, FP는 공격 window 밖 정상 actor/window의 alert다. precision=TP/(TP+FP), recall=TP/(TP+FN), F1은 조화평균이다. TN은 사전 정의한 정상 actor/window 집합의 무경보 수로 계산하고 FPR=FP/(FP+TN)을 제공한다. 분모 0은 N/A이며 0% 또는 100%로 꾸미지 않는다. latency는 첫 악성 이벤트에서 첫 alert까지이며 미탐은 별도 FN으로 남긴다.
+TP는 공격 episode window 안의 첫 유효 alert, FN은 탐지되지 않은 episode, FP는 공격 window 밖 정상 actor/window의 alert다. precision=TP/(TP+FP), recall=TP/(TP+FN), F1은 조화평균이다. TN은 사전 정의한 정상 actor/window 집합의 무경보 수로 계산하고 FPR=FP/(FP+TN)을 제공한다. 분모 0은 N/A이며 0% 또는 100%로 꾸미지 않는다. 구현: 정상 window 밖이면서 공격 window 밖인 alert는 하나씩 FP로 센다(라벨 없는 시간에 alert를 흘려 넣어 precision을 숨기지 못하게). 비율은 basis point로 계산하고 N/A 지표는 평가 dimension에서 뺀다. 판정은 숨은 holdout으로만 하고 training 지표는 참고로 보여준다. training·holdout seed는 서버 전용 Session seed에서 용도별로 파생한다. latency는 첫 악성 이벤트에서 첫 alert까지이며 미탐은 별도 FN으로 남긴다.
 
 임계값은 콘텐츠 rubric에 둔다. 예시 tenant leak은 recall>=0.9, precision>=0.8, p95 latency<=30 simulated seconds를 목표로 하고 정상 데이터 비율과 episode 수를 함께 공개한다. 이 수치는 설계 가정이며 운영 SOC 성능 기준으로 주장하지 않는다.
 
@@ -913,11 +914,11 @@ SystemState는 compromisedIdentities, activeTokens, accessibleAssets, leakedSynt
 | ISOLATE_WORKLOAD | 모델의 공격 경로 차단 | 서비스 가용성 손실·로그 일부 중단 |
 | ENABLE_AUDIT | 이후 관측 coverage 증가 | 추가 비용; 과거 이벤트 생성하지 않음 |
 
-실제 API에서 안전하게 수행 가능한 token revoke는 실제 Lab 조작과 모델 액션을 각각 기록하고 성공·실패를 분리한다. isolate 모델만 적용했는데 실제 VM을 격리했다고 표시하지 않는다.
+실제 API에서 안전하게 수행 가능한 token revoke는 실제 Lab 조작과 모델 액션을 각각 기록하고 성공·실패를 분리한다. isolate 모델만 적용했는데 실제 VM을 격리했다고 표시하지 않는다. 구현(T10, engine `ir-v1`): 모든 액션 응답은 `representation: SIMULATED`, Evidence는 `SIMULATOR`/`SIMULATED`이며 실제 Lab 조작 API는 아직 없다. 공격자는 `tok-sync`(정상 자동화와 공유)로 `orders`를 읽고 그 route가 막히면 `orders-legacy`로 우회한다. 효과가 없는 액션(이미 적용, 대상이 없어진 audit)은 409로 거절하고 tick을 쓰지 않는다. 상태는 저장하지 않고 (seed, engine, 수락된 액션)에서 재계산하며 액션마다 state digest를 남긴다.
 
 ## 대응 평가
 
-피해는 leakedRecords 합성 수와 exposure duration, 업무 손상은 baseline 대비 workload 실패·unavailable tick, 증거 보존은 필요한 로그/타임라인 존재율로 측정한다. MTTD는 첫 침해부터 사용자 탐지 인정 tick, MTTC는 containment 효과 확인 tick, MTTR은 필수 정상 workload 회복 tick으로 정의한다. 미복구는 censored로 표시하고 임의 0초를 넣지 않는다. 모든 endpoint를 막은 대응은 공격 중단에는 성공해도 availability·회귀 gate에서 손실이 드러난다.
+피해는 leakedRecords 합성 수와 exposure duration, 업무 손상은 baseline 대비 workload 실패·unavailable tick, 증거 보존은 필요한 로그/타임라인 존재율로 측정한다. MTTD는 첫 침해부터 사용자 탐지 인정 tick, MTTC는 containment 효과 확인 tick, MTTR은 필수 정상 workload 회복 tick으로 정의한다. 미복구는 censored로 표시하고 임의 0초를 넣지 않는다. 구현: 시간 단위는 tick이고 MTTC·MTTR이 미도달이면 null(censored)이다. 증거 누락은 workload 격리로 로그가 끊긴 tick 수로 센다. 모든 endpoint를 막은 대응은 공격 중단에는 성공해도 availability·회귀 gate에서 손실이 드러난다.
 
 
 출처 파일: `docs/22-replay.md`
@@ -950,7 +951,7 @@ seek는 가장 가까운 이전 checkpoint + 이후 이벤트를 적용한다. �
 
 ## 수용 기준
 
-동일 fixture의 처음부터 재생과 checkpoint seek 상태 digest가 같아야 한다. seq 역순·중복·누락·삭제된 artifact·구버전 reducer·권한 없는 anchor를 테스트한다. 실제 네트워크 지연은 Replay에서 원래 observedAt를 보존하고 정렬은 seq 기준으로 일관되게 유지한다.
+동일 fixture의 처음부터 재생과 checkpoint seek 상태 digest가 같아야 한다. 구현(T10): IR 상태는 (seed, engine, 수락된 액션)에서 재계산하고 `applied_actions.state_digest`와 비교한다. 이력이 바뀌면 검증이 실패한다. checkpoint·seek·manifest는 T12다. seq 역순·중복·누락·삭제된 artifact·구버전 reducer·권한 없는 anchor를 테스트한다. 실제 네트워크 지연은 Replay에서 원래 observedAt를 보존하고 정렬은 seq 기준으로 일관되게 유지한다.
 
 
 출처 파일: `docs/23-adaptive-randomization.md`
