@@ -1,0 +1,5 @@
+{"challengeKey": "replay-double-payout", "hints": [
+  {"level": 1, "text": "같은 배송이 두 번 도착하면 어떤 결과가 생기는지 원장(/api/ledger)을 보며 확인하세요."},
+  {"level": 2, "text": "서명이 유효해도 '이미 처리한 배송인지'와 '너무 오래된 배송인지'는 별개의 검사입니다."},
+  {"level": 3, "text": "캡처한 배송(/api/sample-delivery)을 그대로 다시 보내면 payout이 한 번 더 쌓입니다. 재전송을 막되 정상 재시도는 성공으로 유지해야 합니다."},
+  {"level": 4, "text": "해설: app/dedup.py에서 deliveryId를 기록해 중복은 원래 결과를 돌려주고, app/verify.py에서 FRESHNESS_SECONDS를 넘은 timestamp를 거절합니다."}]}

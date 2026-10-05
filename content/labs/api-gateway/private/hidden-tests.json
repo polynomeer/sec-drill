@@ -1,0 +1,9 @@
+{
+  "tests": [
+    {"id": "out-of-scope-read", "request": {"method": "GET", "path": "/api/billing/1", "headers": {"Authorization": "Bearer tok-reports"}}, "expect": {"statusIn": [403, 404], "bodyExcludes": ["secret"]}},
+    {"id": "revoked-token-rejected", "request": {"method": "GET", "path": "/api/reports/1", "headers": {"Authorization": "Bearer tok-retired"}}, "expect": {"statusIn": [401]}},
+    {"id": "scope-escalation-header-ignored", "request": {"method": "GET", "path": "/api/admin/1", "headers": {"Authorization": "Bearer tok-reports", "X-Scope": "admin:read"}}, "expect": {"statusIn": [403, 404], "bodyExcludes": ["secret"]}},
+    {"id": "in-scope-read", "request": {"method": "GET", "path": "/api/reports/1", "headers": {"Authorization": "Bearer tok-reports"}}, "expect": {"statusIn": [200], "idsInclude": [1]}},
+    {"id": "in-scope-automation-read", "request": {"method": "GET", "path": "/api/reports/2", "headers": {"Authorization": "Bearer tok-svc-sync"}}, "expect": {"statusIn": [200], "idsInclude": [2]}}
+  ]
+}

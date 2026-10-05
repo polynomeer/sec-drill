@@ -1,0 +1,21 @@
+{
+  "tests": [
+    {"id": "replay-no-double-payout",
+     "setup": [{"method": "POST", "path": "/api/webhooks", "from": {"path": "/api/sample-delivery?id=rep&age=0", "headers": {"X-Signature": "signature"}}},
+               {"method": "POST", "path": "/api/webhooks", "from": {"path": "/api/sample-delivery?id=rep&age=0", "headers": {"X-Signature": "signature"}}}],
+     "request": {"method": "GET", "path": "/api/ledger"}, "expect": {"statusIn": [200], "fieldEquals": {"payouts": 1}}},
+    {"id": "expired-delivery-rejected",
+     "request": {"method": "POST", "path": "/api/webhooks", "from": {"path": "/api/sample-delivery?id=exp&age=600", "headers": {"X-Signature": "signature"}}},
+     "expect": {"statusIn": [400]}},
+    {"id": "tampered-signature-rejected",
+     "request": {"method": "POST", "path": "/api/webhooks", "from": {"path": "/api/sample-delivery?id=tam&age=0&tamper=1", "headers": {"X-Signature": "signature"}}},
+     "expect": {"statusIn": [401]}},
+    {"id": "fresh-delivery-processed",
+     "request": {"method": "POST", "path": "/api/webhooks", "from": {"path": "/api/sample-delivery?id=fresh1&age=0", "headers": {"X-Signature": "signature"}}},
+     "expect": {"statusIn": [200], "fieldEquals": {"status": "processed"}}},
+    {"id": "legitimate-retry-accepted",
+     "setup": [{"method": "POST", "path": "/api/webhooks", "from": {"path": "/api/sample-delivery?id=ret&age=0", "headers": {"X-Signature": "signature"}}}],
+     "request": {"method": "POST", "path": "/api/webhooks", "from": {"path": "/api/sample-delivery?id=ret&age=0", "headers": {"X-Signature": "signature"}}},
+     "expect": {"statusIn": [200]}}
+  ]
+}

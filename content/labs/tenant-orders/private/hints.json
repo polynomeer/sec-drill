@@ -1,0 +1,5 @@
+{"challengeKey": "cross-tenant-order", "hints": [
+  {"level": 1, "text": "로그인한 뒤 자신의 테넌트가 아닌 주문 id를 조회해 보세요."},
+  {"level": 2, "text": "주문을 읽을 때 '로그인했는가'와 '그 주문이 내 테넌트인가'는 다른 검사입니다."},
+  {"level": 3, "text": "모든 조회 경로(단일·목록·legacy)에서 주문의 테넌트와 토큰의 테넌트를 비교해야 합니다. 클라이언트가 보낸 테넌트 값은 믿으면 안 됩니다."},
+  {"level": 4, "text": "해설: app/authz.py에서 order['tenant'] == caller_tenant일 때만 허용하고, app/orders.py의 모든 경로가 이 검사를 거치게 합니다."}]}

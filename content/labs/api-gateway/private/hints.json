@@ -1,0 +1,5 @@
+{"challengeKey": "out-of-scope-read", "hints": [
+  {"level": 1, "text": "한 토큰으로 어떤 컬렉션까지 읽을 수 있는지 /api/<collection>/<id>를 여러 컬렉션에 시도해 보세요."},
+  {"level": 2, "text": "토큰에 부여된 scope와 자원이 요구하는 scope가 실제로 비교되고 있는지 확인하세요."},
+  {"level": 3, "text": "reports:read 토큰으로 billing/admin을 읽을 수 있다면 scope 경계가 없습니다. 폐기된 토큰도 거절해야 합니다."},
+  {"level": 4, "text": "해설: app/scopes.py에서 요구 scope가 부여 scope에 포함될 때만 허용하고 클라이언트 헤더는 무시합니다. app/tokens.py에서 revoked 토큰은 None을 반환합니다."}]}
