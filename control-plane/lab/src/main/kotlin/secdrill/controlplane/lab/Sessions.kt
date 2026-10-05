@@ -100,10 +100,7 @@ class SessionService(
         return labs.sessionView(sessionId)
     }
 
-    /**
-     * Finish (13): only when the mode's completion requirements hold. Moves to SUBMITTED and terminates the Lab.
-     * The final report job (EVALUATING → COMPLETED) is not implemented yet (T12), so the Session stays SUBMITTED.
-     */
+    /** Finish (13): only when the mode's completion requirements hold. Moves to SUBMITTED, terminates the Lab, queues the report. */
     @Transactional
     fun finish(principal: LearnerPrincipal, sessionId: UUID, expectedVersion: Long): SessionView {
         guard.requireOwned(principal, OwnedResource.SESSION, sessionId)
@@ -131,6 +128,10 @@ class SessionService(
         if (missing.isNotEmpty()) throw ApiException(ErrorCode.MISSING_GATES, "Completion requirements are not met", ErrorDetails(missingGates = missing))
 
         jdbc.sql("UPDATE sessions SET status = 'SUBMITTED', version = version + 1 WHERE id = ?").param(sessionId).update()
+        // The final report is a REPORT job (13: SUBMITTED → EVALUATING → COMPLETED), built from server evidence only.
+        val now = clock.instant().atOffset(java.time.ZoneOffset.UTC)
+        jdbc.sql("INSERT INTO jobs(id, session_id, kind, state, dispatched_at, due_at, created_at) VALUES (?, ?, 'REPORT', 'DISPATCHED', ?, ?, ?)")
+            .params(UUID.randomUUID(), sessionId, now, now, now).update()
         jdbc.sql("SELECT id FROM labs WHERE session_id = ? AND cleanup_confirmed_at IS NULL").param(sessionId).query(UUID::class.java).list().filterNotNull()
             .forEach { labs.requestTermination(it, LabTerminateReason.USER_STOP) }
         val refs = jdbc.sql("SELECT e.id FROM evaluations e JOIN submissions s ON s.id = e.submission_id WHERE s.session_id = ? AND e.is_active AND e.verdict = 'PASS' ORDER BY e.created_at")

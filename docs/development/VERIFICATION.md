@@ -61,6 +61,8 @@ JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL�
 | `PatchGradingTest` | 실제 Docker의 분리된 grading 환경과 외부 supervisor로 참조 패치 VERIFIED, 무수정·전부 거절·한 경로만·클라이언트 tenant·결과 조작·compile 오류 NOT_VERIFIED와 해당 gate, 탈출 probe로 grading 환경 출구 없음, 허용 경로·bundle digest, platform 오류·부분 결과·중복 결과·자료 누락 처리, hidden 정보 비노출 | grading-strong, 채점 감지형 패치 |
 | `DetectionTest`·`IncidentModelTest` | 탐지 DSL 제한·평가·episode 지표·N/A·label 비노출·암기 규칙 holdout 실패, IR reducer 재현·네 액션 효과와 부작용·충돌·censored 지표 | 다른 사건 모델 |
 | `ResponseDrillTest` | 액션 API(SIMULATED, replay digest, 409·422), 데이터셋 API(label 없음), DETECTION 수락·holdout 채점, Evidence 신뢰 수준 구분 | 실제 Lab 액션, Replay API |
+| `SkillPolicyTest`·`CheckpointsTest` | 스킬 projection·추천 정책 규칙, checkpoint seek와 처음부터 재생의 digest 일치 | calibration |
+| `InsightTest` | 리포트 차원·anchor·도움·범위·추천, 재채점 revision 보존, Replay seek·chunk·만료 Artifact, 스킬 표본·UNKNOWN/confidence | 대량 원장 성능 |
 | `UnverifiedIsolationRefusedTest`·`CtfSafetyTest`·`FlagServiceTest` | override 없이는 strong 요구 Lab·PATCH 제출 503, prod의 override·flag key 누락 거부, 플래그 결속·receipt 서명 | 키 회전 |
 | `CanonicalJsonTest` | RFC 8785 벡터와 Evidence hash를 Python 구현과 동일하게 계산 | TypeScript 구현 |
 | `AuthSafetyTest` | dev-login을 local 밖이나 prod와 함께 켜면, prod에 OIDC·https origin이 없으면 기동 실패 | 운영 배포 설정 |
@@ -76,6 +78,7 @@ PLAYWRIGHT_BROWSERS_PATH=.playwright npm run e2e
 | 검사 | 확인하는 것 | 확인하지 않는 것 |
 |---|---|---|
 | `check:api`·`build` | API 타입이 OpenAPI와 같음, 앱·E2E 코드 타입 검사 | 실제 서버 응답 |
+| Playwright `insight.spec.ts` | 점수→근거 anchor→Replay, 추천 이유, 모델/기록 구분·만료 표시, tick 키보드 이동, UNKNOWN/신뢰도 분리, 리포트 revision, 휴대폰 리포트 | 실제 서버 응답 |
 | Playwright `workspace.spec.ts` | 키보드 흐름, 작은 화면, 출력 escaping, Lab separate origin, SSE 재접속 cursor, 플랫폼 오류와 학습자 실패 안내, 서버 finish gate 표시, Purple 연결 Session, 상태 알림(가짜 API) | 실제 Lab·채점까지의 흐름, 스크린리더 |
 | `WorkspaceApiTest` | 힌트, SSE cursor, Purple finish gate, 연결 Session(실제 서버) | 브라우저 |
 

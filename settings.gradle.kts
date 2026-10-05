@@ -16,6 +16,7 @@ dependencyResolutionManagement {
 
 // Module layout follows SecDrill-docs/docs/30-implementation-plan.md; modules are added when they have content.
 include(":shared:kernel")
+include(":shared:learning")
 include(":content:format")
 include(":content:cli")
 include(":execution:protocol")
@@ -31,4 +32,5 @@ include(":control-plane:evidence")
 include(":control-plane:submission")
 include(":control-plane:lab")
 include(":control-plane:response")
+include(":control-plane:insight")
 include(":control-plane:app")

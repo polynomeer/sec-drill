@@ -259,6 +259,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sessions/{id}/replay/chunks/{fromSeq}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * getReplayChunk
+         * @description manifest chunk의 근거 항목(신뢰 수준·Artifact 상태 포함)
+         */
+        get: operations["getReplayChunk"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sessions/{id}/replay/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * getReplayState
+         * @description 가장 가까운 이전 checkpoint에서 재계산한 IR 모델 상태(SIMULATED)
+         */
+        get: operations["getReplayState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sessions/{id}/stream": {
         parameters: {
             query?: never;
@@ -713,6 +753,34 @@ export interface components {
             evidenceIds: string[];
             recommendedScenarioVersionIds: string[];
             scopeLimitations: string[];
+            policyVersion: string;
+            /** Format: date-time */
+            createdAt: string;
+            dimensions: {
+                key: string;
+                /** @enum {string} */
+                status: "PASS" | "FAIL" | "INCONCLUSIVE" | "NOT_ATTEMPTED" | "NOT_EVALUATED";
+                score?: number;
+                /** @enum {string} */
+                representation: "SERVER_VERIFIED" | "OBSERVED" | "USER_REPORTED" | "SIMULATED";
+                /** Format: uuid */
+                evaluationId?: string;
+                evidenceIds: string[];
+            }[];
+            recommendations: {
+                /** Format: uuid */
+                scenarioId: string;
+                /** Format: uuid */
+                scenarioVersionId: string;
+                title: string;
+                scoreBps: number;
+                reasons: ("EVIDENCE_GAP" | "LOW_INDEPENDENT_SUCCESS" | "NEW_FAMILY" | "PREFERRED_MODE" | "TRANSFER_AFTER_HELP")[];
+                terms: {
+                    [key: string]: number;
+                };
+            }[];
+            /** @description revision이 바뀐 이유(재채점 등) */
+            changeReason?: string;
         };
         ReplayManifest: {
             /** Format: uuid */
@@ -731,6 +799,11 @@ export interface components {
                 toSeq: number;
                 reason: string;
             }[];
+            lastTick: number;
+            checkpoints: {
+                tick: number;
+                stateDigest: string;
+            }[];
         };
         SkillPage: {
             policyVersion: string;
@@ -745,6 +818,8 @@ export interface components {
                 sampleCount: number;
                 familyCount: number;
                 evidenceIds: string[];
+                /** @description 가중 성공률. 표본이 없으면 null. 숙련 확률이 아니다. */
+                successBps?: number | null;
             }[];
         };
         ExportRequest: {
@@ -838,6 +913,42 @@ export interface components {
             /** @constant */
             representation: "SIMULATED";
             events: components["schemas"]["DetectionEvent"][];
+        };
+        ReplayItem: {
+            /** Format: uuid */
+            id: string;
+            seq: number;
+            type: string;
+            /** @enum {string} */
+            trustLevel: "SERVER_VERIFIED" | "OBSERVED" | "USER_REPORTED" | "SIMULATED";
+            /** Format: date-time */
+            occurredAt: string;
+            /** @description 원장의 safe payload(식별자·digest·작은 값만) */
+            summary: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description 근거 Artifact 상태. 만료·삭제되면 metadata·digest만 남는다.
+             * @enum {string}
+             */
+            artifact: "NONE" | "AVAILABLE" | "EXPIRED" | "DELETED";
+        };
+        ReplayChunk: {
+            fromSeq: number;
+            toSeq: number;
+            digest: string;
+            items: components["schemas"]["ReplayItem"][];
+        };
+        ReplayState: {
+            tick: number;
+            /** @constant */
+            representation: "SIMULATED";
+            engineVersion: string;
+            state: components["schemas"]["SystemState"];
+            stateDigest: string;
+            fromCheckpointTick: number;
+            /** @description 이 tick에 기록된 digest(액션 직후). seek 결과와 같아야 한다. */
+            recordedDigest?: string | null;
         };
     };
     responses: {
@@ -2375,7 +2486,9 @@ export interface operations {
     };
     getReport: {
         parameters: {
-            query?: never;
+            query?: {
+                revision?: number;
+            };
             header?: never;
             path: {
                 id: string;
@@ -2506,6 +2619,233 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReplayManifest"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getReplayChunk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                fromSeq: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description manifest chunk의 근거 항목(신뢰 수준·Artifact 상태 포함) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayChunk"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출 */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getReplayState: {
+        parameters: {
+            query: {
+                tick: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 가장 가까운 이전 checkpoint에서 재계산한 IR 모델 상태(SIMULATED) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplayState"];
                 };
             };
             /** @description 구조화 오류; 비밀과 내부 stack은 포함하지 않음 */

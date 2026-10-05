@@ -49,6 +49,49 @@ export class FakeApi {
     } as S["Evidence"];
   }
 
+  readonly evidenceIds = ["40000000-0000-4000-8000-000000000001", "40000000-0000-4000-8000-000000000002", "40000000-0000-4000-8000-000000000003"];
+
+  readonly chunk: S["ReplayChunk"] = {
+    fromSeq: 1, toSeq: 3, digest: "d".repeat(64),
+    items: [
+      { id: this.evidenceIds[0], seq: 1, type: "SessionCreated", trustLevel: "SERVER_VERIFIED", occurredAt: "2026-10-05T00:00:00Z", summary: {}, artifact: "NONE" },
+      { id: this.evidenceIds[1], seq: 2, type: "HYPOTHESIS_REPORTED", trustLevel: "USER_REPORTED", occurredAt: "2026-10-05T00:01:00Z", summary: { ruleDigest: "r" }, artifact: "EXPIRED" },
+      { id: this.evidenceIds[2], seq: 3, type: "TEST_RESULT", trustLevel: "SIMULATED", occurredAt: "2026-10-05T00:02:00Z", summary: { truePositives: 3 }, artifact: "NONE" },
+    ],
+  };
+
+  readonly manifest: S["ReplayManifest"] = {
+    sessionId: ids.purple, engineVersion: "ir-v1", firstSeq: 1, lastSeq: 3, lastTick: 4,
+    chunks: [{ fromSeq: 1, toSeq: 3, downloadPath: `/v1/sessions/${ids.purple}/replay/chunks/1?toSeq=3`, digest: "d".repeat(64) }],
+    gaps: [{ fromSeq: 2, toSeq: 2, reason: "ARTIFACT_EXPIRED" }], checkpoints: [{ tick: 3, stateDigest: "c".repeat(64) }],
+  };
+
+  reportRevision(revision: number, evaluation: string, changeReason?: string): S["Report"] {
+    return {
+      sessionId: ids.purple, revision, policyVersion: "report-v1", createdAt: "2026-10-05T00:10:00Z", evaluationRefs: [evaluation],
+      summary: "Synthetic tenant order leak · PURPLE: 평가된 차원 2개 중 1개 통과", exposure: "GUIDED",
+      dimensions: [
+        { key: "attack", status: "NOT_ATTEMPTED", representation: "SERVER_VERIFIED", evidenceIds: [] },
+        { key: "detection", status: "PASS", score: 92, representation: "SIMULATED", evaluationId: evaluation, evidenceIds: [this.evidenceIds[2]] },
+        { key: "response", status: "FAIL", score: 0, representation: "SIMULATED", evidenceIds: [] },
+      ],
+      evidenceIds: [this.evidenceIds[2]], recommendedScenarioVersionIds: [ids.version],
+      recommendations: [{ scenarioId: ids.scenario, scenarioVersionId: ids.version, title: "Synthetic invoice leak", scoreBps: 7600, reasons: ["EVIDENCE_GAP", "NEW_FAMILY"], terms: { evidenceGap: 10000, lowIndependentSuccess: 0, novelty: 10000, preference: 0 } }],
+      scopeLimitations: ["대응 차원은 모델 재계산(SIMULATED)이며 실제 Lab을 조치한 결과가 아닙니다.", "힌트나 이전 Session의 도움을 받은 결과입니다(누적 감점 5점)."],
+      ...(changeReason ? { changeReason } : {}),
+    };
+  }
+
+  reports: S["Report"][] = [this.reportRevision(1, "50000000-0000-4000-8000-000000000001")];
+
+  skills: S["SkillPage"] = {
+    policyVersion: "skill-v1", taxonomyVersion: "taxonomy-v1", watermark: "evaluations:abc",
+    skills: [
+      { key: "DETECTION", level: "UNKNOWN", confidence: "LOW", sampleCount: 1, familyCount: 1, successBps: 10000, evidenceIds: [this.evidenceIds[2]] },
+      { key: "SECURE_PATCHING", level: "PRACTICING", confidence: "MEDIUM", sampleCount: 6, familyCount: 3, successBps: 8333, evidenceIds: [] },
+    ],
+  };
+
   async install(page: Page): Promise<void> {
     const json = (route: Route, status: number, body: unknown) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     const error = (code: string, status: number, message: string, details?: unknown) => ({ code, message, requestId: "r", retryable: status >= 500, details });
@@ -84,6 +127,22 @@ export class FakeApi {
         }
         if (rest === "/finish") return json(route, 409, error("MISSING_GATES", 409, "Completion requirements are not met", { missingGates: this.finishMissing }));
         if (rest === "/detection-dataset") return json(route, 200, { variant: "TRAINING", generator: "tenant-orders-logs/1", representation: "SIMULATED", events: [] } satisfies S["DetectionDataset"]);
+      }
+      if (path === "/v1/skills/me") return json(route, 200, this.skills);
+      const insight = path.match(/^\/v1\/sessions\/([0-9a-f-]{36})\/(report|replay|replay\/state|replay\/chunks\/\d+)$/);
+      if (insight) {
+        const [, , what] = insight;
+        if (what === "report") {
+          const revision = url.searchParams.get("revision");
+          return json(route, 200, revision ? this.reports[Number(revision) - 1] : this.reports[this.reports.length - 1]);
+        }
+        if (what === "replay") return json(route, 200, this.manifest);
+        if (what === "replay/state") {
+          const tick = Number(url.searchParams.get("tick"));
+          return json(route, 200, { tick, representation: "SIMULATED", engineVersion: "ir-v1", fromCheckpointTick: tick >= 3 ? 3 : 0, stateDigest: "c".repeat(64),
+            recordedDigest: tick === 0 ? null : "c".repeat(64), state: { tick, leakedSyntheticRecords: 4 - Math.min(tick, 2), availability: 1, workloadSuccess: tick >= 2 ? 0.8 : 1, evidenceCoverage: 1 } } satisfies S["ReplayState"]);
+        }
+        return json(route, 200, this.chunk);
       }
       if (path === `/v1/submissions/${ids.submission}`) {
         const base = { id: ids.submission, sessionId: ids.session, kind: "FLAG" as const, createdAt: "2026-10-05T00:00:00Z" };

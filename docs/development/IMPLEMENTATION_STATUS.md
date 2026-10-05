@@ -6,13 +6,13 @@
 
 ## 현재 단계
 
-**T11 작업 공간**(프롬프트 11): React + Vite + TypeScript Web(D-06)으로 카탈로그·사건·CTF/Wargame/Purple 작업 공간을 공개 API에 연결하고, 힌트·SSE cursor·Purple finish gate를 서버에 보완했다. 브라우저 E2E는 계약 타입의 가짜 API로 통과했고 실제 Lab까지의 브라우저 전체 흐름은 미검증이다. CTF·패치 결과는 격리 미검증이라 데모다.
+**T12 리포트·Replay·스킬·추천**(프롬프트 12): 근거 anchor·도움·판정 범위가 있는 리포트와 재채점 revision, checkpoint seek Replay, `skill-v1` projection, 이유가 있는 상위 3개 추천을 구현하고 Web 화면을 붙였다. T01~T12 기반 완료. CTF·패치 결과는 격리 미검증이라 데모이며 projection에서 빠진다.
 
 ## 활성 Task
 
 | Task | 담당 | 대상 경로 | 시작일 | 메모 |
 |---|---|---|---|---|
-| — | — | — | — | 다음: 프롬프트 12 = T12(리포트·Replay·스킬) |
+| — | — | — | — | 다음: 프롬프트 13 = T13(기본·전이 콘텐츠) |
 
 ## 완료 항목
 
@@ -29,7 +29,8 @@
 | T07 첫 CTF(데모) | [T07](T07.md#결과) |
 | T08 Python 패치 채점(데모) | [T08](T08.md#결과) |
 | T10 탐지·대응 모델 | [T10](T10.md#결과) |
-| T11 작업 공간 | [T11](T11.md#결과). Playwright 16건, `./gradlew clean check` 175건 통과(skip 0) |
+| T11 작업 공간 | [T11](T11.md#결과) |
+| T12 리포트·Replay·스킬 | [T12](T12.md#결과). Playwright 25건, `./gradlew clean check` 185건 통과(skip 0) |
 
 ## 미검증 항목
 
@@ -52,6 +53,6 @@
 
 ## 다음 작업
 
-1. 프롬프트 12 = T12(리포트·Replay·스킬 projection)
+1. 프롬프트 13 = T13(기본 3 + 전이 3 콘텐츠, seed suite·독립 검수)
 2. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 같은 격리 테스트 실행
 3. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))

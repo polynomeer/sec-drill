@@ -9,6 +9,6 @@ import org.springframework.web.bind.annotation.GetMapping
  */
 @Controller
 class WorkspaceRoutes {
-    @GetMapping("/app", "/app/", "/app/scenarios", "/app/scenarios/{id}", "/app/sessions/{id}")
+    @GetMapping("/app", "/app/", "/app/scenarios", "/app/scenarios/{id}", "/app/sessions/{id}", "/app/sessions/{id}/report", "/app/sessions/{id}/replay", "/app/skills")
     fun page(): String = "forward:/app/index.html"
 }

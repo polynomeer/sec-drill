@@ -13,6 +13,12 @@ export type Hint = Schemas["Hint"];
 export type ActionResult = Schemas["ActionResult"];
 export type DetectionDataset = Schemas["DetectionDataset"];
 export type ErrorEnvelope = Schemas["Error"];
+export type Report = Schemas["Report"];
+export type ReplayManifest = Schemas["ReplayManifest"];
+export type ReplayChunk = Schemas["ReplayChunk"];
+export type ReplayItem = Schemas["ReplayItem"];
+export type ReplayState = Schemas["ReplayState"];
+export type SkillPage = Schemas["SkillPage"];
 
 /**
  * Two kinds of failure the learner must be told apart (07, prompt 11):

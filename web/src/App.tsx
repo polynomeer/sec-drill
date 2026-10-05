@@ -4,6 +4,9 @@ import { AnnounceProvider } from "./announce";
 import { ErrorNotice } from "./components/Messages";
 import { Catalog } from "./pages/Catalog";
 import { Login } from "./pages/Login";
+import { ReplayPage } from "./pages/ReplayPage";
+import { ReportPage } from "./pages/ReportPage";
+import { SkillsPage } from "./pages/SkillsPage";
 import { ScenarioPage } from "./pages/ScenarioPage";
 import { Workspace } from "./pages/Workspace";
 import { href, navigate, useLocation } from "./router";
@@ -28,7 +31,11 @@ export function App() {
   else {
     const scenario = path.match(/^\/scenarios\/([0-9a-f-]{36})$/);
     const session = path.match(/^\/sessions\/([0-9a-f-]{36})$/);
+    const sub = path.match(/^\/sessions\/([0-9a-f-]{36})\/(report|replay)$/);
     if (scenario) page = <ScenarioPage scenarioId={scenario[1]} />;
+    else if (sub && sub[2] === "report") page = <ReportPage key={sub[1]} sessionId={sub[1]} />;
+    else if (sub && sub[2] === "replay") page = <ReplayPage key={sub[1]} sessionId={sub[1]} />;
+    else if (path === "/skills") page = <SkillsPage />;
     else if (session) page = <Workspace key={session[1]} sessionId={session[1]} />;
     else page = <Catalog />;
   }
@@ -47,6 +54,15 @@ export function App() {
           }}
         >
           SecDrill
+        </a>{" "}
+        <a
+          href={href("/skills")}
+          onClick={(event) => {
+            event.preventDefault();
+            navigate("/skills");
+          }}
+        >
+          스킬
         </a>
       </header>
       <div id="content" tabIndex={-1}>

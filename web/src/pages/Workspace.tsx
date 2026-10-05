@@ -689,6 +689,19 @@ function FinishPanel({ session, detail, refresh }: { session: Session; detail: S
         </button>
       )}
       <ErrorNotice error={error} />
+      {["SUBMITTED", "EVALUATING", "COMPLETED", "EVALUATION_FAILED"].includes(session.status) && (
+        <p>
+          <a
+            href={href(`/sessions/${session.id}/report`)}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate(`/sessions/${session.id}/report`);
+            }}
+          >
+            리포트 보기
+          </a>
+        </p>
+      )}
       {canContinue && detail && (
         <p>
           <a

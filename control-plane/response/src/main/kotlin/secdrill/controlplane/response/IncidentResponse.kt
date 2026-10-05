@@ -109,6 +109,10 @@ class IncidentResponseService(
         jdbc.sql(
             "INSERT INTO applied_actions(id, session_id, seq, action_type, target, tick, engine_version, state_digest) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         ).params(actionId, sessionId, previous.size + 1, action.type.name, action.target, state.tick, engine, digest).update()
+        if (secdrill.simulation.Checkpoints.isCheckpoint(state.tick)) {
+            jdbc.sql("INSERT INTO ir_checkpoints(session_id, tick, engine_version, state, state_digest) VALUES (?, ?, ?, ?::jsonb, ?)")
+                .params(sessionId, state.tick, engine, json.writeValueAsString(secdrill.simulation.Checkpoints.toMap(state)), digest).update()
+        }
         val version = jdbc.sql("UPDATE sessions SET version = version + 1 WHERE id = ? RETURNING version").param(sessionId).query(Long::class.java).single()
         val evidence = ledger.append(sessionId, EventType.ActionApplied.name, EvidenceSource.SIMULATOR, TrustLevel.SIMULATED, mapOf(
             "actionId" to actionId, "type" to action.type.name, "tick" to state.tick, "stateDigest" to digest, "engineVersion" to engine,

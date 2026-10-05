@@ -66,7 +66,8 @@ textarea.code { font-family: ui-monospace, monospace; font-size: 14px; }
 .tabs [role="tab"] { border: 1px solid transparent; background: none; }
 .tabs [role="tab"][aria-selected="true"] { border-color: var(--line); border-bottom-color: var(--bg); font-weight: 600; }
 .tabpanel { padding: 12px 0; }
-.table-wrap { max-height: 320px; overflow: auto; border: 1px solid var(--line); }
+.table-wrap { max-height: 320px; overflow: auto; border: 1px solid var(--line); max-width: 100%; }
+.panel .table-wrap { max-height: none; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }
 th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .timeline { padding-left: 0; list-style: none; font-size: 14px; }

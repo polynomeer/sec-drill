@@ -227,6 +227,11 @@ class JobLeaseService(
                 json.writeValueAsString(gates.map { mapOf("key" to it.key, "result" to it.result.name) }), superseded, now().db()),
         ).update()
         jdbc.sql("UPDATE evaluations SET demo = ? WHERE id = ?").params(demo, evaluationId).update()
+        // A re-grade of a finished Session queues a new report revision; the earlier revision stays as it was (10).
+        jdbc.sql(
+            """INSERT INTO jobs(id, session_id, kind, state, dispatched_at, due_at, created_at)
+               SELECT ?, id, 'REPORT', 'DISPATCHED', ?, ?, ? FROM sessions WHERE id = ? AND status = 'COMPLETED'""",
+        ).params(UUID.randomUUID(), now().db(), now().db(), now().db(), job.sessionId).update()
         val status = if (verdict == Verdict.SYSTEM_ERROR) SubmissionStatus.EVALUATION_FAILED else SubmissionStatus.EVALUATED
         jdbc.sql("UPDATE submissions SET status = ? WHERE id = ?").params(status.name, submission).update()
         // A fake worker observed nothing: its result is SIMULATED evidence, never SERVER_VERIFIED.
@@ -266,4 +271,34 @@ class JobLeaseService(
         val id: UUID, val sessionId: UUID, val submissionId: UUID?, val state: JobState,
         val attempt: Int, val token: Long, val leaseUntil: Instant?, val version: Long,
     )
+}
+
+/**
+ * Operator re-grade (10, 15 `/ops/rejudge-requests` simplified): a new GRADE job revision for the same submission.
+ * The resulting evaluation is a new revision; earlier revisions and reports are kept. Audited.
+ */
+@org.springframework.web.bind.annotation.RestController
+class RejudgeController(private val jdbc: JdbcClient, private val audit: SystemAudit, private val clock: Clock) {
+    @org.springframework.web.bind.annotation.PostMapping("/ops/v1/submissions/{id}/rejudge")
+    @Transactional
+    fun rejudge(
+        @org.springframework.security.core.annotation.AuthenticationPrincipal principal: secdrill.controlplane.identity.OperatorPrincipal,
+        @org.springframework.web.bind.annotation.PathVariable id: UUID,
+    ): Map<String, Any> {
+        if (principal.role !in setOf(secdrill.kernel.OperatorRole.OPERATOR, secdrill.kernel.OperatorRole.SECURITY_ADMIN)) {
+            throw secdrill.kernel.ApiException(secdrill.kernel.ErrorCode.FORBIDDEN, "Role is not allowed to re-grade")
+        }
+        val session = jdbc.sql("SELECT session_id FROM submissions WHERE id = ?").param(id).query(UUID::class.java).optional()
+            .orElseThrow { secdrill.controlplane.access.ResourceNotFoundException() }
+        if (jdbc.sql("SELECT count(*) FROM jobs WHERE submission_id = ? AND state NOT IN ('SUCCEEDED', 'FAILED', 'CANCELLED')").param(id).query(Int::class.java).single() > 0) {
+            throw secdrill.kernel.ApiException(secdrill.kernel.ErrorCode.INVALID_STATE, "A grading job for this submission is still running")
+        }
+        val revision = jdbc.sql("SELECT coalesce(max(revision), 0) + 1 FROM jobs WHERE submission_id = ? AND kind = 'GRADE'").param(id).query(Int::class.java).single()
+        val now = clock.instant().atOffset(ZoneOffset.UTC)
+        val job = UUID.randomUUID()
+        jdbc.sql("INSERT INTO jobs(id, submission_id, session_id, kind, revision, state, dispatched_at, due_at, created_at) VALUES (?, ?, ?, 'GRADE', ?, 'DISPATCHED', ?, ?, ?)")
+            .params(job, id, session, revision, now, now, now).update()
+        audit.record("rejudge", "operator ${principal.operatorId} re-graded submission $id as job revision $revision")
+        return mapOf("jobId" to job.toString(), "revision" to revision)
+    }
 }
