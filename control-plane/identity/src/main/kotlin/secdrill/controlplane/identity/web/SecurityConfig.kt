@@ -17,6 +17,7 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
 import secdrill.controlplane.identity.AuthProperties
 import secdrill.controlplane.identity.AuthSessionService
 import secdrill.controlplane.identity.OperatorAccessService
+import secdrill.controlplane.identity.WorkloadCredentialService
 
 /**
  * Two separate chains (15, 19): `/ops` routes accepts only operator bearer tokens; everything else accepts only
@@ -26,6 +27,26 @@ import secdrill.controlplane.identity.OperatorAccessService
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AuthProperties::class)
 class SecurityConfig {
+    /** Runner and gateway workloads; learner cookies and operator tokens are not accepted here. */
+    @Bean
+    @Order(0)
+    fun workloadChain(http: HttpSecurity, workloads: WorkloadCredentialService, errors: ErrorEnvelopeWriter): SecurityFilterChain =
+        http.securityMatcher("/internal/**")
+            .csrf { it.disable() }
+            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .requestCache { it.disable() }
+            .addFilterBefore(WorkloadBearerFilter(workloads), AnonymousAuthenticationFilter::class.java)
+            .authorizeHttpRequests {
+                it.requestMatchers("/internal/v1/gateway/**").hasAuthority(ROLE_GATEWAY)
+                it.requestMatchers("/internal/v1/lab-jobs/**", "/internal/v1/labs/**").hasAuthority(ROLE_AGENT)
+                it.anyRequest().denyAll()
+            }
+            .exceptionHandling {
+                it.authenticationEntryPoint { _, response, _ -> errors.unauthenticated(response) }
+                it.accessDeniedHandler { _, response, _ -> errors.forbidden(response) }
+            }
+            .build()
+
     @Bean
     @Order(1)
     fun operatorChain(http: HttpSecurity, operators: OperatorAccessService, errors: ErrorEnvelopeWriter): SecurityFilterChain =

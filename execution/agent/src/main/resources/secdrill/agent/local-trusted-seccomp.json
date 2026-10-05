@@ -1,0 +1,189 @@
+{
+  "comment": "SecDrill local-trusted seccomp profile (17, ADR 0007). Denylist on top of dropped capabilities and no-new-privileges; weaker than an allowlist and NOT strong isolation. lab-strong uses a microVM.",
+  "defaultAction": "SCMP_ACT_ALLOW",
+  "syscalls": [
+    {
+      "names": [
+        "_sysctl",
+        "acct",
+        "add_key",
+        "adjtimex",
+        "bpf",
+        "chroot",
+        "clock_adjtime",
+        "clock_settime",
+        "create_module",
+        "delete_module",
+        "finit_module",
+        "fsconfig",
+        "fsmount",
+        "fsopen",
+        "fspick",
+        "get_kernel_syms",
+        "init_module",
+        "io_uring_enter",
+        "io_uring_register",
+        "io_uring_setup",
+        "ioperm",
+        "iopl",
+        "kcmp",
+        "kexec_file_load",
+        "kexec_load",
+        "keyctl",
+        "lookup_dcookie",
+        "mount",
+        "mount_setattr",
+        "move_mount",
+        "name_to_handle_at",
+        "nfsservctl",
+        "open_by_handle_at",
+        "open_tree",
+        "perf_event_open",
+        "personality",
+        "pivot_root",
+        "process_vm_readv",
+        "process_vm_writev",
+        "ptrace",
+        "query_module",
+        "quotactl",
+        "reboot",
+        "request_key",
+        "setns",
+        "settimeofday",
+        "swapoff",
+        "swapon",
+        "sysfs",
+        "syslog",
+        "umount2",
+        "unshare",
+        "uselib",
+        "userfaultfd",
+        "ustat",
+        "vhangup"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "kernel, namespace, mount, module, tracing and keyring syscalls"
+    },
+    {
+      "names": [
+        "clone3"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 38,
+      "comment": "ENOSYS so libc falls back to clone, whose flags are filtered below"
+    },
+    {
+      "names": [
+        "clone"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "no CLONE_NEWNS",
+      "args": [
+        {
+          "index": 0,
+          "value": 131072,
+          "valueTwo": 131072,
+          "op": "SCMP_CMP_MASKED_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "clone"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "no CLONE_NEWCGROUP",
+      "args": [
+        {
+          "index": 0,
+          "value": 33554432,
+          "valueTwo": 33554432,
+          "op": "SCMP_CMP_MASKED_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "clone"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "no CLONE_NEWUTS",
+      "args": [
+        {
+          "index": 0,
+          "value": 67108864,
+          "valueTwo": 67108864,
+          "op": "SCMP_CMP_MASKED_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "clone"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "no CLONE_NEWIPC",
+      "args": [
+        {
+          "index": 0,
+          "value": 134217728,
+          "valueTwo": 134217728,
+          "op": "SCMP_CMP_MASKED_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "clone"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "no CLONE_NEWUSER",
+      "args": [
+        {
+          "index": 0,
+          "value": 268435456,
+          "valueTwo": 268435456,
+          "op": "SCMP_CMP_MASKED_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "clone"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "no CLONE_NEWPID",
+      "args": [
+        {
+          "index": 0,
+          "value": 536870912,
+          "valueTwo": 536870912,
+          "op": "SCMP_CMP_MASKED_EQ"
+        }
+      ]
+    },
+    {
+      "names": [
+        "clone"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1,
+      "comment": "no CLONE_NEWNET",
+      "args": [
+        {
+          "index": 0,
+          "value": 1073741824,
+          "valueTwo": 1073741824,
+          "op": "SCMP_CMP_MASKED_EQ"
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # 결정 필요 항목
 
-마지막 갱신: 2026-10-04. 결정이 나면 상태를 바꾸고, 설계에 영향을 주는 결정은 [docs/adr/](../adr/README.md)에 ADR로 기록한 뒤 여기서는 링크만 남긴다. 근거가 된 발견 사항 F-xx는 [DESIGN_BASELINE](DESIGN_BASELINE.md)에 있다.
+마지막 갱신: 2026-10-05. 결정이 나면 상태를 바꾸고, 설계에 영향을 주는 결정은 [docs/adr/](../adr/README.md)에 ADR로 기록한 뒤 여기서는 링크만 남긴다. 근거가 된 발견 사항 F-xx는 [DESIGN_BASELINE](DESIGN_BASELINE.md)에 있다.
 
 시점 구분: **지금**은 T01 착수 전, **Task 전**은 해당 Task 착수 전, **파일럿 전**은 실제 공격 코드를 실행하는 외부 파일럿 전에 결정한다. 담당은 현재 모두 프로젝트 소유자다.
 
@@ -24,6 +24,7 @@
 | D-14 | DB 역할 배포와 소유자 분리 | T14 전 | Open |
 | D-15 | private Artifact store 구현 | T14 전 / 파일럿 전 | Open |
 | D-16 | 콘텐츠 서명 키 운영과 이미지 서명 | T06 전 / 파일럿 전 | Open |
+| D-17 | workload mTLS와 runner 노드 등록 | 파일럿 전 | Open |
 
 ## 상세
 
@@ -78,6 +79,7 @@
 ### D-10 호스팅과 strong runtime (보류)
 
 - ADR-002 microVM(Firecracker 계열 우선 검토)은 전용 runner host가 필요하다. T04·T06은 local-trusted fake로 개발하되 "미검증"으로 표시한다. 외부 공격 Lab 개방은 이 결정과 17의 출시 검증 뒤에만 한다.
+- 2026-10-05 확인: 개발 호스트(Apple M1 Max, Docker Desktop)에는 KVM이 없어 Firecracker를 실행할 수 없다. T04·T06은 local-trusted adapter로 구현했고 strong isolation은 **blocker**로 남겼다([T04_T06](T04_T06.md), [ADR 0007](../adr/0007-lab-lifecycle-local-trusted-runtime-and-gateway.md)). 결정에 필요한 것: KVM이 있는 Linux runner host(bare metal 또는 nested virtualization 지원 클라우드), runtime(Firecracker·Kata·gVisor) 선택, 같은 격리 테스트를 그 runtime에서 통과.
 
 ### D-11 운영·법무 항목 (파일럿 전, 보류)
 
@@ -111,4 +113,10 @@
 - 영향: 출판 게이트의 신뢰 근거(ADR 0006). 지금은 Ed25519 공개키를 설정(`secdrill.content.trusted-keys`)에 두고, 컨테이너 이미지는 digest만 manifest 서명에 포함된다.
 - 선택지: 키 보관 (A) CI secret store의 Ed25519 키 + 정기 교체·폐기 목록 (B) KMS/HSM 서명. 이미지 (가) cosign 키 서명 (나) sigstore keyless.
 - 권장: **A + 가**로 시작한다. 키 id별 유효기간과 폐기 목록을 설정에 두고, runner(T06)가 이미지 서명을 검증한 뒤에만 Lab을 만든다. 파일럿 전에 B 전환 여부를 재검토한다.
+- 2026-10-05: T06 local-trusted 경로는 테스트 이미지 digest 고정만으로 진행했다. 이미지 서명 검증은 strong runtime으로 학습자 Lab을 열기 전 필수다.
 
+### D-17 workload mTLS와 runner 노드 등록 (파일럿 전)
+
+- 영향: Runner Agent·Lab Gateway의 Control 인증(11·19). 지금은 `runner_credentials`의 단기(≤24시간) bearer를 kind(AGENT·GATEWAY)별 경로로 제한한다([ADR 0007](../adr/0007-lab-lifecycle-local-trusted-runtime-and-gateway.md)).
+- 선택지: (A) 내부 CA + 노드 등록 시 1회용 join token으로 단기 client 인증서 발급·자동 회전 (B) SPIFFE/SPIRE (C) 클라우드 workload identity.
+- 권장: 호스팅(D-10)에 따라 정한다. 규모가 작으면 **A**로 시작하고, 어느 쪽이든 bearer는 폐기하고 runner quarantine 시 인증서를 즉시 폐기할 수 있어야 한다.

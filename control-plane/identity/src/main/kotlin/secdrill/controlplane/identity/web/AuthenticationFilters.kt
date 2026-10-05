@@ -16,6 +16,8 @@ import secdrill.controlplane.identity.Secrets
 
 const val ROLE_LEARNER = "ROLE_LEARNER"
 const val ROLE_OPERATOR = "ROLE_OPERATOR"
+const val ROLE_AGENT = "ROLE_AGENT"
+const val ROLE_GATEWAY = "ROLE_GATEWAY"
 
 private val unsafeMethods = setOf("POST", "PUT", "PATCH", "DELETE")
 
@@ -76,6 +78,20 @@ class OperatorBearerFilter(
             }
             SecurityContextHolder.getContext().authentication =
                 UsernamePasswordAuthenticationToken.authenticated(principal, null, listOf(SimpleGrantedAuthority(ROLE_OPERATOR)))
+        }
+        chain.doFilter(request, response)
+    }
+}
+
+/** Authenticates `/internal` routes from workload bearer credentials only (11, 19). */
+class WorkloadBearerFilter(private val workloads: secdrill.controlplane.identity.WorkloadCredentialService) : OncePerRequestFilter() {
+    override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
+        val bearer = request.getHeader(HttpHeaders.AUTHORIZATION)
+            ?.takeIf { it.startsWith("Bearer ", ignoreCase = true) }?.substring(7)?.trim()
+        workloads.authenticate(bearer)?.let { principal ->
+            val role = if (principal.kind == secdrill.kernel.WorkloadKind.AGENT) ROLE_AGENT else ROLE_GATEWAY
+            SecurityContextHolder.getContext().authentication =
+                UsernamePasswordAuthenticationToken.authenticated(principal, null, listOf(SimpleGrantedAuthority(role)))
         }
         chain.doFilter(request, response)
     }

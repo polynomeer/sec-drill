@@ -1,6 +1,6 @@
 # 검증 범위
 
-자동 검증은 두 갈래다. `scripts/check.py`는 문서·계약·설정·Git 제외 규칙을, `./gradlew check`는 Kotlin 빌드·단위 테스트·의존성 경계·실제 PostgreSQL 테스트를 검사한다. 제품 기능(인증·Session·Lab·채점)은 아직 없다.
+자동 검증은 두 갈래다. `scripts/check.py`는 문서·계약·설정·Git 제외 규칙을, `./gradlew check`는 Kotlin 빌드·단위 테스트·의존성 경계·실제 PostgreSQL 테스트를 검사한다. 실제 채점과 strong isolation runtime은 아직 없다.
 
 ## 실행
 
@@ -35,16 +35,16 @@ python3 -m venv .venv
 ./gradlew check
 ```
 
-JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL과 RabbitMQ 컨테이너(digest 고정)를 띄운다. Docker가 없으면 DB 테스트는 skip되지 않고 실패한다.
+JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL과 RabbitMQ 컨테이너(digest 고정)를 띄운다. Docker가 없으면 DB 테스트는 skip되지 않고 실패한다. Spring test context마다 컨테이너 한 쌍을 쓰므로 context cache를 4개로 제한하고(`src/test/resources/spring.properties`), 부하가 있는 Docker 호스트를 위해 컨테이너 기동 대기를 3분으로 둔다. Lab 격리 테스트는 busybox(digest 고정) 컨테이너와 network를 만들고 테스트마다 지운다.
 
 | 검사 | 확인하는 것 | 확인하지 않는 것 |
 |---|---|---|
 | `ContractCatalogTest` | Kotlin enum·ErrorCode가 `enums.json`과 이름·순서·terminal·HTTP 상태·retryable까지 일치 | — |
 | `KernelValuesTest` | canonical UUID만 허용, RFC 3339 offset 필수와 UTC `Z` 출력, retryable이 코드를 따름 | — |
 | `ErrorEnvelopeTest` | 오류 봉투 형태, 잘못된 JSON·알 수 없는 enum·없는 경로·지원하지 않는 method·예상 외 예외의 코드와 상태, 내부 메시지 미노출 | 실제 API endpoint(미구현) |
-| `CoreSchemaConstraintsTest` | PostgreSQL 18.6(digest 고정)에 V1~V5 적용 후 제약 15건: 멱등 키, owner 범위 FK, 활성 Lab 한도와 cleanup, job 대상·중복·attempt, active evaluation, evidence seq·append-only, enum·digest CHECK, inbox 중복, live refresh 1개·token hash 형식, 운영자 token 12시간, audit append-only, 수정된 migration checksum 실패 | 동시성 경합, 개인정보 삭제 함수(미구현) |
+| `CoreSchemaConstraintsTest` | PostgreSQL 18.6(digest 고정)에 V1~V6 적용 후 제약 16건: 멱등 키, owner 범위 FK, 활성 Lab 한도와 cleanup, job 대상·중복·attempt, active evaluation, evidence seq·append-only, enum·digest CHECK, inbox 중복, live refresh 1개·token hash 형식, 운영자 token 12시간, audit append-only, Lab desired state·READY·receipt 일관성, 수정된 migration checksum 실패 | 동시성 경합, 개인정보 삭제 함수(미구현) |
 | `HealthReadinessTest` | migration 적용 후 기동, readiness는 DB 중지 시 503, liveness는 200 유지 | 운영 배포 환경 |
-| `checkModuleBoundary` | `:shared:*`·`:execution:*` classpath에 JDBC·driver·pool·migration·ORM·`:control-plane:*` 없음, Control Plane domain 모듈(`:control-plane:identity` 등)이 `:control-plane:app`에 의존하지 않음 | 런타임 네트워크 접근(격리는 T06) |
+| `checkModuleBoundary` | `:shared:*`·`:execution:*`·`:content:*`·`:lab-gateway` classpath에 JDBC·driver·pool·migration·ORM·`:control-plane:*` 없음, Control Plane domain 모듈(`:control-plane:identity` 등)이 `:control-plane:app`에 의존하지 않음 | 런타임 네트워크 접근(격리는 T06) |
 | `AuthSessionFlowTest`·`OidcLoginTest`·`OperatorAuthTest`·`DevLoginTest` | 로그인(mock IdP의 PKCE·nonce·state), 만료·즉시 폐기, refresh 회전·재사용 시 로그인 폐기, cookie 속성, Origin·CSRF, 서버 session 미생성, 운영자 bearer 분리·audit | 실제 OIDC provider, 브라우저의 SameSite 처리 |
 | `OwnershipGuardTest` | 다섯 자원 유형의 owner·타인·없음·삭제 판정, HTTP 404 본문 동일성 | 실제 자원 API(T04 이후) |
 | `SubmissionAcceptanceTest`·`CrashBeforeCommitTest` | 수락 원자성(commit 전 장애 시 전부 없음), raw flag 미저장, Idempotency replay·409·동시 요청, version CAS, 입력·권한 오류 | content 검증(T07~T10) |
@@ -54,13 +54,16 @@ JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL�
 | `ArtifactAndEvidenceApiTest`·`ArtifactStoreSafetyTest` | artifact owner 읽기·retention, 타인·oracle·삭제·만료 거절, 변조 bytes 거절, key traversal 거절, Evidence API paging·권한, 운영 로그에 flag·token 없음, prod에서 local store 거부 | S3 store, purge, 삭제 실행 |
 | `ContentValidationTest`·`ContentCliTest` | 번들 digest·Ed25519 서명·정적 게이트·oracle 누출 탐지, 예제 출판 불가, runtime 없이 INCOMPLETE, CLI 키 파일 권한과 개인키 미출력 | 실제 runtime verifier, 이미지 registry 서명 |
 | `ContentPublishingTest`·`ContentGateWithoutRuntimeTest` | 등록→검증→독립 승인→출판, 자기 승인 API·DB 거절, 역할 분리, 버전 불변·전진·차단, 공개 API·보고서·로그의 oracle 비노출, 기본 설정에서 출판 불가, prod의 test verifier 거부 | Web build 산출물(Web 없음) |
+| `LabLifecycleTest`·`LabPoolQuotaTest` | in-memory runtime과 실제 내부 API로 Lab 요청·생성·중지·receipt, 중복·사용자·pool 한도, 취소 경합·late callback, STALE 보고, idle·hard TTL, orphan·RUNTIME_LOST, provisioning·cleanup 실패와 재시도·경보, 운영 중지, workload kind 범위 | 실제 runtime(아래), 다중 Control 인스턴스 |
+| `LocalTrustedIsolationTest` | 실제 Docker의 local-trusted adapter: hardening·seccomp·namespace 거절, egress IPv4·IPv6·DNS·metadata·Control·다른 Lab 차단(양성 대조 포함), PID·memory·output 제한, Control 장애 중 hard TTL, late runtime 회수, 위조 label 미삭제 | **strong isolation(microVM)**, rootless daemon, Linux host |
+| `LabGatewayTest` | 1회용 connect token·서명 검증, cookie 속성, credential header 제거, Lab의 access cookie 덮어쓰기 차단, CONNECT·absolute-form 거절, 중지 후 차단, allowlist 밖 거절 | Gateway→runner network 경로, 터미널 websocket, 다중 Gateway |
 | `CanonicalJsonTest` | RFC 8785 벡터와 Evidence hash를 Python 구현과 동일하게 계산 | TypeScript 구현 |
 | `AuthSafetyTest` | dev-login을 local 밖이나 prod와 함께 켜면, prod에 OIDC·https origin이 없으면 기동 실패 | 운영 배포 설정 |
 
 ## 수행하지 않은 검증
 
-- 제품 기능 API·E2E 테스트: 기능 미구현
+- E2E 테스트: Web·Session 생성 API 미구현
 - Linux 호스트에서의 Gradle·Testcontainers 실행: CI push 전이라 macOS에서만 확인
-- strong runtime 격리, 네트워크 egress, 자원 제한, cleanup: T06
+- strong runtime(microVM) 격리: KVM 없는 호스트라 실행 불가(D-10). egress·자원 제한·cleanup은 local-trusted 프로파일에서만 확인
 - 성능·부하·카오스: T14, 27의 지정 하드웨어 필요
 - CI 워크플로 실제 실행: push 전이라 GitHub에서 실행되지 않음

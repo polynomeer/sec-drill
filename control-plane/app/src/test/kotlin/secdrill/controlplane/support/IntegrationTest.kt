@@ -17,6 +17,9 @@ import java.time.ZoneOffset
 
 const val TEST_ORIGIN = "https://app.secdrill.test"
 
+/** Broker boot on a shared, loaded Docker host can exceed the 60 s default; this only tolerates slow startup. */
+val STARTUP_TIMEOUT: Duration = Duration.ofMinutes(3)
+
 /** Full application on a migrated PostgreSQL with a controllable clock. Contexts with equal config are reused. */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
@@ -44,7 +47,7 @@ class TestInfrastructure {
     fun rabbit(): RabbitMQContainer = RabbitMQContainer(
         DockerImageName.parse("rabbitmq@sha256:2cb43283d8bbd3caa6c0f0dc00e96c8de772df33df7fd8af6aee4d605aeb8ada")
             .asCompatibleSubstituteFor("rabbitmq"),
-    )
+    ).withStartupTimeout(STARTUP_TIMEOUT)
 
     @Bean
     @Primary

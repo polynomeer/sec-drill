@@ -6,13 +6,13 @@
 
 ## 현재 단계
 
-**T03 콘텐츠 저작·검증·출판 기반**(프롬프트 06): 기반 구현·로컬 검증 완료. 실제 runtime verifier가 없어 기본 설정에서는 어떤 번들도 출판되지 않는다. T01·T02·T05·T09 기반 완료(개인정보 삭제 실행은 미구현). 채점은 fake worker만 있고 Session·Lab API, 실제 채점, 공격 Lab은 시작하지 않았다.
+**T04·T06 Lab 수명과 실행 격리**(프롬프트 07): Lab 수명·quota·TTL·회수·Gateway와 `local-trusted`(hardened Docker) adapter를 구현하고 로컬에서 검증했다. **strong isolation(`lab-strong` microVM)은 이 호스트에 KVM이 없어 미검증이며 blocker다.** 외부 공개하지 않는다. T01·T02·T03·T05·T09 기반 완료(개인정보 삭제 실행은 미구현). 채점은 fake worker만 있고 Session 생성·조회 API와 실제 채점은 아직 없다.
 
 ## 활성 Task
 
 | Task | 담당 | 대상 경로 | 시작일 | 메모 |
 |---|---|---|---|---|
-| — | — | — | — | 다음: 프롬프트 07 = T04·T06(Lab과 격리) |
+| — | — | — | — | 다음: 프롬프트 08 = T07(첫 CTF 수직 기능) |
 
 ## 완료 항목
 
@@ -24,7 +24,8 @@
 | T02 인증과 소유권 | [T02](T02.md#결과) |
 | T05 비동기 작업 기반 | [T05](T05.md#결과). broker outage 테스트 3회 반복 통과 |
 | T09 Evidence·Artifact 기반 | [T09](T09.md#결과) |
-| T03 콘텐츠 출판 기반 | [T03](T03.md#결과). `./gradlew clean check` 111건 통과(skip 0) |
+| T03 콘텐츠 출판 기반 | [T03](T03.md#결과) |
+| T04·T06 Lab 수명·local-trusted 격리 | [T04_T06](T04_T06.md#결과). `./gradlew clean check` 134건 통과(skip 0). strong isolation 미검증 |
 
 ## 미검증 항목
 
@@ -34,14 +35,17 @@
 - 개인정보 삭제 실행(전용 역할·함수·승인·통합 테스트): 미구현, FR-10 게이트 미통과([검토](PRIVACY_ERASURE_REVIEW.md))
 - 배포 런타임의 `control_app` 역할 접속(D-14), S3 호환 Artifact store(D-15), purge·orphan sweeper
 - 다중 인스턴스·broker cluster·부하: T14·T17 범위
-- strong runtime 격리, 콘텐츠 runtime 검증(참조 해답·mutant·seed), 이미지 registry 서명: T06·T08
+- strong runtime(`lab-strong`) 격리 전체: KVM 없는 호스트라 실행 불가(D-10). local-trusted 결과는 강한 격리 증거가 아니다
+- rootless Docker daemon, Gateway→runner network 경로, 터미널 websocket, runner quarantine, mTLS(D-17), 이미지 registry 서명(D-16)
+- 콘텐츠 runtime 검증(참조 해답·mutant·seed): T08
 - 성능·카오스: 해당 구현 없음
 
 ## Blocker
 
-없음.
+- **strong runtime 실행 호스트 없음(D-10)**: 학습자 공격 Lab 공개·외부 파일럿과 T06 완료 판정을 막는다. 내부 개발(T07 등)은 local-trusted로 계속할 수 있다.
 
 ## 다음 작업
 
-1. 프롬프트 07 = T04·T06(Session·Lab desired state·quota·gateway, strong runtime Agent)
-2. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))
+1. 프롬프트 08 = T07(첫 CTF 수직 기능: Session 생성·조회 API 포함, local-trusted Lab 위에서)
+2. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 같은 격리 테스트 실행
+3. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))

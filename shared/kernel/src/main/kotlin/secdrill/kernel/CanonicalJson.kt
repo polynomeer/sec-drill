@@ -131,3 +131,42 @@ object EvidenceChain {
         ),
     )
 }
+
+/**
+ * Short-lived Lab connect tokens (15, 17, ADR 0007): `base64url(claims JCS) . base64url(Ed25519 signature)`.
+ * Control signs; the Lab Gateway, a separate origin and process, verifies with the public key only.
+ */
+object ConnectTokens {
+    private const val ALGORITHM = "Ed25519"
+    private val encoder = java.util.Base64.getUrlEncoder().withoutPadding()
+    private val decoder = java.util.Base64.getUrlDecoder()
+
+    data class Claims(val labId: UUID, val generation: Int, val ownerId: UUID, val expiresAt: Instant, val nonce: String)
+
+    fun sign(claims: Claims, key: java.security.PrivateKey): String {
+        val body = CanonicalJson.encode(
+            mapOf("labId" to claims.labId, "generation" to claims.generation, "ownerId" to claims.ownerId, "exp" to claims.expiresAt, "nonce" to claims.nonce, "v" to 1),
+        ).toByteArray(Charsets.UTF_8)
+        val signature = java.security.Signature.getInstance(ALGORITHM).apply { initSign(key); update(body) }.sign()
+        return encoder.encodeToString(body) + "." + encoder.encodeToString(signature)
+    }
+
+    /** Returns the claims only for a valid, unexpired token; any malformed input yields null. */
+    fun verify(token: String, key: java.security.PublicKey, now: Instant): Claims? = runCatching {
+        val (bodyPart, signaturePart) = token.split(".").also { require(it.size == 2) }
+        val body = decoder.decode(bodyPart)
+        val valid = java.security.Signature.getInstance(ALGORITHM).apply { initVerify(key); update(body) }.verify(decoder.decode(signaturePart))
+        if (!valid) return null
+        val text = String(body, Charsets.UTF_8)
+        fun field(name: String) = Regex("\"$name\":(\"([^\"]*)\"|(-?\\d+))").find(text)?.let { it.groupValues[2].ifEmpty { it.groupValues[3] } }
+            ?: error("missing $name")
+        val claims = Claims(Uuids.parse(field("labId")), field("generation").toInt(), Uuids.parse(field("ownerId")), Rfc3339.parse(field("exp")), field("nonce"))
+        claims.takeIf { field("v") == "1" && it.expiresAt.isAfter(now) }
+    }.getOrNull()
+
+    fun keyFactory(): java.security.KeyFactory = java.security.KeyFactory.getInstance(ALGORITHM)
+    fun privateKey(encoded: String): java.security.PrivateKey = keyFactory().generatePrivate(java.security.spec.PKCS8EncodedKeySpec(decoder.decode(encoded.trim())))
+    fun publicKey(encoded: String): java.security.PublicKey = keyFactory().generatePublic(java.security.spec.X509EncodedKeySpec(decoder.decode(encoded.trim())))
+    fun generate(): Pair<String, String> = java.security.KeyPairGenerator.getInstance(ALGORITHM).generateKeyPair()
+        .let { encoder.encodeToString(it.private.encoded) to encoder.encodeToString(it.public.encoded) }
+}
