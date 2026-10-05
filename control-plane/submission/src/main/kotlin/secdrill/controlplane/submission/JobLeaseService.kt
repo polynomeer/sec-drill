@@ -56,7 +56,8 @@ class JobLeaseService(
 
     /**
      * Generic workers (the fake worker) never receive FLAG or PATCH grading: FLAG needs the runner hosting the Lab to
-     * observe the objective ([CtfGradingService]), PATCH needs a grading runtime ([PatchGradingService]).
+     * observe the objective ([CtfGradingService]), PATCH needs a grading runtime ([PatchGradingService]), DETECTION
+     * is scored on the hidden holdout by [DetectionGradingService].
      */
     @Transactional
     override fun claimNext(workerId: String, kinds: Set<JobKind>): JobLease? {
@@ -64,7 +65,7 @@ class JobLeaseService(
         val row = jdbc.sql(
             """SELECT j.id, j.kind, j.attempt, j.fencing_token, j.submission_id, s.request_digest FROM jobs j
                LEFT JOIN submissions s ON s.id = j.submission_id
-               WHERE j.state = 'DISPATCHED' AND j.kind IN (:kinds) AND j.attempt < :max AND (s.kind IS NULL OR s.kind NOT IN ('FLAG', 'PATCH'))
+               WHERE j.state = 'DISPATCHED' AND j.kind IN (:kinds) AND j.attempt < :max AND (s.kind IS NULL OR s.kind NOT IN ('FLAG', 'PATCH', 'DETECTION'))
                ORDER BY j.dispatched_at, j.id LIMIT 1 FOR UPDATE OF j SKIP LOCKED""",
         ).param("kinds", kinds.map { it.name }).param("max", properties.maxAttempts)
             .query { rs, _ -> claimRow(rs) }.optional().orElse(null) ?: return null
@@ -136,7 +137,7 @@ class JobLeaseService(
                     """UPDATE jobs SET state = 'SUCCEEDED', result_digest = ?, worker_id = NULL, lease_until = NULL, version = version + 1
                        WHERE id = ?""",
                 ).params(report.resultDigest, job.id).update()
-                val evaluation = commitEvaluation(job, report.verdict!!, report.policyVersion, report.fake, report.gates, report.unverifiedIsolation)
+                val evaluation = commitEvaluation(job, report.verdict!!, report.policyVersion, report.fake, report.gates, report.unverifiedIsolation, report.dimensions)
                 outbox.append(
                     EventType.ExecutionCompleted, job.id, job.version + 1, job.sessionId, job.submissionId ?: job.id,
                     mapOf("jobId" to job.id.toString(), "attempt" to job.attempt, "fencingToken" to job.token, "resultDigest" to report.resultDigest),
@@ -149,7 +150,7 @@ class JobLeaseService(
                 // The grader ran; the objective could not be confirmed. SYSTEM_ERROR + INCONCLUSIVE gate, never FAIL (09).
                 jdbc.sql("UPDATE jobs SET state = 'SUCCEEDED', result_digest = ?, worker_id = NULL, lease_until = NULL, version = version + 1 WHERE id = ?")
                     .params(report.resultDigest, job.id).update()
-                commitEvaluation(job, Verdict.SYSTEM_ERROR, report.policyVersion, report.fake, report.gates, report.unverifiedIsolation)
+                commitEvaluation(job, Verdict.SYSTEM_ERROR, report.policyVersion, report.fake, report.gates, report.unverifiedIsolation, report.dimensions)
             }
         }
         return Ack.ACCEPTED
@@ -202,6 +203,7 @@ class JobLeaseService(
     private fun commitEvaluation(
         job: LockedJob, verdict: Verdict, policy: String, fake: Boolean,
         gates: List<secdrill.execution.protocol.GateReport> = emptyList(), unverifiedIsolation: Boolean = false,
+        dimensions: List<secdrill.execution.protocol.DimensionReport> = emptyList(),
     ): UUID {
         val demo = fake || unverifiedIsolation
         val submission = checkNotNull(job.submissionId)
@@ -217,10 +219,11 @@ class JobLeaseService(
             .param(submission).query(UUID::class.java).optional().orElse(null)
         jdbc.sql(
             """INSERT INTO evaluations(id, submission_id, revision, policy_version, verdict, patch_gate, dimensions, gates, supersedes_id, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, '[]', ?::jsonb, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?)""",
         ).params(
             // The List overload accepts nulls (patch gate and supersedes are optional).
             listOf(evaluationId, submission, revision, policy, verdict.name, patchGate?.name,
+                json.writeValueAsString(dimensions.map { mapOf("key" to it.key, "scoreBps" to it.scoreBps) }),
                 json.writeValueAsString(gates.map { mapOf("key" to it.key, "result" to it.result.name) }), superseded, now().db()),
         ).update()
         jdbc.sql("UPDATE evaluations SET demo = ? WHERE id = ?").params(demo, evaluationId).update()

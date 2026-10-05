@@ -26,7 +26,11 @@ class SubmissionRequest private constructor(
     val flag: FlagContent?,
     /** PATCH content (OpenAPI PatchSubmission); paths are checked against the pinned manifest by the service. */
     val patch: PatchContent? = null,
+    /** DETECTION content: the parsed, limit-checked rule (21) and the learner's explanation. */
+    val detection: DetectionContent? = null,
 ) {
+    class DetectionContent(val rule: secdrill.simulation.Rule, val ruleJson: JsonNode, val explanation: String)
+
     class PatchContent(val files: Map<String, String>, val explanation: String) {
         override fun toString() = "PatchContent(files=${files.keys}, explanation=<${explanation.length} chars>)"
     }
@@ -54,6 +58,17 @@ class SubmissionRequest private constructor(
             if (content == null || !content.isObject) errors += FieldError("content", "must be an object")
             if (kind == SubmissionKind.FLAG && content != null && content.isObject) errors += flagErrors(content)
             if (kind == SubmissionKind.PATCH && content != null && content.isObject) errors += patchErrors(content)
+            var rule: secdrill.simulation.Rule? = null
+            if (kind == SubmissionKind.DETECTION && content != null && content.isObject) {
+                (content.propertyNames().toSet() - setOf("rule", "explanation")).forEach { errors += FieldError("content.$it", "unknown field") }
+                val explanation = content["explanation"]
+                if (explanation == null || !explanation.isString || explanation.asString().length > 8192) errors += FieldError("content.explanation", "must be at most 8192 characters")
+                try {
+                    rule = secdrill.simulation.RuleParser.parse(content["rule"] ?: throw secdrill.simulation.RuleInvalid(listOf("rule: required")))
+                } catch (invalid: secdrill.simulation.RuleInvalid) {
+                    invalid.problems.forEach { errors += FieldError("content.rule", it) }
+                }
+            }
             if (errors.isNotEmpty()) invalid(errors)
 
             val digest = try {
@@ -65,7 +80,8 @@ class SubmissionRequest private constructor(
             val patch = if (kind == SubmissionKind.PATCH) {
                 PatchContent(content!!["files"].properties().associate { it.key to it.value.asString() }, content["explanation"].asString())
             } else null
-            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag, patch)
+            val detection = if (kind == SubmissionKind.DETECTION) DetectionContent(rule!!, content!!["rule"], content["explanation"].asString()) else null
+            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag, patch, detection)
         }
 
         private fun flagErrors(content: JsonNode): List<FieldError> = buildList {

@@ -42,7 +42,7 @@ JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL�
 | `ContractCatalogTest` | Kotlin enum·ErrorCode가 `enums.json`과 이름·순서·terminal·HTTP 상태·retryable까지 일치 | — |
 | `KernelValuesTest` | canonical UUID만 허용, RFC 3339 offset 필수와 UTC `Z` 출력, retryable이 코드를 따름 | — |
 | `ErrorEnvelopeTest` | 오류 봉투 형태, 잘못된 JSON·알 수 없는 enum·없는 경로·지원하지 않는 method·예상 외 예외의 코드와 상태, 내부 메시지 미노출 | 실제 API endpoint(미구현) |
-| `CoreSchemaConstraintsTest` | PostgreSQL 18.6(digest 고정)에 V1~V7 적용 후 제약 16건: 멱등 키, owner 범위 FK, 활성 Lab 한도와 cleanup, job 대상·중복·attempt, active evaluation, evidence seq·append-only, enum·digest CHECK, inbox 중복, live refresh 1개·token hash 형식, 운영자 token 12시간, audit append-only, Lab desired state·READY·receipt 일관성, 수정된 migration checksum 실패 | 동시성 경합, 개인정보 삭제 함수(미구현) |
+| `CoreSchemaConstraintsTest` | PostgreSQL 18.6(digest 고정)에 V1~V8 적용 후 제약 16건: 멱등 키, owner 범위 FK, 활성 Lab 한도와 cleanup, job 대상·중복·attempt, active evaluation, evidence seq·append-only, enum·digest CHECK, inbox 중복, live refresh 1개·token hash 형식, 운영자 token 12시간, audit append-only, Lab desired state·READY·receipt 일관성, 수정된 migration checksum 실패 | 동시성 경합, 개인정보 삭제 함수(미구현) |
 | `HealthReadinessTest` | migration 적용 후 기동, readiness는 DB 중지 시 503, liveness는 200 유지 | 운영 배포 환경 |
 | `checkModuleBoundary` | `:shared:*`·`:execution:*`·`:content:*`·`:lab-gateway` classpath에 JDBC·driver·pool·migration·ORM·`:control-plane:*` 없음, Control Plane domain 모듈(`:control-plane:identity` 등)이 `:control-plane:app`에 의존하지 않음 | 런타임 네트워크 접근(격리는 T06) |
 | `AuthSessionFlowTest`·`OidcLoginTest`·`OperatorAuthTest`·`DevLoginTest` | 로그인(mock IdP의 PKCE·nonce·state), 만료·즉시 폐기, refresh 회전·재사용 시 로그인 폐기, cookie 속성, Origin·CSRF, 서버 session 미생성, 운영자 bearer 분리·audit | 실제 OIDC provider, 브라우저의 SameSite 처리 |
@@ -59,6 +59,8 @@ JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL�
 | `LabGatewayTest` | 1회용 connect token·서명 검증, cookie 속성, credential header 제거, Lab의 access cookie 덮어쓰기 차단, CONNECT·absolute-form 거절, 중지 후 차단, allowlist 밖 거절 | Gateway→runner network 경로, 터미널 websocket, 다중 Gateway |
 | `CtfFlowTest` | 합성 tenant-orders 이미지·Gateway·내부 API로 T07 흐름(정상 접근, 플래그 획득, 독립 관측 PASS, demo 표시, replay·중복 결과, DB·로그의 flag 부재, oracle 비노출, finish 회수), 다른 Session·종료 Lab 플래그 FAIL, 관측 없는 정답 SYSTEM_ERROR, 변조 receipt, 오답 429, Session·catalog API, 응답의 OpenAPI 필드 일치 | strong runtime, guest 밖 관측, 브라우저 UI 전체 흐름 |
 | `PatchGradingTest` | 실제 Docker의 분리된 grading 환경과 외부 supervisor로 참조 패치 VERIFIED, 무수정·전부 거절·한 경로만·클라이언트 tenant·결과 조작·compile 오류 NOT_VERIFIED와 해당 gate, 탈출 probe로 grading 환경 출구 없음, 허용 경로·bundle digest, platform 오류·부분 결과·중복 결과·자료 누락 처리, hidden 정보 비노출 | grading-strong, 채점 감지형 패치 |
+| `DetectionTest`·`IncidentModelTest` | 탐지 DSL 제한·평가·episode 지표·N/A·label 비노출·암기 규칙 holdout 실패, IR reducer 재현·네 액션 효과와 부작용·충돌·censored 지표 | 다른 사건 모델 |
+| `ResponseDrillTest` | 액션 API(SIMULATED, replay digest, 409·422), 데이터셋 API(label 없음), DETECTION 수락·holdout 채점, Evidence 신뢰 수준 구분 | 실제 Lab 액션, Replay API |
 | `UnverifiedIsolationRefusedTest`·`CtfSafetyTest`·`FlagServiceTest` | override 없이는 strong 요구 Lab·PATCH 제출 503, prod의 override·flag key 누락 거부, 플래그 결속·receipt 서명 | 키 회전 |
 | `CanonicalJsonTest` | RFC 8785 벡터와 Evidence hash를 Python 구현과 동일하게 계산 | TypeScript 구현 |
 | `AuthSafetyTest` | dev-login을 local 밖이나 prod와 함께 켜면, prod에 OIDC·https origin이 없으면 기동 실패 | 운영 배포 설정 |

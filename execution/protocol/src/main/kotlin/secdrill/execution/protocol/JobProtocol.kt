@@ -34,6 +34,9 @@ enum class JobOutcome {
     INCONCLUSIVE,
 }
 
+/** One scored dimension (OpenAPI `Evaluation.dimensions`), in basis points. N/A metrics are left out, never 0. */
+data class DimensionReport(val key: String, val scoreBps: Int)
+
 /** One gate of an evaluation (OpenAPI `Evaluation.gates`). */
 data class GateReport(val key: String, val result: secdrill.kernel.GateResult)
 
@@ -48,6 +51,7 @@ data class JobResultReport(
     val gates: List<GateReport> = emptyList(),
     /** Ran on a runtime without verified isolation; the result is a demo result (prompt 08). */
     val unverifiedIsolation: Boolean = false,
+    val dimensions: List<DimensionReport> = emptyList(),
 ) {
     init {
         require(outcome != JobOutcome.COMPLETED || verdict == Verdict.PASS || verdict == Verdict.FAIL) {

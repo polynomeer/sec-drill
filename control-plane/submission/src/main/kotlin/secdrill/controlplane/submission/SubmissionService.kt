@@ -42,7 +42,7 @@ data class SubmissionView(
 )
 
 data class GateView(val key: String, val result: String)
-data class DimensionView(val key: String, val score: Int, val evidenceIds: List<UUID>)
+data class DimensionView(val key: String, val score: Double, val evidenceIds: List<UUID>)
 
 /** OpenAPI `Evaluation`. `demo` is true for fake workers and any runtime without verified isolation (prompt 08). */
 data class EvaluationView(
@@ -91,6 +91,7 @@ class SubmissionService(
         val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
         request.flag?.let { requireFlagAllowed(sessionId, it, now) }
         request.patch?.let { requirePatchAllowed(sessionId, it) }
+        request.detection?.let { requireDetectionAllowed(sessionId) }
         val sessionVersion = casSession(sessionId, owner, request.expectedVersion)
 
         val submissionId = UUID.randomUUID()
@@ -98,6 +99,7 @@ class SubmissionService(
         // FLAG (15, 09): check the HMAC in memory, keep a signed receipt in the private store, drop the raw flag.
         val checked = request.flag?.let { checkFlag(sessionId, submissionId, jobId, it, now) }
             ?: request.patch?.let { storePatch(sessionId, it) }
+            ?: request.detection?.let { storeDetection(sessionId, it) }
         jdbc.sql(
             """INSERT INTO submissions(id, session_id, kind, client_request_id, request_digest, status, safe_metadata, created_at, artifact_id)
                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)""",
@@ -160,6 +162,22 @@ class SubmissionService(
         }
     }
 
+    private fun requireDetectionAllowed(sessionId: UUID) {
+        val mode = jdbc.sql("SELECT mode FROM sessions WHERE id = ?").param(sessionId).query(String::class.java).single()
+        if (mode !in setOf("PURPLE", "DETECTION")) throw ApiException(ErrorCode.UNSUPPORTED_MODE, "This Session has no detection stage")
+    }
+
+    /** Stores the rule and explanation as the learner's artifact; the explanation is the learner's claim (USER_REPORTED). */
+    private fun storeDetection(sessionId: UUID, detection: SubmissionRequest.DetectionContent): ContentCheck {
+        val ruleDigest = secdrill.kernel.Digests.canonical(json.convertValue(detection.ruleJson, Map::class.java))
+        val bytes = json.writeValueAsBytes(mapOf("ruleDigest" to ruleDigest, "rule" to detection.ruleJson, "explanation" to detection.explanation))
+        val stored = artifacts.store(sessionId, ArtifactSensitivity.LEARNER, "application/json", bytes)
+        ledger.append(sessionId, "HYPOTHESIS_REPORTED", EvidenceSource.USER, TrustLevel.USER_REPORTED, mapOf(
+            "ruleDigest" to ruleDigest, "explanationDigest" to secdrill.kernel.Digests.sha256Hex(detection.explanation.toByteArray()),
+        ), artifactId = stored.id)
+        return ContentCheck(stored.id, mapOf("ruleDigest" to ruleDigest), mapOf("key" to stored.key, "digest" to stored.digest, "byteSize" to stored.byteSize))
+    }
+
     /** Canonical bundle (20): files by path with their SHA-256, plus the explanation digest; stored as the learner's artifact. */
     private fun storePatch(sessionId: UUID, patch: SubmissionRequest.PatchContent): ContentCheck {
         val manifest = patch.files.toSortedMap().map { (path, text) ->
@@ -220,10 +238,11 @@ class SubmissionService(
         val isolationVerified = jdbc.sql("SELECT coalesce(bool_and(isolation_verified), false) FROM labs WHERE session_id = ?")
             .param(base.sessionId).query(Boolean::class.java).single()
         val evaluation = jdbc.sql(
-            "SELECT id, revision, policy_version, verdict, patch_gate, gates::text, demo FROM evaluations WHERE submission_id = ? AND is_active",
+            "SELECT id, revision, policy_version, verdict, patch_gate, gates::text, demo, dimensions::text FROM evaluations WHERE submission_id = ? AND is_active",
         ).param(submissionId).query { rs, _ ->
             val gates = json.readTree(rs.getString(6)).values().map { GateView(it["key"].asString(), it["result"].asString()) }
-            EvaluationView(rs.getObject(1, UUID::class.java), rs.getInt(2), rs.getString(3), rs.getString(4), rs.getString(5), emptyList(), gates,
+            val dimensions = json.readTree(rs.getString(8)).values().map { DimensionView(it["key"].asString(), it["scoreBps"].asInt() / 100.0, emptyList()) }
+            EvaluationView(rs.getObject(1, UUID::class.java), rs.getInt(2), rs.getString(3), rs.getString(4), rs.getString(5), dimensions, gates,
                 rs.getBoolean(7) || !isolationVerified)
         }.optional().orElse(null)
         return base.copy(evaluation = evaluation)

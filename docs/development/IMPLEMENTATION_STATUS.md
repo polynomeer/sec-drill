@@ -6,13 +6,13 @@
 
 ## 현재 단계
 
-**T08 Python 패치 채점**(프롬프트 09): PATCH 제출 검사·canonical bundle·job마다 새로 만드는 grading 환경·외부 supervisor·compile/security/regression gate 판정을 구현하고, 참조 패치와 변이 6종·탈출 probe로 실제 Docker(local-trusted)에서 검증했다. **모든 결과는 데모(grading-strong 미검증)이며 외부 공개하지 않는다.** T01~T07·T09 기반 완료(개인정보 삭제 실행·최종 리포트는 미구현).
+**T10 탐지 DSL과 사고 대응 모델**(프롬프트 10): 제한된 탐지 규칙 AST, episode 기준 지표, 숨은 holdout 채점과 버전·seed 고정 IR reducer, `POST /sessions/{id}/actions`를 구현하고 검증했다. 모두 합성 데이터 위의 모델이며 `SIMULATED`로 기록한다. T07(CTF)·T08(패치) 결과는 격리 미검증이라 데모다. T01~T10 기반 완료(개인정보 삭제 실행·최종 리포트·Web은 미구현).
 
 ## 활성 Task
 
 | Task | 담당 | 대상 경로 | 시작일 | 메모 |
 |---|---|---|---|---|
-| — | — | — | — | 다음: 프롬프트 10 = T10(탐지·대응) |
+| — | — | — | — | 다음: 프롬프트 11 = T11(Web workspace) |
 
 ## 완료 항목
 
@@ -27,7 +27,8 @@
 | T03 콘텐츠 출판 기반 | [T03](T03.md#결과) |
 | T04·T06 Lab 수명·local-trusted 격리 | [T04_T06](T04_T06.md#결과). strong isolation 미검증 |
 | T07 첫 CTF(데모) | [T07](T07.md#결과) |
-| T08 Python 패치 채점(데모) | [T08](T08.md#결과). `./gradlew clean check` 153건 통과(skip 0) |
+| T08 Python 패치 채점(데모) | [T08](T08.md#결과) |
+| T10 탐지·대응 모델 | [T10](T10.md#결과). `./gradlew clean check` 172건 중 168건 통과, 나머지 4건(LabGatewayTest, 컨테이너 기동 시간 초과)은 단독 재실행에서 통과 |
 
 ## 미검증 항목
 
@@ -50,6 +51,6 @@
 
 ## 다음 작업
 
-1. 프롬프트 10 = T10(탐지·대응)
+1. 프롬프트 11 = T11(Web CTF/Wargame/Purple workspace, D-06 Web 스택 결정 필요)
 2. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 같은 격리 테스트 실행
 3. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))
