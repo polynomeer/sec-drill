@@ -172,6 +172,26 @@
           "30000000-0000-4000-8000-000000000050"
         ]
       }
+    },
+    {
+      "type": "SubmissionAccepted",
+      "schemaVersion": 1,
+      "aggregateId": "30000000-0000-4000-8000-000000000030",
+      "aggregateVersion": 0,
+      "occurredAt": "2026-10-05T00:00:00Z",
+      "sessionId": "30000000-0000-4000-8000-000000000031",
+      "correlationId": "30000000-0000-4000-8000-000000000030",
+      "seq": 5,
+      "payload": {
+        "submissionId": "30000000-0000-4000-8000-000000000030",
+        "kind": "POSTMORTEM",
+        "bundleRef": {
+          "key": "sessions/x/1",
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "byteSize": 256
+        }
+      },
+      "eventId": "30000000-0000-4000-8000-0000000000e0"
     }
   ],
   "invalid": [

@@ -220,7 +220,8 @@
               },
               "jobId": {
                 "type": "string",
-                "format": "uuid"
+                "format": "uuid",
+                "description": "채점 job id. 자동 채점되는 FLAG·PATCH·DETECTION에만 있고, 사람 검수용으로 기록만 하는 OBJECTIVE·POSTMORTEM에는 없다."
               },
               "kind": {
                 "type": "string",
@@ -257,7 +258,6 @@
             },
             "required": [
               "submissionId",
-              "jobId",
               "kind",
               "bundleRef"
             ]

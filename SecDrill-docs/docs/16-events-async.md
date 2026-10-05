@@ -9,7 +9,7 @@
 | SessionCreated | Session | 추천·분석 | sessionId,scenarioVersionId,mode |
 | LabRequested | Lab | Orchestrator | labId,generation,templateDigest |
 | LabReady | Result Ingest | Session·Gateway | labId,generation,runtimeRef |
-| SubmissionAccepted | Submission | Orchestrator | submissionId,jobId,kind,bundleRef |
+| SubmissionAccepted | Submission | Orchestrator | submissionId,jobId?,kind,bundleRef (jobId는 자동 채점 종류에만) |
 | ExecutionCompleted | Result Ingest | Evaluation | jobId,attempt,fencingToken,resultDigest |
 | EvaluationCommitted | Evaluation | Report·SkillProjection | submissionId,revision,evidenceIds |
 | ActionApplied | Simulator | Ledger·Replay | actionId,tick,stateDigest |
