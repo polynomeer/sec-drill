@@ -599,6 +599,128 @@
         }
       }
     },
+    "/sessions/{id}/labs/{labId}/connect": {
+      "post": {
+        "operationId": "connectLab",
+        "summary": "connectLab",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "labId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CsrfToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "connect URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabConnect"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "예상하지 못한 서버 오류(INTERNAL_ERROR); 내부 정보 미노출",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "구조화 오류; 비밀과 내부 stack은 포함하지 않음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "소유자의 READY Lab에 대해 짧은 수명의 일회용 connect URL을 발급한다. URL은 플랫폼과 다른 origin의 Lab Gateway를 가리키며 플랫폼 cookie는 Gateway로 전달되지 않는다."
+      }
+    },
     "/sessions/{id}/submissions": {
       "post": {
         "operationId": "submitArtifact",
@@ -4221,6 +4343,25 @@
         "required": [
           "userId",
           "accessExpiresAt"
+        ]
+      },
+      "LabConnect": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "connectUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "Gateway origin의 /connect?token= URL. 일회용, 서명됨"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "connectUrl",
+          "expiresAt"
         ]
       }
     },

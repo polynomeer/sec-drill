@@ -176,6 +176,24 @@
           "stack": "at Foo.bar"
         }
       }
+    },
+    {
+      "schema": "LabConnect",
+      "valid": true,
+      "value": {
+        "connectUrl": "https://lab.example.invalid/connect?token=eyJ.sig",
+        "expiresAt": "2026-01-01T00:01:00Z"
+      }
+    },
+    {
+      "schema": "LabConnect",
+      "valid": false,
+      "reason": "connect view never carries the token separately or extra fields",
+      "value": {
+        "connectUrl": "https://lab.example.invalid/connect?token=x",
+        "expiresAt": "2026-01-01T00:01:00Z",
+        "token": "x"
+      }
     }
   ]
 }

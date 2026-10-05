@@ -161,6 +161,9 @@ def check_enums():
         "DeletionStatus": [sql["deletion_requests.status"]],
         "TombstoneSubject": [sql["deletion_tombstones.subject_type"]],
         "ValidationStatus": [sql["content_validation_reports.status"]],
+        "LabDesiredState": [sql["labs.desired_state"]],
+        "LabTerminateReason": [sql["labs.terminate_reason"]],
+        "WorkloadKind": [sql["runner_credentials.kind"]],
     }
     problems = [f"{name} has no catalog entry" for name in sources if name not in enums]
     for name, values in sources.items():

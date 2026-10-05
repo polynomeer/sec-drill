@@ -73,7 +73,7 @@ class CoreSchemaConstraintsTest {
             )
         }
 
-    private fun Connection.lab(session: UUID, owner: UUID, generation: Int, state: String = "READY", cleaned: Boolean = false): UUID =
+    private fun Connection.lab(session: UUID, owner: UUID, generation: Int, state: String = "REQUESTED", cleaned: Boolean = false): UUID =
         UUID.randomUUID().also {
             exec(
                 """INSERT INTO labs(id, session_id, owner_id, generation, state, expires_at, cleanup_confirmed_at)
@@ -124,7 +124,7 @@ class CoreSchemaConstraintsTest {
         val (owner, _, session) = db { fixture() }
         val first = db { lab(session, owner, 1) }
         assertSqlState("23505") { lab(session, owner, 2) }
-        db { exec("UPDATE labs SET state = 'TERMINATED', cleanup_confirmed_at = now() WHERE id = ?", first) }
+        db { exec("UPDATE labs SET state = 'TERMINATED', cleanup_confirmed_at = now(), cleanup_receipt = '{}', desired_state = 'TERMINATED', terminate_reason = 'USER_STOP', terminate_requested_at = now() WHERE id = ?", first) }
         db { lab(session, owner, 2) }
     }
 
@@ -139,6 +139,21 @@ class CoreSchemaConstraintsTest {
     fun `terminated lab requires confirmed cleanup`() {
         val (owner, _, session) = db { fixture() }
         assertSqlState("23514") { lab(session, owner, 1, state = "TERMINATED") }
+    }
+
+    @Test
+    fun `lab desired state, readiness and termination receipts are consistent`() {
+        val (owner, _, session) = db { fixture() }
+        val lab = db { lab(session, owner, 1) }
+        assertSqlState("23514") { exec("UPDATE labs SET state = 'READY' WHERE id = ?", lab) }
+        assertSqlState("23514") { exec("UPDATE labs SET desired_state = 'TERMINATED' WHERE id = ?", lab) }
+        db { exec("UPDATE labs SET state = 'READY', ready_at = now(), runtime_ref = 'lab-ref' WHERE id = ?", lab) }
+        assertSqlState("23514") {
+            exec("UPDATE labs SET desired_state = 'TERMINATED', terminate_reason = 'USER_STOP', terminate_requested_at = now() WHERE id = ?", lab)
+        }
+        assertSqlState("23514") {
+            exec("UPDATE labs SET state = 'TERMINATED', cleanup_confirmed_at = now(), desired_state = 'TERMINATED', terminate_reason = 'USER_STOP', terminate_requested_at = now() WHERE id = ?", lab)
+        }
     }
 
     @Test

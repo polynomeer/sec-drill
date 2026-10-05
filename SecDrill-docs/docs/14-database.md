@@ -16,7 +16,8 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
 | sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
-| labs | session_id, owner_id, generation, state, runtime_ref, expires_at, cleanup_confirmed_at | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인 필수 |
+| labs | session_id, owner_id, generation, state, desired_state, runtime_ref, runner_id, endpoint, expires_at, idle_expires_at, ready_at, terminate_reason, terminate_requested_at, cleanup_confirmed_at, cleanup_receipt | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인·receipt 필수; READY는 desired RUNNING·ready_at·runtime_ref 필수; desired TERMINATED ⇔ 종료 사유·시각; desired RUNNING 만료 index |
+| runner_credentials | token_hash, runner_id, kind(AGENT·GATEWAY), issued_at, expires_at, revoked_at | 최대 24시간; hash만 저장; `/internal/**` 전용 workload bearer |
 | submissions | session_id, kind, artifact_id, client_request_id, request_digest | session+client_request_id unique; artifact session 일치 |
 | jobs | submission_id, lab_id, kind, state, attempt, fencing_token, worker_id, lease_until, last_error, result_digest | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK; LEASED/RUNNING일 때만 lease·worker |
 | idempotency_records | owner_id, route(실제 경로), idempotency_key, request_digest, response_status, response_body(text), expires_at | owner+route+key PK; 만료 index; 첫 응답을 byte 그대로 재반환 |

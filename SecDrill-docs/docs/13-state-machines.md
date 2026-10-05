@@ -14,6 +14,8 @@ CREATED는 Lab ready 후 ACTIVE가 된다. ACTIVE에서 Lab이 만료되어도 �
 
 REQUESTED/PROVISIONING은 생성 실패 시 FAILED; FAILED에도 잔여 자원이 있으면 cleanup job을 실행한다. 취소·TTL·운영 중지는 모든 비종료 상태에서 TERMINATING을 요청한다. 생성 완료 callback이 취소 뒤 도착하면 READY로 전이하지 않고 그 runtime을 회수한다. TERMINATED는 런타임·네트워크·디스크 회수가 실제 확인된 상태다. cleanup 실패는 CLEANUP_FAILED로 남겨 자원을 점유한 것으로 계산하고 sweeper가 재시도한다. 활성 Lab 한도는 `cleanup_confirmed_at`이 없는 Lab으로 계산한다. TERMINATED는 이 값 없이 저장할 수 없고, 잔여 자원이 없음이 확인된 FAILED는 전이와 함께 이 값을 기록해 한도에서 제외한다.
 
+관측 상태 `state`와 별도로 원하는 상태 `desired_state`(`RUNNING`·`TERMINATED`)를 둔다. desired TERMINATED는 종료 사유·요청 시각과 함께만 저장된다. 종료 요청은 desired를 TERMINATED로, 비종료 state를 TERMINATING으로 한 UPDATE에서 바꾸고 `terminate_reason`(`USER_STOP`·`IDLE_TTL`·`HARD_TTL`·`OPERATOR`·`PROVISION_FAILED`·`RUNTIME_LOST`·`ORPHAN`)과 시각을 기록한다. READY는 desired RUNNING·`ready_at`·`runtime_ref`가 모두 있어야 저장된다. 생성 callback은 desired가 TERMINATED이면 READY 대신 회수를 지시한다. 아직 시작되지 않은 PROVISION은 job을 취소하고 runtime 없이 닫는다. TERMINATED는 `cleanup_receipt`(삭제한 runtime 자원 목록)를 함께 저장한다. Runner가 보고한 runtime 중 Control이 원하지 않는 것은 reconcile로 회수하고, Control이 READY로 보던 Lab이 runner에 없으면 RUNTIME_LOST로 닫는다.
+
 ## Job와 Submission
 
 Job: `PENDING → DISPATCHED → LEASED → RUNNING → SUCCEEDED`.

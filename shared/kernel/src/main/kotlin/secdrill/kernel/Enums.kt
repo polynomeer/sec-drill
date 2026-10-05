@@ -74,3 +74,10 @@ enum class TombstoneSubject { USER, SESSION, ARTIFACT }
 
 /** Outcome of one content validation run (08). Only PASS can lead to publication. */
 enum class ValidationStatus { PASS, FAIL, INCOMPLETE }
+
+enum class LabDesiredState { RUNNING, TERMINATED }
+
+enum class LabTerminateReason { USER_STOP, IDLE_TTL, HARD_TTL, OPERATOR, PROVISION_FAILED, RUNTIME_LOST, ORPHAN }
+
+/** Non-human callers of the internal API (19). Never valid on learner or operator routes. */
+enum class WorkloadKind { AGENT, GATEWAY }

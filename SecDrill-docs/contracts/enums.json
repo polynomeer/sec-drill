@@ -28,7 +28,10 @@
     "DeletionScope": {"values": ["ACCOUNT", "SESSION"], "source": "15"},
     "DeletionStatus": {"values": ["REQUESTED", "APPROVED", "REJECTED", "COMPLETED"], "source": "14"},
     "TombstoneSubject": {"values": ["USER", "SESSION", "ARTIFACT"], "source": "14"},
-    "ValidationStatus": {"values": ["PASS", "FAIL", "INCOMPLETE"], "source": "08"}
+    "ValidationStatus": {"values": ["PASS", "FAIL", "INCOMPLETE"], "source": "08"},
+    "LabDesiredState": {"values": ["RUNNING", "TERMINATED"], "source": "13"},
+    "LabTerminateReason": {"values": ["USER_STOP", "IDLE_TTL", "HARD_TTL", "OPERATOR", "PROVISION_FAILED", "RUNTIME_LOST", "ORPHAN"], "source": "17"},
+    "WorkloadKind": {"values": ["AGENT", "GATEWAY"], "source": "19"}
   },
   "errorCodes": {
     "$comment": "Error envelope `code` values (15). httpStatus and retryable are fixed per code.",

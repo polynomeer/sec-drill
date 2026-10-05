@@ -562,6 +562,8 @@ CREATED는 Lab ready 후 ACTIVE가 된다. ACTIVE에서 Lab이 만료되어도 �
 
 REQUESTED/PROVISIONING은 생성 실패 시 FAILED; FAILED에도 잔여 자원이 있으면 cleanup job을 실행한다. 취소·TTL·운영 중지는 모든 비종료 상태에서 TERMINATING을 요청한다. 생성 완료 callback이 취소 뒤 도착하면 READY로 전이하지 않고 그 runtime을 회수한다. TERMINATED는 런타임·네트워크·디스크 회수가 실제 확인된 상태다. cleanup 실패는 CLEANUP_FAILED로 남겨 자원을 점유한 것으로 계산하고 sweeper가 재시도한다. 활성 Lab 한도는 `cleanup_confirmed_at`이 없는 Lab으로 계산한다. TERMINATED는 이 값 없이 저장할 수 없고, 잔여 자원이 없음이 확인된 FAILED는 전이와 함께 이 값을 기록해 한도에서 제외한다.
 
+관측 상태 `state`와 별도로 원하는 상태 `desired_state`(`RUNNING`·`TERMINATED`)를 둔다. desired TERMINATED는 종료 사유·요청 시각과 함께만 저장된다. 종료 요청은 desired를 TERMINATED로, 비종료 state를 TERMINATING으로 한 UPDATE에서 바꾸고 `terminate_reason`(`USER_STOP`·`IDLE_TTL`·`HARD_TTL`·`OPERATOR`·`PROVISION_FAILED`·`RUNTIME_LOST`·`ORPHAN`)과 시각을 기록한다. READY는 desired RUNNING·`ready_at`·`runtime_ref`가 모두 있어야 저장된다. 생성 callback은 desired가 TERMINATED이면 READY 대신 회수를 지시한다. 아직 시작되지 않은 PROVISION은 job을 취소하고 runtime 없이 닫는다. TERMINATED는 `cleanup_receipt`(삭제한 runtime 자원 목록)를 함께 저장한다. Runner가 보고한 runtime 중 Control이 원하지 않는 것은 reconcile로 회수하고, Control이 READY로 보던 Lab이 runner에 없으면 RUNTIME_LOST로 닫는다.
+
 ## Job와 Submission
 
 Job: `PENDING → DISPATCHED → LEASED → RUNNING → SUCCEEDED`.
@@ -600,7 +602,8 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
 | sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
-| labs | session_id, owner_id, generation, state, runtime_ref, expires_at, cleanup_confirmed_at | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인 필수 |
+| labs | session_id, owner_id, generation, state, desired_state, runtime_ref, runner_id, endpoint, expires_at, idle_expires_at, ready_at, terminate_reason, terminate_requested_at, cleanup_confirmed_at, cleanup_receipt | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인·receipt 필수; READY는 desired RUNNING·ready_at·runtime_ref 필수; desired TERMINATED ⇔ 종료 사유·시각; desired RUNNING 만료 index |
+| runner_credentials | token_hash, runner_id, kind(AGENT·GATEWAY), issued_at, expires_at, revoked_at | 최대 24시간; hash만 저장; `/internal/**` 전용 workload bearer |
 | submissions | session_id, kind, artifact_id, client_request_id, request_digest | session+client_request_id unique; artifact session 일치 |
 | jobs | submission_id, lab_id, kind, state, attempt, fencing_token, worker_id, lease_until, last_error, result_digest | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK; LEASED/RUNNING일 때만 lease·worker |
 | idempotency_records | owner_id, route(실제 경로), idempotency_key, request_digest, response_status, response_body(text), expires_at | owner+route+key PK; 만료 index; 첫 응답을 byte 그대로 재반환 |
@@ -655,6 +658,7 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 | POST /sessions | scenarioVersionId, mode, parentSessionId? | 201 Session | 422 unsupported mode |
 | GET /sessions/{id} | — | 200 Session | 404 |
 | POST /sessions/{id}/labs | expectedVersion | 202 Lab | 429 quota,409 state |
+| POST /sessions/{id}/labs/{labId}/connect | — | 200 connectUrl,expiresAt | 409 NOT_READY,404 |
 | POST /sessions/{id}/submissions | kind, content, expectedVersion | 202 Submission | 422 input,413 size |
 | GET /submissions/{id} | — | 200 verdict/progress | 404 |
 | POST /sessions/{id}/actions | type,parameters,expectedVersion | 200 seq/version/state | 409 stale,422 action |
@@ -683,6 +687,8 @@ MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다
 ## 내부 계약
 
 `POST /internal/jobs/{id}/claim`은 workload identity, attempt, workerId로 lease와 fencing token을 반환한다. heartbeat는 token 일치 시 30초 연장한다. `POST /internal/jobs/{id}/result`는 token, resultDigest, artifactRefs, verdictSummary를 받아 202 또는 stale 409를 반환한다. ingest는 job에 허용된 객체 key·크기·digest만 수신한다. Runner는 arbitrary URL fetch나 DB 접근 권한이 없다.
+
+Lab 내부 API(workload bearer, `runner_credentials`): AGENT는 `POST /internal/v1/lab-jobs/{claim,start,heartbeat,provisioned,provision-failed,terminated,cleanup-failed}`와 `POST /internal/v1/labs/reconcile`, GATEWAY는 `GET /internal/v1/gateway/labs/{labId}`와 `POST /internal/v1/gateway/labs/{labId}/activity`만 호출한다. 다른 `/internal/**` 경로와 learner cookie·operator bearer는 거절한다. 모든 callback은 lease의 workerId·fencing token이 일치해야 하며 오래된 token은 `STALE`을 받는다. CLEANUP job은 그 Lab을 만든 runner에게만 배정한다. connect URL은 별도 origin Lab Gateway의 `/connect?token=`이며 token은 labId·generation·owner·만료·nonce를 담은 Ed25519 서명 값으로 60초·1회용이다. 운영 중지는 `POST /ops/v1/labs/{labId}/stop`(OPERATOR·SECURITY_ADMIN)이다. mTLS workload identity(D-17)는 미구현이다.
 
 운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. 콘텐츠 내부 API(operator bearer): `POST /ops/v1/content/bundles`(AUTHOR, 서명 번들 등록 → DRAFT), `POST /ops/v1/scenario-versions/{id}/validations`(AUTHOR·REVIEWER, 검증 보고서), `POST /ops/v1/scenario-versions/{id}/approve`(작성자가 아닌 REVIEWER), `POST /ops/v1/scenario-versions/{id}/quarantine`(OPERATOR·SECURITY_ADMIN·REVIEWER). 학습자 `GET /scenarios/{id}`는 PUBLISHED 버전의 공개 manifest 필드만 반환한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
 
