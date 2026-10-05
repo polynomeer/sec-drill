@@ -1,0 +1,5 @@
+{"challengeKey": "rbac-bypass", "hints": [
+  {"level": 1, "text": "한 토큰으로 다른 팀의 프로젝트를 읽거나, 읽기 전용 역할로 쓰기를 시도해 보세요."},
+  {"level": 2, "text": "프로젝트의 소유 팀과 principal의 팀, 그리고 역할이 그 action을 허용하는지가 각각 검사되어야 합니다."},
+  {"level": 3, "text": "팀 경계와 역할 권한을 함께 적용하고, 비활성화된 grant는 거절해야 합니다. 클라이언트가 보낸 역할은 믿으면 안 됩니다."},
+  {"level": 4, "text": "해설: app/roles.py에서 project team == principal team이고 역할이 action을 허용할 때만 허용하고, app/grants.py에서 disabled grant는 None을 반환합니다."}]}

@@ -1,0 +1,10 @@
+{
+  "tests": [
+    {"id": "cross-team-read", "request": {"method": "GET", "path": "/api/projects/3", "headers": {"Authorization": "Bearer tok-view-a"}}, "expect": {"statusIn": [403, 404], "bodyExcludes": ["secret", "ledger"]}},
+    {"id": "write-without-write-role", "request": {"method": "POST", "path": "/api/projects/1", "headers": {"Authorization": "Bearer tok-view-a"}, "body": {}}, "expect": {"statusIn": [403]}},
+    {"id": "disabled-grant-rejected", "request": {"method": "GET", "path": "/api/projects/1", "headers": {"Authorization": "Bearer tok-old"}}, "expect": {"statusIn": [401, 403]}},
+    {"id": "role-escalation-header-ignored", "request": {"method": "POST", "path": "/api/projects/2", "headers": {"Authorization": "Bearer tok-view-a", "X-Role": "editor"}, "body": {}}, "expect": {"statusIn": [403]}},
+    {"id": "in-team-read", "request": {"method": "GET", "path": "/api/projects/1", "headers": {"Authorization": "Bearer tok-view-a"}}, "expect": {"statusIn": [200], "idsInclude": [1]}},
+    {"id": "in-team-write", "request": {"method": "POST", "path": "/api/projects/1", "headers": {"Authorization": "Bearer tok-edit-a"}, "body": {}}, "expect": {"statusIn": [200], "fieldEquals": {"written": true}}}
+  ]
+}

@@ -6,13 +6,13 @@
 
 ## 현재 단계
 
-**T12 리포트·Replay·스킬·추천**(프롬프트 12): 근거 anchor·도움·판정 범위가 있는 리포트와 재채점 revision, checkpoint seek Replay, `skill-v1` projection, 이유가 있는 상위 3개 추천을 구현하고 Web 화면을 붙였다. T01~T12 기반 완료. CTF·패치 결과는 격리 미검증이라 데모이며 projection에서 빠진다.
+**T13 MVP 콘텐츠·Transfer**(프롬프트 13): 기본 3개(tenant-orders·webhook-receiver·api-gateway) + 전이 3개(tenant-invoices·delivery-events·iam-roles)를 저작하고, 참조 패치 VERIFIED·핵심 mutant 전부 NOT_VERIFIED를 실제 local-trusted 채점으로 확인했다. 탐지 seed suite(경계 20·무작위 100)도 검증. **출판·독립 검수는 미완이고 모든 결과는 데모**(D-10). 보고서: [content-verification](content-verification.md).
 
 ## 활성 Task
 
 | Task | 담당 | 대상 경로 | 시작일 | 메모 |
 |---|---|---|---|---|
-| — | — | — | — | 다음: 프롬프트 13 = T13(기본·전이 콘텐츠) |
+| — | — | — | — | 다음: 프롬프트 14 = T14(운영·배포·삭제 실행) |
 
 ## 완료 항목
 
@@ -30,7 +30,8 @@
 | T08 Python 패치 채점(데모) | [T08](T08.md#결과) |
 | T10 탐지·대응 모델 | [T10](T10.md#결과) |
 | T11 작업 공간 | [T11](T11.md#결과) |
-| T12 리포트·Replay·스킬 | [T12](T12.md#결과). Playwright 25건, `./gradlew clean check` 185건 통과(skip 0) |
+| T12 리포트·Replay·스킬 | [T12](T12.md#결과) |
+| T13 MVP 콘텐츠·Transfer(데모) | [T13](T13.md), [보고서](content-verification.md). 6 사건 참조 VERIFIED·핵심 mutant 검출. `./gradlew clean check` 192건 통과(skip 0) |
 
 ## 미검증 항목
 
@@ -53,6 +54,6 @@
 
 ## 다음 작업
 
-1. 프롬프트 13 = T13(기본 3 + 전이 3 콘텐츠, seed suite·독립 검수)
+1. 프롬프트 14 = T14(운영·배포, 개인정보 삭제 실행, DB 역할 분리)
 2. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 같은 격리 테스트 실행
 3. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))

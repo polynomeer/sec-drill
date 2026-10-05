@@ -59,6 +59,8 @@ JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL�
 | `LabGatewayTest` | 1회용 connect token·서명 검증, cookie 속성, credential header 제거, Lab의 access cookie 덮어쓰기 차단, CONNECT·absolute-form 거절, 중지 후 차단, allowlist 밖 거절 | Gateway→runner network 경로, 터미널 websocket, 다중 Gateway |
 | `CtfFlowTest` | 합성 tenant-orders 이미지·Gateway·내부 API로 T07 흐름(정상 접근, 플래그 획득, 독립 관측 PASS, demo 표시, replay·중복 결과, DB·로그의 flag 부재, oracle 비노출, finish 회수), 다른 Session·종료 Lab 플래그 FAIL, 관측 없는 정답 SYSTEM_ERROR, 변조 receipt, 오답 429, Session·catalog API, 응답의 OpenAPI 필드 일치 | strong runtime, guest 밖 관측, 브라우저 UI 전체 흐름 |
 | `PatchGradingTest` | 실제 Docker의 분리된 grading 환경과 외부 supervisor로 참조 패치 VERIFIED, 무수정·전부 거절·한 경로만·클라이언트 tenant·결과 조작·compile 오류 NOT_VERIFIED와 해당 gate, 탈출 probe로 grading 환경 출구 없음, 허용 경로·bundle digest, platform 오류·부분 결과·중복 결과·자료 누락 처리, hidden 정보 비노출 | grading-strong, 채점 감지형 패치 |
+| `ContentSuiteTest` | 실제 local-trusted 채점으로 webhook·api-gateway·tenant-invoices·delivery-events·iam-roles 각각 참조 패치 VERIFIED, 핵심 mutant 전부 NOT_VERIFIED와 실패 gate(tenant-orders는 PatchGradingTest) | strong runtime, 독립 검수, 출판 |
+| `DetectionSeedSuiteTest` | 탐지 drill 경계 seed 20·무작위 100에서 행동 규칙 holdout PASS·이름 암기 FAIL·이름 비중복 | 파일럿 calibration |
 | `DetectionTest`·`IncidentModelTest` | 탐지 DSL 제한·평가·episode 지표·N/A·label 비노출·암기 규칙 holdout 실패, IR reducer 재현·네 액션 효과와 부작용·충돌·censored 지표 | 다른 사건 모델 |
 | `ResponseDrillTest` | 액션 API(SIMULATED, replay digest, 409·422), 데이터셋 API(label 없음), DETECTION 수락·holdout 채점, Evidence 신뢰 수준 구분 | 실제 Lab 액션, Replay API |
 | `SkillPolicyTest`·`CheckpointsTest` | 스킬 projection·추천 정책 규칙, checkpoint seek와 처음부터 재생의 digest 일치 | calibration |

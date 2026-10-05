@@ -63,6 +63,12 @@ class ContentSuiteTest {
             setOf("fresh-delivery-processed", "legitimate-retry-accepted"))
         private val API = LabContent("api-gateway", "Synthetic over-broad API token", listOf("app/tokens.py", "app/scopes.py"),
             setOf("in-scope-read", "in-scope-automation-read"))
+        private val INVOICES = LabContent("tenant-invoices", "Synthetic tenant invoice leak (Transfer)", listOf("app/invoices.py", "app/authz.py"),
+            setOf("own-tenant-read", "own-tenant-list"))
+        private val DELIVERY = LabContent("delivery-events", "Synthetic delivery event replay (Transfer)", listOf("app/verify.py", "app/sequence.py"),
+            setOf("next-in-order-processed"))
+        private val IAM = LabContent("iam-roles", "Synthetic RBAC bypass (Transfer)", listOf("app/roles.py", "app/grants.py"),
+            setOf("in-team-read", "in-team-write"))
 
         private val MUTANTS = mapOf(
             WEBHOOK to mapOf(
@@ -72,6 +78,18 @@ class ContentSuiteTest {
             API to mapOf(
                 "no-change" to "security", "reports-implies-all" to "security", "trust-client-scope" to "security",
                 "fix-scope-not-revoke" to "security", "reject-everything" to "regression", "compile-error" to "compile",
+            ),
+            INVOICES to mapOf(
+                "no-change" to "security", "fix-only-direct-route" to "security", "trust-client-tenant" to "security",
+                "deny-everything" to "regression", "compile-error" to "compile",
+            ),
+            DELIVERY to mapOf(
+                "no-change" to "security", "idempotent-only" to "security", "freshness-only" to "security",
+                "reject-everything" to "regression", "compile-error" to "compile",
+            ),
+            IAM to mapOf(
+                "no-change" to "security", "role-implies-all" to "security", "trust-client-role" to "security",
+                "fix-role-not-disable" to "security", "reject-everything" to "regression", "compile-error" to "compile",
             ),
         )
     }
@@ -152,4 +170,13 @@ class ContentSuiteTest {
 
     @Test
     fun `over-broad API token - reference is VERIFIED and every key mutant is detected`() = verifyFamily(API)
+
+    @Test
+    fun `tenant leak Transfer - invoices and UUID paths, reference VERIFIED and mutants detected`() = verifyFamily(INVOICES)
+
+    @Test
+    fun `webhook Transfer - delivery event ordering, reference VERIFIED and mutants detected`() = verifyFamily(DELIVERY)
+
+    @Test
+    fun `over-broad token Transfer - RBAC roles, reference VERIFIED and mutants detected`() = verifyFamily(IAM)
 }

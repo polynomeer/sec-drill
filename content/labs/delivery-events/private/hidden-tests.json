@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {"id": "replay-no-double-refund",
+     "setup": [{"method": "POST", "path": "/api/events", "from": {"path": "/api/sample-event?ship=rep&seq=4&age=0", "headers": {"X-Signature": "signature"}}},
+               {"method": "POST", "path": "/api/events", "from": {"path": "/api/sample-event?ship=rep&seq=4&age=0", "headers": {"X-Signature": "signature"}}}],
+     "request": {"method": "GET", "path": "/api/shipment/rep"}, "expect": {"statusIn": [200], "fieldEquals": {"credits": 1}}},
+    {"id": "out-of-order-rejected",
+     "setup": [{"method": "POST", "path": "/api/events", "from": {"path": "/api/sample-event?ship=ord&seq=3&age=0", "headers": {"X-Signature": "signature"}}}],
+     "request": {"method": "POST", "path": "/api/events", "from": {"path": "/api/sample-event?ship=ord&seq=2&age=0", "headers": {"X-Signature": "signature"}}},
+     "expect": {"statusIn": [409]}},
+    {"id": "expired-event-rejected",
+     "request": {"method": "POST", "path": "/api/events", "from": {"path": "/api/sample-event?ship=exp&seq=1&age=600", "headers": {"X-Signature": "signature"}}},
+     "expect": {"statusIn": [400]}},
+    {"id": "tampered-signature-rejected",
+     "request": {"method": "POST", "path": "/api/events", "from": {"path": "/api/sample-event?ship=tam&seq=1&age=0&tamper=1", "headers": {"X-Signature": "signature"}}},
+     "expect": {"statusIn": [401]}},
+    {"id": "next-in-order-processed",
+     "setup": [{"method": "POST", "path": "/api/events", "from": {"path": "/api/sample-event?ship=seqok&seq=1&age=0", "headers": {"X-Signature": "signature"}}}],
+     "request": {"method": "POST", "path": "/api/events", "from": {"path": "/api/sample-event?ship=seqok&seq=2&age=0", "headers": {"X-Signature": "signature"}}},
+     "expect": {"statusIn": [200], "fieldEquals": {"status": "packed"}}}
+  ]
+}
