@@ -17,7 +17,7 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 | 메서드와 경로 | 입력 | 성공 | 주요 오류 |
 |---|---|---|---|
 | GET /scenarios | mode, cursor, limit(1~100) | 200 items,nextCursor | 422 filter |
-| GET /scenarios/{id} | versionId? | 200 공개 사건 상세 | 404 unpublished/private |
+| GET /scenarios/{id} | versionId? | 200 공개 사건 상세(patchPaths·actions·completionRequirements 포함) | 404 unpublished/private |
 | POST /sessions | scenarioVersionId, mode, parentSessionId? | 201 Session(CREATED, 버전 고정) | 422 UNSUPPORTED_MODE, 404 unpublished |
 | GET /sessions/{id} | — | 200 Session | 404 |
 | POST /sessions/{id}/labs | expectedVersion | 202 Lab | 429 quota,409 state |
@@ -26,7 +26,7 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 | GET /submissions/{id} | — | 200 verdict/progress | 404 |
 | POST /sessions/{id}/actions | type,parameters,expectedVersion | 200 seq/version/state(SIMULATED) | 409 stale·효과 없음,422 action·미제공,422 UNSUPPORTED_MODE(PURPLE 아님) |
 | GET /sessions/{id}/detection-dataset | — | 200 training 합성 로그(label 없음) | 422 UNSUPPORTED_MODE |
-| POST /sessions/{id}/hints | challengeId,level | 200 Hint | 422 unknown,429 limit |
+| POST /sessions/{id}/hints | challengeId,level | 200 Hint(다음 레벨만, 재조회는 추가 감점 없음) | 422 unknown·순서 위반,404 |
 | POST /sessions/{id}/finish | expectedVersion | 202 Session(SUBMITTED, Lab 종료 요청) | 409 MISSING_GATES |
 | POST /sessions/{id}/stop | expectedVersion | 202 Session | 409 terminal |
 | GET /sessions/{id}/evidence | afterSeq,limit | 200 items,nextSeq,hasMore | 404 |
@@ -42,7 +42,7 @@ DETECTION 제출은 PURPLE·DETECTION Session에서만 받고 규칙을 21의 �
 
 ## 페이징과 실시간
 
-카탈로그 cursor는 정렬키 publishedAt+id와 filter digest를 서명한 opaque 값이다(구현: 프로세스별 HMAC 키라 재시작 후 cursor는 422). Evidence는 immutable seq 기반 afterSeq를 사용한다. SSE `/sessions/{id}/stream`은 cookie 인증으로 접속하고 event id에 seq를 사용한다. `Last-Event-ID` 이후부터 권한 필터된 이벤트를 제공하며 보관 범위 밖이면 410과 REST 재동기화 안내를 반환한다. SSE가 없으면 동일 REST evidence endpoint로 backoff polling한다.
+카탈로그 cursor는 정렬키 publishedAt+id와 filter digest를 서명한 opaque 값이다(구현: 프로세스별 HMAC 키라 재시작 후 cursor는 422). Evidence는 immutable seq 기반 afterSeq를 사용한다. SSE `/sessions/{id}/stream`은 cookie 인증으로 접속하고 event id에 seq를 사용한다. 구현(T11): 1초 간격으로 원장을 읽어 `Last-Event-ID` 이후만 보내고 5분 뒤 연결을 닫으며, 클라이언트는 마지막 seq로 다시 연결한다. 보관 범위 밖 410은 아직 없다. `Last-Event-ID` 이후부터 권한 필터된 이벤트를 제공하며 보관 범위 밖이면 410과 REST 재동기화 안내를 반환한다. SSE가 없으면 동일 REST evidence endpoint로 backoff polling한다.
 
 ## 오류 봉투
 

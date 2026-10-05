@@ -3016,6 +3016,10 @@
             "type": "string",
             "format": "uuid"
           },
+          "scenarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "scenarioVersionId": {
             "type": "string",
             "format": "uuid"
@@ -3071,6 +3075,7 @@
         },
         "required": [
           "id",
+          "scenarioId",
           "scenarioVersionId",
           "mode",
           "status",
@@ -4390,7 +4395,10 @@
           "competencyTags",
           "challenges",
           "allowedTargets",
-          "estimatedMinutes"
+          "estimatedMinutes",
+          "patchPaths",
+          "actions",
+          "completionRequirements"
         ],
         "properties": {
           "id": {
@@ -4464,6 +4472,70 @@
           "estimatedMinutes": {
             "type": "integer",
             "minimum": 1
+          },
+          "patchPaths": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "string"
+            },
+            "description": "patch로 바꿀 수 있는 저장소 경로(공개 manifest `patch.allowedPaths`). 없으면 빈 배열."
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "REVOKE_TOKEN",
+                "DISABLE_ENDPOINT",
+                "ISOLATE_WORKLOAD",
+                "ENABLE_AUDIT"
+              ]
+            },
+            "description": "Purple 대응 모델 액션(SIMULATED)."
+          },
+          "completionRequirements": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "CTF": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "WARGAME": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "PURPLE": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "PATCH": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "DETECTION": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "INVESTIGATE": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "모드별 finish gate 이름. 완료 판정은 서버가 한다."
           }
         }
       },

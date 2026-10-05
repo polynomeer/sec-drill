@@ -55,9 +55,9 @@ object ContentValidation {
     private val requiredManifestKeys = manifestKeys - setOf("patch", "actions", "transferScenarioFamily")
     private val oracleKeys = setOf(
         "schemaVersion", "visibility", "scenarioVersionId", "verifier", "flag", "hiddenTests", "mutants", "detection", "weights", "gate",
-        "referencePatchRef", "publishable",
+        "referencePatchRef", "publishable", "hints",
     )
-    private val requiredOracleKeys = oracleKeys - setOf("flag", "detection")
+    private val requiredOracleKeys = oracleKeys - setOf("flag", "detection", "hints")
     private val oracleOnlyKeys = setOf("oracle", "hiddenTests", "mutants", "referencePatchRef", "solution", "answer", "flag", "secretRef", "weights", "hints")
 
     fun run(bundle: ContentBundle, signature: BundleSignature?, trustedKeys: Map<String, PublicKey>, verifier: RuntimeVerifier): ValidationReport {
@@ -142,6 +142,11 @@ object ContentValidation {
         if (gate?.get("platformFailure")?.asString() != "INCONCLUSIVE") problems += "platform failure must be INCONCLUSIVE"
         if (gate?.get("mandatorySecurityTests")?.asString() != "ALL" || gate["mandatoryRegressionTests"]?.asString() != "ALL") problems += "all mandatory gates"
         oracle["flag"]?.let { if (it["plaintextLogging"]?.asBoolean() != false) problems += "flag plaintext logging must be false" }
+        oracle["hints"]?.let { hints ->
+            val levels = hints.values().map { (it["challengeId"]?.asString() ?: "") to (it["level"]?.asInt() ?: 0) }
+            if (levels.any { it.second !in 1..4 } || levels.size != levels.toSet().size) problems += "hints need levels 1-4, once per challenge"
+            if (hints.values().any { it["text"]?.isString != true || it["text"].asString().isEmpty() }) problems += "every hint needs text"
+        }
         return check("oracle.structure", problems.isEmpty(), if (problems.isEmpty()) "oracle matches the private contract" else problems.joinToString("; "))
     }
 
@@ -158,6 +163,7 @@ object ContentValidation {
         oracle["verifier"]?.get("requires")?.values()?.forEach { add(it.asString()) }
         oracle["flag"]?.get("secretRef")?.asString()?.let(::add)
         oracle["referencePatchRef"]?.asString()?.let(::add)
+        oracle["hints"]?.values()?.forEach { hint -> hint["text"]?.asString()?.let(::add) }
     }.filter { it.length >= 6 }.toSet()
 
     private fun separation(bundle: ContentBundle): Check {

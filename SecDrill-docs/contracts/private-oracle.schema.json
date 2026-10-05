@@ -153,6 +153,36 @@
         }
       }
     },
+    "hints": {
+      "type": "array",
+      "maxItems": 64,
+      "description": "Learner-requested hints, given in level order per challenge (05, 09). Text is shown only to a learner who asks for it.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "challengeId",
+          "level",
+          "text"
+        ],
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        }
+      }
+    },
     "weights": {
       "type": "object",
       "additionalProperties": {

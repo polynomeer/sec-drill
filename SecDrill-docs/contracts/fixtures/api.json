@@ -46,7 +46,8 @@
           "state": "READY",
           "expiresAt": "2026-10-04T01:00:00Z",
           "isolationVerified": false
-        }
+        },
+        "scenarioId": "10000000-0000-4000-8000-000000000001"
       }
     },
     {
@@ -60,7 +61,8 @@
         "status": "ACTIVE",
         "phase": "ATTACK",
         "version": -1,
-        "createdAt": "2026-10-04T00:00:00Z"
+        "createdAt": "2026-10-04T00:00:00Z",
+        "scenarioId": "10000000-0000-4000-8000-000000000001"
       }
     },
     {
