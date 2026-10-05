@@ -2983,6 +2983,10 @@
           },
           "connectPath": {
             "type": "string"
+          },
+          "isolationVerified": {
+            "type": "boolean",
+            "description": "검증된 strong runtime에서 실행될 때만 true. false이면 이 Lab의 결과는 데모 결과다(local-trusted 등)."
           }
         },
         "required": [
@@ -2990,7 +2994,8 @@
           "sessionId",
           "generation",
           "state",
-          "expiresAt"
+          "expiresAt",
+          "isolationVerified"
         ]
       },
       "Scenario": {
@@ -3537,6 +3542,10 @@
                 "result"
               ]
             }
+          },
+          "demo": {
+            "type": "boolean",
+            "description": "fake worker 또는 격리가 검증되지 않은 runtime의 결과. 공식 결과·역량 근거로 쓰지 않는다."
           }
         },
         "required": [
@@ -3545,7 +3554,8 @@
           "policyVersion",
           "verdict",
           "dimensions",
-          "gates"
+          "gates",
+          "demo"
         ]
       },
       "Submission": {

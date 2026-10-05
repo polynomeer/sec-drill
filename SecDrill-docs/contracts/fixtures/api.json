@@ -44,7 +44,8 @@
           "sessionId": "30000000-0000-4000-8000-000000000002",
           "generation": 1,
           "state": "READY",
-          "expiresAt": "2026-10-04T01:00:00Z"
+          "expiresAt": "2026-10-04T01:00:00Z",
+          "isolationVerified": false
         }
       }
     },
@@ -70,7 +71,8 @@
         "sessionId": "30000000-0000-4000-8000-000000000002",
         "generation": 1,
         "state": "READY",
-        "expiresAt": "2026-10-04T01:00:00Z"
+        "expiresAt": "2026-10-04T01:00:00Z",
+        "isolationVerified": false
       }
     },
     {
@@ -82,7 +84,8 @@
         "sessionId": "30000000-0000-4000-8000-000000000002",
         "generation": 0,
         "state": "READY",
-        "expiresAt": "2026-10-04T01:00:00Z"
+        "expiresAt": "2026-10-04T01:00:00Z",
+        "isolationVerified": false
       }
     },
     {
@@ -193,6 +196,53 @@
         "connectUrl": "https://lab.example.invalid/connect?token=x",
         "expiresAt": "2026-01-01T00:01:00Z",
         "token": "x"
+      }
+    },
+    {
+      "schema": "Evaluation",
+      "valid": true,
+      "value": {
+        "id": "10000000-0000-4000-8000-0000000000e1",
+        "revision": 1,
+        "policyVersion": "ctf-objective/1",
+        "verdict": "SYSTEM_ERROR",
+        "dimensions": [],
+        "gates": [
+          {
+            "key": "flag",
+            "result": "PASS"
+          },
+          {
+            "key": "objective",
+            "result": "INCONCLUSIVE"
+          }
+        ],
+        "demo": true
+      }
+    },
+    {
+      "schema": "Evaluation",
+      "valid": false,
+      "reason": "every evaluation states whether it is a demo result",
+      "value": {
+        "id": "10000000-0000-4000-8000-0000000000e2",
+        "revision": 1,
+        "policyVersion": "ctf-objective/1",
+        "verdict": "PASS",
+        "dimensions": [],
+        "gates": []
+      }
+    },
+    {
+      "schema": "Lab",
+      "valid": false,
+      "reason": "a Lab view always states whether its isolation is verified",
+      "value": {
+        "id": "10000000-0000-4000-8000-0000000000e3",
+        "sessionId": "10000000-0000-4000-8000-0000000000e4",
+        "generation": 1,
+        "state": "READY",
+        "expiresAt": "2026-01-01T01:00:00Z"
       }
     }
   ]

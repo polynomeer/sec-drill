@@ -184,7 +184,7 @@ class CoreSchemaConstraintsTest {
     fun `only one active evaluation per submission`() {
         val (_, _, session) = db { fixture() }
         val submission = db { submission(session) }
-        val insert = "INSERT INTO evaluations(id, submission_id, revision, policy_version, verdict, dimensions, gates) VALUES (?, ?, ?, 'p1', 'PASS', '{}', '[]')"
+        val insert = "INSERT INTO evaluations(id, submission_id, revision, policy_version, verdict, dimensions, gates) VALUES (?, ?, ?, 'p1', 'PASS', '[]', '[]')"
         db { exec(insert, UUID.randomUUID(), submission, 1) }
         assertSqlState("23505") { exec(insert, UUID.randomUUID(), submission, 2) }
     }

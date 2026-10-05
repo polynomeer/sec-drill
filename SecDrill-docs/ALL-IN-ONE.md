@@ -436,7 +436,7 @@ AI 설명은 선택적 부가 기능이다. 규칙·테스트로 결정된 공�
 
 ## 원장 구조와 신뢰
 
-Evidence에는 id, sessionId, seq, type, source, trustLevel, occurredAt, ingestedAt, artifactRef, payloadDigest, previousHash, hash, schemaVersion이 있다. seq와 해시는 트랜잭션 내 Session 원장 head lock으로 부여한다. 서버가 실제로 수집한 `OBJECTIVE_CONFIRMED`, `TEST_RESULT`, `ACTION_APPLIED`, `HINT_GRANTED`, `POSTMORTEM_SUBMITTED`와 사용자 주장 `HYPOTHESIS_REPORTED`를 구분한다. 사용자가 클릭했다고 소스를 이해했다는 증거를 만들지 않는다.
+Evidence에는 id, sessionId, seq, type, source, trustLevel, occurredAt, ingestedAt, artifactRef, payloadDigest, previousHash, hash, schemaVersion이 있다. seq와 해시는 트랜잭션 내 Session 원장 head lock으로 부여한다. 서버가 실제로 수집한 `OBJECTIVE_CONFIRMED`, `TEST_RESULT`, `ACTION_APPLIED`, `HINT_GRANTED`, `POSTMORTEM_SUBMITTED`와 사용자 주장 `HYPOTHESIS_REPORTED`를 구분한다. 사용자가 클릭했다고 소스를 이해했다는 증거를 만들지 않는다. CTF의 `OBJECTIVE_CONFIRMED`는 Lab을 호스팅한 runner의 collector가 target의 서버 측 접근 기록에서 의도된 접근을 관측했을 때만 `COLLECTOR`/`OBSERVED`로 기록하고, 플래그 일치만으로는 기록하지 않는다. 격리가 검증되지 않은 runtime(local-trusted)이나 fake worker의 평가는 `demo`로 표시하며 공식 결과·skill projection의 근거로 쓰지 않는다.
 
 hash는 canonical JSON과 직전 hash의 SHA-256으로 계산한다. DB UPDATE/DELETE 차단·별도 서명 checkpoint·외부 저장으로 변조 탐지를 강화하지만 DB 최고 권한의 악의까지 불가능하게 만든다고 주장하지 않는다. 원장 row에는 비밀·raw source를 저장하지 않고 별도 보관·삭제 가능한 Artifact 참조만 둔다.
 
@@ -554,7 +554,7 @@ CTF에서 Purple로 이어가기와 Transfer는 새 Session을 생성하고 pare
 
 `CREATED → ACTIVE → SUBMITTED → EVALUATING → COMPLETED`
 
-CREATED는 Lab ready 후 ACTIVE가 된다. ACTIVE에서 Lab이 만료되어도 기록은 보존되고 새 generation을 요청할 수 있다. 모드별 필수 산출물이 충족되면 finish가 SUBMITTED를 만든다. EVALUATING은 최종 리포트 생성 작업을 의미하고 단계별 채점은 ACTIVE 동안에도 수행한다. 사용자 취소는 COMPLETED 이전에 CANCELLED, hard Session 보관 정책상 종료는 EXPIRED로 간다. 최종 리포트 SYSTEM_ERROR는 EVALUATION_FAILED이며 동일 finish job을 새 attempt로 재시도할 수 있다. COMPLETED를 ACTIVE로 되돌리지 않는다.
+CREATED는 Lab ready 후 ACTIVE가 된다. ACTIVE에서 Lab이 만료되어도 기록은 보존되고 새 generation을 요청할 수 있다. 모드별 필수 산출물이 충족되면 finish가 SUBMITTED를 만들고 Lab 종료를 요청한다(CTF: 모든 challenge에 활성 PASS evaluation, 없으면 409 MISSING_GATES `objective_confirmed`). EVALUATING은 최종 리포트 생성 작업을 의미하고 단계별 채점은 ACTIVE 동안에도 수행한다. 사용자 취소는 COMPLETED 이전에 CANCELLED, hard Session 보관 정책상 종료는 EXPIRED로 간다. 최종 리포트 SYSTEM_ERROR는 EVALUATION_FAILED이며 동일 finish job을 새 attempt로 재시도할 수 있다. COMPLETED를 ACTIVE로 되돌리지 않는다.
 
 ## Lab
 
@@ -602,12 +602,12 @@ PostgreSQL에 상태·권한·제출·원장을 저장하고 대용량 bytes는 
 | challenges | version_id, key, kind, public_spec | unique version_id+key; private oracle는 object ref |
 | sessions | owner_id, version_id, mode, seed, status, phase, version, parent_id | owner+created_at; parent+owner 복합 FK로 같은 owner Session만 부모 |
 | artifacts | session_id, key, digest, byte_size, sensitivity, deleted_at | private key unique; session scope FK |
-| labs | session_id, owner_id, generation, state, desired_state, runtime_ref, runner_id, endpoint, expires_at, idle_expires_at, ready_at, terminate_reason, terminate_requested_at, cleanup_confirmed_at, cleanup_receipt | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인·receipt 필수; READY는 desired RUNNING·ready_at·runtime_ref 필수; desired TERMINATED ⇔ 종료 사유·시각; desired RUNNING 만료 index |
+| labs | session_id, owner_id, generation, state, desired_state, runtime_ref, runner_id, endpoint, expires_at, idle_expires_at, ready_at, terminate_reason, terminate_requested_at, cleanup_confirmed_at, cleanup_receipt, flag_nonce, flag_key_version, runtime_profile, isolation_verified | owner 활성 partial unique(cleanup 미확인); session+generation unique; TERMINATED는 cleanup 확인·receipt 필수; READY는 desired RUNNING·ready_at·runtime_ref 필수; desired TERMINATED ⇔ 종료 사유·시각; desired RUNNING 만료 index; flag nonce(32 bytes)와 key version은 함께만; isolation_verified는 lab-strong만 |
 | runner_credentials | token_hash, runner_id, kind(AGENT·GATEWAY), issued_at, expires_at, revoked_at | 최대 24시간; hash만 저장; `/internal/**` 전용 workload bearer |
-| submissions | session_id, kind, artifact_id, client_request_id, request_digest | session+client_request_id unique; artifact session 일치 |
+| submissions | session_id, kind, artifact_id, client_request_id, request_digest, safe_metadata | session+client_request_id unique; artifact session 일치; FLAG는 artifact가 서명된 flag receipt(PRIVATE_ORACLE), safe_metadata는 challengeId·flagMatched·labId만 |
 | jobs | submission_id, lab_id, kind, state, attempt, fencing_token, worker_id, lease_until, last_error, result_digest | due job index; unique submission+kind+revision, lab+kind+revision; kind별 대상 CHECK; LEASED/RUNNING일 때만 lease·worker |
 | idempotency_records | owner_id, route(실제 경로), idempotency_key, request_digest, response_status, response_body(text), expires_at | owner+route+key PK; 만료 index; 첫 응답을 byte 그대로 재반환 |
-| evaluations | submission_id, revision, policy_version, verdict, dimensions, active | submission+revision unique; 활성 partial unique |
+| evaluations | submission_id, revision, policy_version, verdict, dimensions, gates, demo, active | submission+revision unique; 활성 partial unique; dimensions·gates는 JSON 배열; demo는 fake worker나 격리 미검증 runtime 결과 |
 | ledger_heads / evidence | session_id, last_seq/hash / seq, type, payload_digest, hashes | session+seq unique; UPDATE/DELETE guard; 첫 hash는 `0`×64, 각 hash는 이전 hash를 포함한 JCS 객체의 SHA-256; source별 허용 trustLevel CHECK(USER는 USER_REPORTED만); session+source_event_id unique |
 | deletion_requests / deletion_tombstones | owner, scope, session, status, decided, receipt / subject_type, subject_id, request | SESSION scope는 owner 일치 복합 FK; 완료는 receipt 필수; tombstone은 runtime 역할에 INSERT만 |
 | outbox_events / consumer_inbox | envelope, published_at / consumer+event_id | 미발행 index; consumer+event_id unique |
@@ -655,7 +655,7 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 |---|---|---|---|
 | GET /scenarios | mode, cursor, limit(1~100) | 200 items,nextCursor | 422 filter |
 | GET /scenarios/{id} | versionId? | 200 공개 사건 상세 | 404 unpublished/private |
-| POST /sessions | scenarioVersionId, mode, parentSessionId? | 201 Session | 422 unsupported mode |
+| POST /sessions | scenarioVersionId, mode, parentSessionId? | 201 Session(CREATED, 버전 고정) | 422 UNSUPPORTED_MODE, 404 unpublished |
 | GET /sessions/{id} | — | 200 Session | 404 |
 | POST /sessions/{id}/labs | expectedVersion | 202 Lab | 429 quota,409 state |
 | POST /sessions/{id}/labs/{labId}/connect | — | 200 connectUrl,expiresAt | 409 NOT_READY,404 |
@@ -663,7 +663,7 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 | GET /submissions/{id} | — | 200 verdict/progress | 404 |
 | POST /sessions/{id}/actions | type,parameters,expectedVersion | 200 seq/version/state | 409 stale,422 action |
 | POST /sessions/{id}/hints | challengeId,level | 200 Hint | 422 unknown,429 limit |
-| POST /sessions/{id}/finish | expectedVersion | 202 Session | 409 missing gates |
+| POST /sessions/{id}/finish | expectedVersion | 202 Session(SUBMITTED, Lab 종료 요청) | 409 MISSING_GATES |
 | POST /sessions/{id}/stop | expectedVersion | 202 Session | 409 terminal |
 | GET /sessions/{id}/evidence | afterSeq,limit | 200 items,nextSeq,hasMore | 404 |
 | GET /sessions/{id}/report | — | 200 Report | 409 not ready |
@@ -672,13 +672,13 @@ POST mutation은 `Idempotency-Key` UUID를 받는다. owner+route+key로 24시�
 | POST /exports | sessionId? | 202 export job | 429 |
 | POST /deletion-requests | scope, confirmationToken | 202 receipt | 422,401 |
 
-Submission kind는 `FLAG`, `OBJECTIVE`, `PATCH`, `DETECTION`, `POSTMORTEM`이다. 각 content의 정확한 구조는 OpenAPI의 discriminator oneOf를 따른다. FLAG 오답은 HTTP 오류가 아니라 완료된 FAIL evaluation이다. raw flag를 echo하지 않는다. FLAG 요청은 서버가 메모리 안에서 HMAC 검증 후 jobId·challengeId·검증 결과를 가진 서명된 private receipt를 만들고 그 참조만 저장한다. 비동기 verifier는 receipt와 독립 목표 관측을 확인한다. 최초 입력은 request digest 계산 뒤 폐기하고 raw flag를 DB·artifact·Outbox에 보관하지 않는다.
+Submission kind는 `FLAG`, `OBJECTIVE`, `PATCH`, `DETECTION`, `POSTMORTEM`이다. 각 content의 정확한 구조는 OpenAPI의 discriminator oneOf를 따른다. FLAG 오답은 HTTP 오류가 아니라 완료된 FAIL evaluation이다. challengeId는 Session에 고정된 버전의 FLAG challenge여야 하며 아니면 422다. Session당 최근 1분 오답이 10건이면 429 `RATE_LIMITED`와 `Retry-After: 60`을 반환한다. raw flag를 echo하지 않는다. FLAG 요청은 서버가 메모리 안에서 HMAC 검증 후 jobId·challengeId·검증 결과를 가진 서명된 private receipt를 만들고 그 참조만 저장한다. 비동기 verifier는 receipt와 독립 목표 관측을 확인한다. 구현: 일치 여부는 Session의 살아 있는(desired RUNNING) Lab generation별 nonce로만 계산하므로 다른 Session·종료된 Lab의 플래그는 일치하지 않는다. receipt는 flag 원문 없이 matched·labId·generation·keyVersion을 담고 HMAC으로 서명한다. 판정: 불일치 FAIL, 일치+관측 PASS, 일치+관측 없음 SYSTEM_ERROR(objective INCONCLUSIVE), 관측 수집 실패·receipt 검증 실패는 재시도 후 SYSTEM_ERROR. Evaluation의 `demo`는 fake worker나 격리가 검증되지 않은 runtime의 결과에서 true이며 Lab의 `isolationVerified`가 false이면 그 Session 결과는 모두 demo다. 최초 입력은 request digest 계산 뒤 폐기하고 raw flag를 DB·artifact·Outbox에 보관하지 않는다.
 
 MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다. 5 MiB 압축/20 MiB 해제 한도는 후속 bundle 업로드의 자원 상한이며 현재 공개 API가 그 크기의 inline 요청을 허용한다는 뜻이 아니다. 큰 저장소 과제는 scoped upload 완료·digest 검증 계약을 추가한 뒤 지원한다. export/deletion 비동기 receipt의 pollPath는 본인 job을 조회하는 `/v1/async-jobs/{id}`다. export 완료 응답의 downloadPath는 owner 검사를 하는 플랫폼 경로이고 raw store signed URL을 장기 보관하지 않는다.
 
 ## 페이징과 실시간
 
-카탈로그 cursor는 정렬키 publishedAt+id와 filter digest를 서명한 opaque 값이다. Evidence는 immutable seq 기반 afterSeq를 사용한다. SSE `/sessions/{id}/stream`은 cookie 인증으로 접속하고 event id에 seq를 사용한다. `Last-Event-ID` 이후부터 권한 필터된 이벤트를 제공하며 보관 범위 밖이면 410과 REST 재동기화 안내를 반환한다. SSE가 없으면 동일 REST evidence endpoint로 backoff polling한다.
+카탈로그 cursor는 정렬키 publishedAt+id와 filter digest를 서명한 opaque 값이다(구현: 프로세스별 HMAC 키라 재시작 후 cursor는 422). Evidence는 immutable seq 기반 afterSeq를 사용한다. SSE `/sessions/{id}/stream`은 cookie 인증으로 접속하고 event id에 seq를 사용한다. `Last-Event-ID` 이후부터 권한 필터된 이벤트를 제공하며 보관 범위 밖이면 410과 REST 재동기화 안내를 반환한다. SSE가 없으면 동일 REST evidence endpoint로 backoff polling한다.
 
 ## 오류 봉투
 
@@ -688,7 +688,7 @@ MVP inline PATCH 제출은 다른 JSON 요청과 같이 총 256 KiB 제한이다
 
 `POST /internal/jobs/{id}/claim`은 workload identity, attempt, workerId로 lease와 fencing token을 반환한다. heartbeat는 token 일치 시 30초 연장한다. `POST /internal/jobs/{id}/result`는 token, resultDigest, artifactRefs, verdictSummary를 받아 202 또는 stale 409를 반환한다. ingest는 job에 허용된 객체 key·크기·digest만 수신한다. Runner는 arbitrary URL fetch나 DB 접근 권한이 없다.
 
-Lab 내부 API(workload bearer, `runner_credentials`): AGENT는 `POST /internal/v1/lab-jobs/{claim,start,heartbeat,provisioned,provision-failed,terminated,cleanup-failed}`와 `POST /internal/v1/labs/reconcile`, GATEWAY는 `GET /internal/v1/gateway/labs/{labId}`와 `POST /internal/v1/gateway/labs/{labId}/activity`만 호출한다. 다른 `/internal/**` 경로와 learner cookie·operator bearer는 거절한다. 모든 callback은 lease의 workerId·fencing token이 일치해야 하며 오래된 token은 `STALE`을 받는다. CLEANUP job은 그 Lab을 만든 runner에게만 배정한다. connect URL은 별도 origin Lab Gateway의 `/connect?token=`이며 token은 labId·generation·owner·만료·nonce를 담은 Ed25519 서명 값으로 60초·1회용이다. 운영 중지는 `POST /ops/v1/labs/{labId}/stop`(OPERATOR·SECURITY_ADMIN)이다. mTLS workload identity(D-17)는 미구현이다.
+채점 내부 API(AGENT): `POST /internal/v1/grade-jobs/{claim,start,heartbeat,observed}`. FLAG GRADE job은 그 Lab을 호스팅한 runner에게만 배정되고 runner는 flag 일치 여부를 받지 않은 채 target의 서버 측 접근 기록을 관측해 보고한다. 일반 worker(fake 포함)는 FLAG job을 받지 않는다. Lab 내부 API(workload bearer, `runner_credentials`): AGENT는 `POST /internal/v1/lab-jobs/{claim,start,heartbeat,provisioned,provision-failed,terminated,cleanup-failed}`와 `POST /internal/v1/labs/reconcile`, GATEWAY는 `GET /internal/v1/gateway/labs/{labId}`와 `POST /internal/v1/gateway/labs/{labId}/activity`만 호출한다. 다른 `/internal/**` 경로와 learner cookie·operator bearer는 거절한다. 모든 callback은 lease의 workerId·fencing token이 일치해야 하며 오래된 token은 `STALE`을 받는다. CLEANUP job은 그 Lab을 만든 runner에게만 배정한다. connect URL은 별도 origin Lab Gateway의 `/connect?token=`이며 token은 labId·generation·owner·만료·nonce를 담은 Ed25519 서명 값으로 60초·1회용이다. 운영 중지는 `POST /ops/v1/labs/{labId}/stop`(OPERATOR·SECURITY_ADMIN)이다. mTLS workload identity(D-17)는 미구현이다.
 
 운영 재채점은 별도 `/ops/rejudge-requests`의 dry-run·approve·execute로 나누고 출판은 `/ops/scenario-versions/{id}/approve`를 사용한다. 콘텐츠 내부 API(operator bearer): `POST /ops/v1/content/bundles`(AUTHOR, 서명 번들 등록 → DRAFT), `POST /ops/v1/scenario-versions/{id}/validations`(AUTHOR·REVIEWER, 검증 보고서), `POST /ops/v1/scenario-versions/{id}/approve`(작성자가 아닌 REVIEWER), `POST /ops/v1/scenario-versions/{id}/quarantine`(OPERATOR·SECURITY_ADMIN·REVIEWER). 학습자 `GET /scenarios/{id}`는 PUBLISHED 버전의 공개 manifest 필드만 반환한다. MVP 공개 OpenAPI에 운영자·내부 endpoint를 포함하지 않는 이유는 독립 인증과 네트워크 경계를 유지하기 위해서다. 구현 전에 각각 전용 스키마를 추가한다.
 
