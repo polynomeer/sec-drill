@@ -24,7 +24,13 @@ class SubmissionRequest private constructor(
     val byteSize: Int,
     /** FLAG content, held in memory for the HMAC check and then dropped (15). Never stored or logged. */
     val flag: FlagContent?,
+    /** PATCH content (OpenAPI PatchSubmission); paths are checked against the pinned manifest by the service. */
+    val patch: PatchContent? = null,
 ) {
+    class PatchContent(val files: Map<String, String>, val explanation: String) {
+        override fun toString() = "PatchContent(files=${files.keys}, explanation=<${explanation.length} chars>)"
+    }
+
     class FlagContent(val challengeId: UUID, val value: String) {
         override fun toString() = "FlagContent(challengeId=$challengeId, value=<redacted>)"
     }
@@ -47,6 +53,7 @@ class SubmissionRequest private constructor(
             val content = body["content"]
             if (content == null || !content.isObject) errors += FieldError("content", "must be an object")
             if (kind == SubmissionKind.FLAG && content != null && content.isObject) errors += flagErrors(content)
+            if (kind == SubmissionKind.PATCH && content != null && content.isObject) errors += patchErrors(content)
             if (errors.isNotEmpty()) invalid(errors)
 
             val digest = try {
@@ -55,7 +62,10 @@ class SubmissionRequest private constructor(
                 invalid(listOf(FieldError("$", "values must be strings, booleans, null, objects, arrays or safe integers")))
             }
             val flag = if (kind == SubmissionKind.FLAG) FlagContent(Uuids.parse(content!!["challengeId"].asString()), content["flag"].asString()) else null
-            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag)
+            val patch = if (kind == SubmissionKind.PATCH) {
+                PatchContent(content!!["files"].properties().associate { it.key to it.value.asString() }, content["explanation"].asString())
+            } else null
+            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag, patch)
         }
 
         private fun flagErrors(content: JsonNode): List<FieldError> = buildList {
@@ -66,6 +76,18 @@ class SubmissionRequest private constructor(
             }
             val flag = content["flag"]
             if (flag == null || !flag.isString || flag.asString().length !in 1..256) add(FieldError("content.flag", "must be 1-256 characters"))
+        }
+
+        private fun patchErrors(content: JsonNode): List<FieldError> = buildList {
+            (content.propertyNames().toSet() - setOf("files", "explanation")).forEach { add(FieldError("content.$it", "unknown field")) }
+            val files = content["files"]
+            if (files == null || !files.isObject || files.size() !in 1..100) {
+                add(FieldError("content.files", "must map 1-100 file paths to their full text"))
+            } else if (files.properties().any { !it.value.isString || it.value.asString().length > 200_000 || '\u0000' in it.value.asString() }) {
+                add(FieldError("content.files", "every file must be text of at most 200000 characters"))
+            }
+            val explanation = content["explanation"]
+            if (explanation == null || !explanation.isString || explanation.asString().length > 8192) add(FieldError("content.explanation", "must be at most 8192 characters"))
         }
 
         private fun invalid(errors: List<FieldError>): Nothing =

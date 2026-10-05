@@ -28,7 +28,9 @@ class Fixtures(
         return Learner(user, sessions.start(user))
     }
 
-    fun activeSession(owner: UserId): UUID {
+    fun activeSession(owner: UserId): UUID = activeSession(owner, FIXTURE_MANIFEST, "CTF")
+
+    fun activeSession(owner: UserId, manifest: String, mode: String): UUID {
         val scenario = UUID.randomUUID()
         val version = UUID.randomUUID()
         val session = UUID.randomUUID()
@@ -36,11 +38,11 @@ class Fixtures(
         jdbc.sql(
             """INSERT INTO scenario_versions(id, scenario_id, version_no, status, content_digest, oracle_digest, oracle_key,
                rubric_version, engine_version, randomization_version, public_manifest) VALUES (?, ?, 1, 'DRAFT', ?, ?, 'o', 'r', 'e', 'x', ?::jsonb)""",
-        ).params(version, scenario, digest, digest, FIXTURE_MANIFEST).update()
+        ).params(version, scenario, digest, digest, manifest).update()
         jdbc.sql(
             """INSERT INTO sessions(id, owner_id, scenario_version_id, mode, status, phase, seed, rubric_version, engine_version, randomization_version)
-               VALUES (?, ?, ?, 'CTF', 'ACTIVE', 'ATTACK', '\x01', 'r', 'e', 'x')""",
-        ).params(session, owner.value, version).update()
+               VALUES (?, ?, ?, ?, 'ACTIVE', 'ATTACK', '\x01', 'r', 'e', 'x')""",
+        ).params(session, owner.value, version, mode).update()
         return session
     }
 

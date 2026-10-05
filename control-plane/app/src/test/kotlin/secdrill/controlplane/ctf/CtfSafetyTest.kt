@@ -22,6 +22,14 @@ class CtfSafetyTest {
     }
 
     @Test
+    fun `prod refuses unverified patch grading and only grading-strong may claim verification`() {
+        val override = secdrill.controlplane.submission.GradingSafetyCheck(prod, secdrill.controlplane.submission.GradingProperties(allowUnverifiedIsolation = true))
+        assertTrue("prod cannot grade on unverified isolation" in assertFailsWith<IllegalStateException> { override.afterSingletonsInstantiated() }.message!!)
+        val claimed = secdrill.controlplane.submission.GradingSafetyCheck(MockEnvironment(), secdrill.controlplane.submission.GradingProperties(isolationVerified = true))
+        assertTrue("only the grading-strong profile" in assertFailsWith<IllegalStateException> { claimed.afterSingletonsInstantiated() }.message!!)
+    }
+
+    @Test
     fun `prod needs configured flag keys and keys must be long enough`() {
         assertTrue("prod requires secdrill.ctf.keys" in assertFailsWith<IllegalStateException> { CtfSafetyCheck(prod, CtfProperties()).afterSingletonsInstantiated() }.message!!)
         val short = CtfProperties(keys = mapOf("k1" to Base64.getUrlEncoder().encodeToString(ByteArray(16))), activeKey = "k1")

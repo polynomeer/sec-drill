@@ -1,0 +1,11 @@
+{
+  "login": {"username": "alice", "password": "lab-alice"},
+  "tests": [
+    {"id": "direct-other-tenant", "request": {"method": "GET", "path": "/api/orders/1003", "auth": true, "headers": {"X-Tenant": "contoso"}}, "expect": {"statusIn": [403, 404]}},
+    {"id": "list-other-tenant", "request": {"method": "GET", "path": "/api/orders?tenant=contoso", "auth": true, "headers": {"X-Tenant": "contoso"}}, "expect": {"statusIn": [200, 403, 404], "idsExclude": [1003, 1004]}},
+    {"id": "legacy-route-other-tenant", "request": {"method": "GET", "path": "/api/v1/orders/1004", "auth": true, "headers": {}}, "expect": {"statusIn": [403, 404]}},
+    {"id": "unauthenticated-read", "request": {"method": "GET", "path": "/api/orders/1001", "auth": false, "headers": {}}, "expect": {"statusIn": [401]}},
+    {"id": "own-tenant-read", "request": {"method": "GET", "path": "/api/orders/1001", "auth": true, "headers": {}}, "expect": {"statusIn": [200], "idsInclude": [1001]}},
+    {"id": "own-tenant-list", "request": {"method": "GET", "path": "/api/orders", "auth": true, "headers": {}}, "expect": {"statusIn": [200], "idsInclude": [1001, 1002], "idsExclude": [1003, 1004]}}
+  ]
+}

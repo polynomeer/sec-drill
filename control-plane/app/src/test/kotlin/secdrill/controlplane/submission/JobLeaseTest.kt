@@ -149,13 +149,13 @@ class JobLeaseTest {
     }
 
     @Test
-    fun `invalid content fails immediately as SYSTEM_ERROR and a patch gate stays INCONCLUSIVE`() {
-        val (submission, job) = dispatchedJob(kind = "PATCH")
+    fun `invalid content fails immediately as SYSTEM_ERROR without retry`() {
+        // PATCH grading and its INCONCLUSIVE patch gate are covered by PatchGradingTest (only grading runners take PATCH jobs).
+        val (submission, job) = dispatchedJob()
         FakeGradingWorker(jobs) { FakeStep.ContentInvalid }.runOnce()
         assertEquals("FAILED", state(job))
         assertEquals(1, fixtures.count("SELECT attempt FROM jobs WHERE id = ?", job))
         assertEquals("SYSTEM_ERROR", activeVerdict(submission))
-        assertEquals("INCONCLUSIVE", fixtures.string("SELECT patch_gate FROM evaluations WHERE submission_id = ?", submission))
     }
 
     @Test

@@ -1,18 +1,12 @@
 package secdrill.controlplane.submission
 
-import org.springframework.http.ResponseEntity
 import org.springframework.jdbc.core.simple.JdbcClient
-import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RestController
 import secdrill.controlplane.ctf.FlagService
 import secdrill.controlplane.evidence.ArtifactService
 import secdrill.controlplane.evidence.ArtifactStore
 import secdrill.controlplane.evidence.LedgerAppender
-import secdrill.controlplane.identity.WorkloadPrincipal
 import secdrill.controlplane.platform.AsyncProperties
 import secdrill.controlplane.platform.SystemAudit
 import secdrill.execution.protocol.Ack
@@ -131,7 +125,7 @@ class CtfGradingService(
         """SELECT sv.public_manifest::text, sv.oracle_key FROM submissions s JOIN sessions se ON se.id = s.session_id
            JOIN scenario_versions sv ON sv.id = se.scenario_version_id WHERE s.id = ?""",
     ).param(submission).query { rs, _ -> rs.getString(1) to rs.getString(2) }.optional().orElse(null)?.let { (manifest, oracleKey) ->
-        val oracle = store.get(oracleKey)?.let { runCatching { json.readTree(it)["oracle"] }.getOrNull() }
+        val oracle = runCatching { store.get(oracleKey) }.getOrNull()?.let { runCatching { json.readTree(it)["oracle"] }.getOrNull() }
         json.readTree(manifest) to oracle
     }
 
@@ -166,31 +160,10 @@ class CtfGradingService(
             ).param(submission).query(Boolean::class.java).single()
         }
 
-    private fun holds(runnerId: String, lease: JobLease) = jobs.leaseHolder(lease) == runnerId
+    internal fun holds(runnerId: String, lease: JobLease) = jobs.leaseHolder(lease) == runnerId
 
-    private fun stale(runnerId: String, lease: JobLease, action: String): Ack {
+    internal fun stale(runnerId: String, lease: JobLease, action: String): Ack {
         audit.record("stale grade report", "rejected $action from runner $runnerId for job ${lease.jobId} token ${lease.fencingToken}")
         return Ack.STALE
     }
-}
-
-data class LeaseBody(val lease: JobLease)
-data class ObservedBody(val lease: JobLease, val observation: ObjectiveObservation)
-
-/** Internal grading API for runners (AGENT credential, ADR 0008). */
-@RestController
-class GradeJobController(private val grading: CtfGradingService) {
-    @PostMapping("/internal/v1/grade-jobs/claim")
-    fun claim(@AuthenticationPrincipal runner: WorkloadPrincipal): ResponseEntity<GradeAssignment> =
-        grading.claim(runner.runnerId)?.let { ResponseEntity.ok(it) } ?: ResponseEntity.noContent().build()
-
-    @PostMapping("/internal/v1/grade-jobs/start")
-    fun start(@AuthenticationPrincipal runner: WorkloadPrincipal, @RequestBody body: LeaseBody) = mapOf("ack" to grading.start(runner.runnerId, body.lease))
-
-    @PostMapping("/internal/v1/grade-jobs/heartbeat")
-    fun heartbeat(@AuthenticationPrincipal runner: WorkloadPrincipal, @RequestBody body: LeaseBody) = mapOf("ack" to grading.heartbeat(runner.runnerId, body.lease))
-
-    @PostMapping("/internal/v1/grade-jobs/observed")
-    fun observed(@AuthenticationPrincipal runner: WorkloadPrincipal, @RequestBody body: ObservedBody) =
-        mapOf("ack" to grading.observed(runner.runnerId, body.lease, body.observation))
 }

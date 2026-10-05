@@ -77,8 +77,36 @@ interface JobControl {
  */
 data class ObjectiveTask(val labId: UUID, val generation: Int, val challengeKey: String, val requires: List<String>)
 
-/** A GRADE job for a runner: the lease plus, for FLAG submissions, the objective to observe (null: no live Lab). */
-data class GradeAssignment(val lease: JobLease, val objective: ObjectiveTask?)
+/**
+ * A PATCH grading run (20, T08). The runner builds a fresh grading environment from the content image: it never
+ * touches the learner's Lab. `files` are the learner's allowed files; `testPlan` is grader-only oracle data for the
+ * supervisor container and must never reach the patched app, a learner or a log ([toString] redacts both).
+ */
+data class PatchTask(
+    val image: String,
+    val files: Map<String, String>,
+    val testPlan: String,
+    val timeoutSeconds: Int,
+    val memoryMiB: Int,
+    val pids: Int,
+) {
+    override fun toString() = "PatchTask(image=$image, files=${files.keys}, testPlan=<redacted>)"
+}
+
+enum class PatchRunOutcome {
+    /** The patched app was built and the supervisor ran every test (results say which held). */
+    COMPLETED,
+    /** The learner's files do not compile. A user result (FAIL), not a platform error. */
+    COMPILE_FAILED,
+    /** Docker, image or supervisor trouble. Retried, then SYSTEM_ERROR / INCONCLUSIVE, never FAIL (00). */
+    PLATFORM_ERROR,
+}
+
+/** What the grading supervisor observed: per hidden test id, whether its expectation held. */
+data class PatchObservation(val outcome: PatchRunOutcome, val ready: Boolean, val results: Map<String, Boolean>, val outputDigest: String?)
+
+/** A GRADE job for a runner: the lease plus the objective to observe (FLAG) or the patch to grade (PATCH). */
+data class GradeAssignment(val lease: JobLease, val objective: ObjectiveTask?, val patch: PatchTask? = null)
 
 /**
  * Independent observation of the target (supervisor-side access records, not learner output).
@@ -89,8 +117,10 @@ data class ObjectiveObservation(val observed: Boolean?, val matchingRecords: Int
 
 /** Runner side of grading over the internal API (AGENT credential). */
 interface GradeControl {
-    fun claim(): GradeAssignment?
+    /** [kinds] is what this runner can grade: FLAG needs the Lab it hosts, PATCH needs a grading runtime. */
+    fun claim(kinds: Set<secdrill.kernel.SubmissionKind>): GradeAssignment?
     fun start(lease: JobLease): Ack
     fun heartbeat(lease: JobLease): Ack
     fun observed(lease: JobLease, observation: ObjectiveObservation): Ack
+    fun patchResult(lease: JobLease, observation: PatchObservation): Ack
 }

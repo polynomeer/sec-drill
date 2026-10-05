@@ -58,7 +58,8 @@ JDK 21과 실행 중인 Docker가 필요하다. 통합 테스트는 PostgreSQL�
 | `LocalTrustedIsolationTest` | 실제 Docker의 local-trusted adapter: hardening·seccomp·namespace 거절, egress IPv4·IPv6·DNS·metadata·Control·다른 Lab 차단(양성 대조 포함), PID·memory·output 제한, Control 장애 중 hard TTL, late runtime 회수, 위조 label 미삭제 | **strong isolation(microVM)**, rootless daemon, Linux host |
 | `LabGatewayTest` | 1회용 connect token·서명 검증, cookie 속성, credential header 제거, Lab의 access cookie 덮어쓰기 차단, CONNECT·absolute-form 거절, 중지 후 차단, allowlist 밖 거절 | Gateway→runner network 경로, 터미널 websocket, 다중 Gateway |
 | `CtfFlowTest` | 합성 tenant-orders 이미지·Gateway·내부 API로 T07 흐름(정상 접근, 플래그 획득, 독립 관측 PASS, demo 표시, replay·중복 결과, DB·로그의 flag 부재, oracle 비노출, finish 회수), 다른 Session·종료 Lab 플래그 FAIL, 관측 없는 정답 SYSTEM_ERROR, 변조 receipt, 오답 429, Session·catalog API, 응답의 OpenAPI 필드 일치 | strong runtime, guest 밖 관측, 브라우저 UI 전체 흐름 |
-| `UnverifiedIsolationRefusedTest`·`CtfSafetyTest`·`FlagServiceTest` | override 없이는 strong 요구 Lab 503, prod의 override·flag key 누락 거부, 플래그 결속·receipt 서명 | 키 회전 |
+| `PatchGradingTest` | 실제 Docker의 분리된 grading 환경과 외부 supervisor로 참조 패치 VERIFIED, 무수정·전부 거절·한 경로만·클라이언트 tenant·결과 조작·compile 오류 NOT_VERIFIED와 해당 gate, 탈출 probe로 grading 환경 출구 없음, 허용 경로·bundle digest, platform 오류·부분 결과·중복 결과·자료 누락 처리, hidden 정보 비노출 | grading-strong, 채점 감지형 패치 |
+| `UnverifiedIsolationRefusedTest`·`CtfSafetyTest`·`FlagServiceTest` | override 없이는 strong 요구 Lab·PATCH 제출 503, prod의 override·flag key 누락 거부, 플래그 결속·receipt 서명 | 키 회전 |
 | `CanonicalJsonTest` | RFC 8785 벡터와 Evidence hash를 Python 구현과 동일하게 계산 | TypeScript 구현 |
 | `AuthSafetyTest` | dev-login을 local 밖이나 prod와 함께 켜면, prod에 OIDC·https origin이 없으면 기동 실패 | 운영 배포 설정 |
 

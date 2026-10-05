@@ -2,7 +2,11 @@ package secdrill.execution.agent
 
 import secdrill.execution.protocol.CleanupReceipt
 import secdrill.execution.protocol.LabSpec
+import secdrill.execution.protocol.PatchObservation
+import secdrill.execution.protocol.PatchRunOutcome
+import secdrill.execution.protocol.PatchTask
 import secdrill.execution.protocol.ProvisionedLab
+import secdrill.kernel.Digests
 import tools.jackson.databind.json.JsonMapper
 import java.io.InputStream
 import java.time.Clock
@@ -146,6 +150,94 @@ class LocalTrustedDockerAdapter(
     override fun exec(labId: UUID, generation: Int, argv: List<String>): ExecResult =
         run(listOf("exec", name(labId, generation)) + argv, check = false, timeoutSeconds = 60)
 
+    private val driverScript: String by lazy {
+        checkNotNull(javaClass.getResourceAsStream("/secdrill/agent/grading-driver.py")) { "grading driver missing" }.use { it.readBytes().toString(Charsets.UTF_8) }
+    }
+
+    /**
+     * Patch grading on the local-trusted profile (20, T08, ADR 0009). NOT the grading-strong microVM.
+     *
+     * A fresh environment per job attempt, never the learner's Lab: an `--internal` network with no route out, a
+     * volume holding only the learner's allowed files (written by a platform helper with no network), a compile step
+     * in its own no-network container, the patched app, and a separate supervisor container that sends the hidden
+     * tests and judges responses. The patched app never sees the test plan and cannot write the supervisor's output.
+     * Everything is removed afterwards, whatever happened.
+     */
+    fun gradePatch(jobId: UUID, attempt: Int, task: PatchTask): PatchObservation {
+        val base = "grade-$jobId-$attempt"
+        val expires = clock.instant().epochSecond + task.timeoutSeconds + 300
+        val tag = labels(jobId, attempt, expires, "grading")
+        val pathPattern = Regex("^[A-Za-z0-9_][A-Za-z0-9_./-]{0,199}$")
+        require(task.files.keys.all { pathPattern.matches(it) && ".." !in it.split("/") }) { "patch paths must be validated before grading" }
+        require(Regex("^sha256:[a-f0-9]{64}$").matches(task.image)) { "grading image must be a sha256 digest" }
+        val helper = checkNotNull(defaultImage) { "no helper image for grading" }
+        val driverImage = checkNotNull(relayImage) { "no supervisor image for grading" }
+        return try {
+            run(listOf("network", "create", "--internal") + tag + base)
+            run(listOf("volume", "create") + tag + base)
+            // The helper runs as root without capabilities so it can write the root-owned volume; the app reads it read-only.
+            task.files.forEach { (path, content) ->
+                run(
+                    listOf("run", "--rm", "-i", "--network", "none", "-v", "$base:/w") + hardening(32, 64, 1).filterNot { it == "65534:65534" || it == "--user" } +
+                        listOf("--user", "0:0") + tag + listOf(helper, "sh", "-c", "mkdir -p \"$(dirname \"$1\")\" && cat > \"$1\"", "sh", "/w/$path"),
+                    input = content.toByteArray(Charsets.UTF_8),
+                )
+            }
+            val prepare = "cp -r /app/. /tmp/w/ && cp -r /patch/. /tmp/w/ && cd /tmp/w"
+            val compiled = run(
+                listOf("run", "--rm", "--network", "none", "-v", "$base:/patch:ro") + hardening(task.pids, task.memoryMiB, 1) + tag +
+                    // Same hardening as the app container: fail closed (exit 99) unless the seccomp filter is active.
+                    listOf(task.image, "sh", "-c", "grep -q '^Seccomp:[[:space:]]*2' /proc/self/status || exit 99; { $prepare; } || exit 98; python -m compileall -q app >/dev/null 2>&1 || exit 3"),
+                check = false, timeoutSeconds = 60,
+            )
+            // Only exit 3 is the learner's compile error; Docker (125-127) and setup failures are platform errors.
+            when (compiled.exitCode) {
+                0 -> Unit
+                3 -> return PatchObservation(PatchRunOutcome.COMPILE_FAILED, false, emptyMap(), null)
+                else -> return PatchObservation(PatchRunOutcome.PLATFORM_ERROR, false, emptyMap(), null)
+            }
+            run(
+                listOf("run", "-d", "--name", "$base-app", "--hostname", "app", "--network", base, "--network-alias", "app", "-v", "$base:/patch:ro") +
+                    hardening(task.pids, task.memoryMiB, 1) + tag + listOf(task.image, "sh", "-c", "$prepare && exec python -m app.server"),
+            )
+            val plan = json.readTree(task.testPlan) as tools.jackson.databind.node.ObjectNode
+            plan.put("readyTimeoutSeconds", 20)
+            val supervised = run(
+                listOf("run", "--rm", "-i", "--network", base) + hardening(64, 128, 1) + tag + listOf(driverImage, "python", "-c", driverScript),
+                check = false, timeoutSeconds = task.timeoutSeconds.toLong(), input = json.writeValueAsBytes(plan),
+            )
+            val report = runCatching { json.readTree(supervised.output.trim().lines().last()) }.getOrNull()
+            if (supervised.exitCode != 0 || supervised.truncated || report?.get("results")?.isObject != true) {
+                return PatchObservation(PatchRunOutcome.PLATFORM_ERROR, false, emptyMap(), null)
+            }
+            val results = report["results"].properties().associate { it.key to it.value.asBoolean() }
+            PatchObservation(PatchRunOutcome.COMPLETED, report["ready"]?.asBoolean() == true, results, Digests.sha256Hex(supervised.output.toByteArray()))
+        } catch (error: Exception) {
+            PatchObservation(PatchRunOutcome.PLATFORM_ERROR, false, emptyMap(), null)
+        } finally {
+            run(listOf("rm", "-f", "-v", "$base-app"), check = false)
+            run(listOf("network", "rm", base), check = false)
+            run(listOf("volume", "rm", "-f", base), check = false)
+        }
+    }
+
+    /** Grading resources this runner owns whose hard expiry passed (a crashed run); removed by label, after the signature check. */
+    fun reclaimExpiredGrading(): List<String> {
+        val removed = mutableListOf<String>()
+        listOf("container" to listOf("ps", "-aq"), "network" to listOf("network", "ls", "-q"), "volume" to listOf("volume", "ls", "-q")).forEach { (kind, lister) ->
+            run(lister + listOf("--filter", "label=$L.runner=$runnerId", "--filter", "label=$L.role=grading"), check = false).output.lines().filter { it.isNotBlank() }.forEach { ref ->
+                val format = if (kind == "container") "{{json .Config.Labels}}" else "{{json .Labels}}"
+                val labels = run(listOf(kind, "inspect", "--format", format, ref), check = false).takeIf { it.exitCode == 0 }
+                    ?.let { json.readTree(it.output.trim()).properties().associate { p -> p.key to p.value.asString() } } ?: return@forEach
+                val owned = signedLabels(labels) ?: return@forEach
+                if (owned.hardExpiresAt.isAfter(clock.instant())) return@forEach
+                val remove = when (kind) { "container" -> listOf("rm", "-f", "-v", ref); "network" -> listOf("network", "rm", ref); else -> listOf("volume", "rm", "-f", ref) }
+                if (run(remove, check = false).exitCode == 0) removed += "$kind:$ref"
+            }
+        }
+        return removed
+    }
+
     /** Raw inspect of a runtime's Docker settings, for isolation verification. */
     fun inspect(labId: UUID, generation: Int): String = run(listOf("inspect", name(labId, generation))).output
 
@@ -158,7 +250,10 @@ class LocalTrustedDockerAdapter(
         return json.readTree(result.output.trim()).properties().associate { it.key to it.value.asString() }
     }
 
-    private fun ownedFrom(labels: Map<String, String>): OwnedRuntime? {
+    /** Lab runtimes only; grading resources are reclaimed separately ([reclaimExpiredGrading]). */
+    private fun ownedFrom(labels: Map<String, String>): OwnedRuntime? = if (labels["$L.role"] == "grading") null else signedLabels(labels)
+
+    private fun signedLabels(labels: Map<String, String>): OwnedRuntime? {
         val labId = labels["$L.lab"]?.let { runCatching { UUID.fromString(it) }.getOrNull() } ?: return null
         val generation = labels["$L.generation"]?.toIntOrNull() ?: return null
         val expires = labels["$L.hard-expires-at"]?.toLongOrNull() ?: return null
@@ -167,8 +262,12 @@ class LocalTrustedDockerAdapter(
     }
 
     /** argv only, never a shell string; output is drained concurrently and capped at [OUTPUT_LIMIT]. */
-    private fun run(args: List<String>, check: Boolean = true, timeoutSeconds: Long = 120, environment: Map<String, String> = emptyMap()): ExecResult {
-        val process = ProcessBuilder(listOf(docker) + args).redirectErrorStream(true).also { it.environment().putAll(environment) }.start()
+    private fun run(
+        args: List<String>, check: Boolean = true, timeoutSeconds: Long = 120, environment: Map<String, String> = emptyMap(), input: ByteArray? = null,
+    ): ExecResult {
+        val process = ProcessBuilder(listOf(docker) + args).redirectErrorStream(true).also { it.environment().putAll(environment) }
+            .also { if (input == null) it.redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null"))) }.start()
+        if (input != null) process.outputStream.use { it.write(input) }
         val capture = BoundedCapture(process.inputStream).also { it.start() }
         if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
             process.destroyForcibly()

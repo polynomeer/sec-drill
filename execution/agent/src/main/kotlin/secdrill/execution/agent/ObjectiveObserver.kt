@@ -6,6 +6,9 @@ import secdrill.execution.protocol.GradeControl
 import secdrill.execution.protocol.JobLease
 import secdrill.execution.protocol.ObjectiveObservation
 import secdrill.execution.protocol.ObjectiveTask
+import secdrill.execution.protocol.PatchObservation
+import secdrill.execution.protocol.PatchTask
+import secdrill.kernel.SubmissionKind
 import secdrill.kernel.Digests
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.KotlinModule
@@ -56,11 +59,29 @@ class ObjectiveObserver(private val runtime: RuntimeAdapter) {
     }
 }
 
-/** Grading loop of the runner that hosts the Lab (20). Holds no DB credentials; reaches Control over [GradeControl]. */
-class GradeAgent(private val control: GradeControl, private val observer: ObjectiveObserver) {
+/** Runs one patch grading task in a grading environment (T08). */
+fun interface PatchGrader {
+    fun grade(lease: JobLease, task: PatchTask): PatchObservation
+}
+
+/**
+ * Grading loop of a runner (20). Holds no DB credentials; reaches Control over [GradeControl]. FLAG jobs need the
+ * Lab this runner hosts; PATCH jobs are taken only when a [PatchGrader] is configured.
+ */
+class GradeAgent(private val control: GradeControl, private val observer: ObjectiveObserver, private val patches: PatchGrader? = null) {
+    private val kinds = setOfNotNull(SubmissionKind.FLAG, patches?.let { SubmissionKind.PATCH })
+
     fun runOnce(): GradeAssignment? {
-        val assignment = control.claim() ?: return null
+        val assignment = control.claim(kinds) ?: return null
         if (control.start(assignment.lease) == Ack.STALE) return assignment
+        val patch = assignment.patch
+        if (patch != null) {
+            val grader = checkNotNull(patches) { "received a PATCH job without a grader" }
+            val observation = grader.grade(assignment.lease, patch)
+            if (control.heartbeat(assignment.lease) == Ack.STALE) return assignment
+            control.patchResult(assignment.lease, observation)
+            return assignment
+        }
         val observation = assignment.objective?.let(observer::observe) ?: ObjectiveObservation(false, 0, null)
         if (control.heartbeat(assignment.lease) == Ack.STALE) return assignment
         control.observed(assignment.lease, observation)
@@ -86,9 +107,12 @@ class HttpGradeControl(private val baseUrl: String, private val credential: Stri
 
     private fun ack(path: String, body: Any) = Ack.valueOf(json.readTree(post(path, body).body())["ack"].asString())
 
-    override fun claim(): GradeAssignment? = post("/internal/v1/grade-jobs/claim", null).let { if (it.statusCode() == 204) null else json.readValue(it.body()) }
+    override fun claim(kinds: Set<SubmissionKind>): GradeAssignment? =
+        post("/internal/v1/grade-jobs/claim", mapOf("kinds" to kinds)).let { if (it.statusCode() == 204) null else json.readValue(it.body()) }
     override fun start(lease: JobLease) = ack("/internal/v1/grade-jobs/start", mapOf("lease" to lease))
     override fun heartbeat(lease: JobLease) = ack("/internal/v1/grade-jobs/heartbeat", mapOf("lease" to lease))
     override fun observed(lease: JobLease, observation: ObjectiveObservation) =
         ack("/internal/v1/grade-jobs/observed", mapOf("lease" to lease, "observation" to observation))
+    override fun patchResult(lease: JobLease, observation: PatchObservation) =
+        ack("/internal/v1/grade-jobs/patch-result", mapOf("lease" to lease, "observation" to observation))
 }

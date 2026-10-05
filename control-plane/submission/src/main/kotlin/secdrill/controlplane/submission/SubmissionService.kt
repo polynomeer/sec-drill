@@ -69,6 +69,7 @@ class SubmissionService(
     private val flags: FlagService,
     private val ctf: CtfProperties,
     private val artifacts: ArtifactService,
+    private val grading: GradingProperties,
     private val json: JsonMapper,
     private val clock: Clock,
 ) {
@@ -89,18 +90,20 @@ class SubmissionService(
         guard.requireOwned(principal, OwnedResource.SESSION, sessionId)
         val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
         request.flag?.let { requireFlagAllowed(sessionId, it, now) }
+        request.patch?.let { requirePatchAllowed(sessionId, it) }
         val sessionVersion = casSession(sessionId, owner, request.expectedVersion)
 
         val submissionId = UUID.randomUUID()
         val jobId = UUID.randomUUID()
         // FLAG (15, 09): check the HMAC in memory, keep a signed receipt in the private store, drop the raw flag.
-        val flagCheck = request.flag?.let { checkFlag(sessionId, submissionId, jobId, it, now) }
+        val checked = request.flag?.let { checkFlag(sessionId, submissionId, jobId, it, now) }
+            ?: request.patch?.let { storePatch(sessionId, it) }
         jdbc.sql(
             """INSERT INTO submissions(id, session_id, kind, client_request_id, request_digest, status, safe_metadata, created_at, artifact_id)
                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)""",
         ).params(
             listOf(submissionId, sessionId, request.kind.name, idempotencyKey, request.digest, SubmissionStatus.ACCEPTED.name,
-                json.writeValueAsString(flagCheck?.metadata ?: emptyMap<String, Any>()), now.atOffset(ZoneOffset.UTC), flagCheck?.receiptId),
+                json.writeValueAsString(checked?.metadata ?: emptyMap<String, Any>()), now.atOffset(ZoneOffset.UTC), checked?.artifactId),
         ).update()
         jdbc.sql("INSERT INTO jobs(id, submission_id, session_id, kind, state, due_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
             .params(jobId, submissionId, sessionId, JobKind.GRADE.name, JobState.PENDING.name, now.atOffset(ZoneOffset.UTC), now.atOffset(ZoneOffset.UTC))
@@ -121,7 +124,7 @@ class SubmissionService(
                 "jobId" to jobId.toString(),
                 "kind" to request.kind.name,
                 // Content storage arrives with T09; until then the bundle is identified by its request digest only.
-                "bundleRef" to mapOf("key" to "submission-request/$submissionId", "digest" to request.digest, "byteSize" to request.byteSize),
+                "bundleRef" to (checked?.bundleRef ?: mapOf("key" to "submission-request/$submissionId", "digest" to request.digest, "byteSize" to request.byteSize)),
             ),
         )
         val reply = HttpReply(
@@ -133,7 +136,42 @@ class SubmissionService(
         return reply
     }
 
-    private class FlagCheck(val receiptId: UUID, val metadata: Map<String, Any?>)
+    private class ContentCheck(val artifactId: UUID, val metadata: Map<String, Any?>, val bundleRef: Map<String, Any>? = null)
+
+    /**
+     * PATCH (08, 20): only the pinned manifest's allowed paths, a mode with a patch phase, and a grading runtime that
+     * is verified or explicitly allowed for development (fail closed otherwise).
+     */
+    private fun requirePatchAllowed(sessionId: UUID, patch: SubmissionRequest.PatchContent) {
+        val (mode, manifestText) = jdbc.sql("SELECT s.mode, sv.public_manifest::text FROM sessions s JOIN scenario_versions sv ON sv.id = s.scenario_version_id WHERE s.id = ?")
+            .param(sessionId).query { rs, _ -> rs.getString(1) to rs.getString(2) }.single()
+        val spec = json.readTree(manifestText)["patch"]
+        if (spec == null || mode !in setOf("PATCH", "PURPLE")) throw ApiException(ErrorCode.UNSUPPORTED_MODE, "This Session does not take patches")
+        val allowed = spec["allowedPaths"]?.values()?.map { it.asString() }?.toSet().orEmpty()
+        val maxFiles = spec["maxFiles"]?.asInt() ?: 100
+        val errors = mutableListOf<FieldError>()
+        if (patch.files.keys.any { it !in allowed }) errors += FieldError("content.files", "only the scenario's allowed paths may be changed")
+        if (patch.files.size > maxFiles) errors += FieldError("content.files", "at most $maxFiles files")
+        val expanded = patch.files.values.sumOf { it.toByteArray(Charsets.UTF_8).size.toLong() }
+        if (expanded > (spec["maxExpandedBytes"]?.asLong() ?: Long.MAX_VALUE)) errors += FieldError("content.files", "files are too large")
+        if (errors.isNotEmpty()) throw ApiException(ErrorCode.VALIDATION_FAILED, "Submission is invalid", ErrorDetails(fieldErrors = errors))
+        if (!grading.isolationVerified && !grading.allowUnverifiedIsolation) {
+            throw ApiException(ErrorCode.SERVICE_UNAVAILABLE, "No grading runtime with the required isolation is available")
+        }
+    }
+
+    /** Canonical bundle (20): files by path with their SHA-256, plus the explanation digest; stored as the learner's artifact. */
+    private fun storePatch(sessionId: UUID, patch: SubmissionRequest.PatchContent): ContentCheck {
+        val manifest = patch.files.toSortedMap().map { (path, text) ->
+            val bytes = text.toByteArray(Charsets.UTF_8)
+            mapOf("path" to path, "sha256" to secdrill.kernel.Digests.sha256Hex(bytes), "byteSize" to bytes.size)
+        }
+        val bundleDigest = secdrill.kernel.Digests.canonical(mapOf("files" to manifest, "explanationDigest" to secdrill.kernel.Digests.sha256Hex(patch.explanation.toByteArray())))
+        val bytes = json.writeValueAsBytes(mapOf("bundleDigest" to bundleDigest, "files" to patch.files.toSortedMap(), "explanation" to patch.explanation))
+        val stored = artifacts.store(sessionId, ArtifactSensitivity.LEARNER, "application/json", bytes)
+        return ContentCheck(stored.id, mapOf("bundleDigest" to bundleDigest, "fileCount" to patch.files.size),
+            mapOf("key" to stored.key, "digest" to stored.digest, "byteSize" to stored.byteSize))
+    }
 
     /** The challenge must be a FLAG challenge of the pinned version; wrong flags are limited per minute (09). */
     private fun requireFlagAllowed(sessionId: UUID, flag: SubmissionRequest.FlagContent, now: java.time.Instant) {
@@ -153,7 +191,7 @@ class SubmissionService(
         }
     }
 
-    private fun checkFlag(sessionId: UUID, submissionId: UUID, jobId: UUID, flag: SubmissionRequest.FlagContent, now: java.time.Instant): FlagCheck {
+    private fun checkFlag(sessionId: UUID, submissionId: UUID, jobId: UUID, flag: SubmissionRequest.FlagContent, now: java.time.Instant): ContentCheck {
         // Only live Lab generations count: flags of replaced or terminated Labs are refused (09).
         val bindings = jdbc.sql(
             "SELECT id, generation, flag_nonce, flag_key_version FROM labs WHERE session_id = ? AND desired_state = 'RUNNING' AND flag_nonce IS NOT NULL",
@@ -169,7 +207,7 @@ class SubmissionService(
         val receipt = json.writeValueAsBytes(mapOf("body" to body, "signature" to flags.signReceipt(canonical, keyVersion)))
         val stored = artifacts.store(sessionId, ArtifactSensitivity.PRIVATE_ORACLE, "application/json", receipt)
         val metadata = mapOf("challengeId" to flag.challengeId.toString(), "flagMatched" to (match != null), "labId" to match?.labId?.toString())
-        return FlagCheck(stored.id, metadata.filterValues { it != null })
+        return ContentCheck(stored.id, metadata.filterValues { it != null })
     }
 
     /** `GET /v1/submissions/{id}`: owner only (404 otherwise), with the active evaluation. */

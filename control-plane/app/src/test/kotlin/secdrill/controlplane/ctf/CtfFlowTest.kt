@@ -85,17 +85,7 @@ class CtfFlowTest {
         private val gatewayKeys = ConnectTokens.generate()
         private val FLAG = Regex("SD\\{[A-Za-z0-9_-]{20,}}")
 
-        /** The synthetic Lab image, built locally from content/labs/tenant-orders (never pushed). */
-        val labImage: String by lazy {
-            val context = Path.of(System.getProperty("secdrill.contracts.dir")).parent.parent.resolve("content/labs/tenant-orders")
-            val output = java.io.File.createTempFile("lab-build", ".log").apply { deleteOnExit() }
-            val process = ProcessBuilder("docker", "build", "-q", "-t", "secdrill-lab/tenant-orders:test", context.toString())
-                .redirectInput(ProcessBuilder.Redirect.from(java.io.File("/dev/null"))).redirectErrorStream(true).redirectOutput(output).start()
-            check(process.waitFor(5, java.util.concurrent.TimeUnit.MINUTES)) { process.destroyForcibly(); "lab image build timed out" }
-            val text = output.readText().trim()
-            check(process.exitValue() == 0) { "lab image build failed: $text" }
-            text.lines().last()
-        }
+        val labImage: String get() = TenantOrders.image
 
         @JvmStatic
         @DynamicPropertySource

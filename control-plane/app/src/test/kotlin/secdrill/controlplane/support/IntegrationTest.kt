@@ -32,6 +32,7 @@ val STARTUP_TIMEOUT: Duration = Duration.ofMinutes(3)
         "secdrill.async.scheduling-enabled=false",
         // No strong runtime exists (D-10); tests run Labs on local-trusted/fake runtimes and every result is demo.
         "secdrill.lab.allow-unverified-isolation=true",
+        "secdrill.grading.allow-unverified-isolation=true",
     ],
 )
 @Import(TestInfrastructure::class)
