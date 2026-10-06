@@ -32,7 +32,7 @@
 | T11 작업 공간 | [T11](T11.md#결과) |
 | T12 리포트·Replay·스킬 | [T12](T12.md#결과) |
 | T13 MVP 콘텐츠·Transfer(데모) | [T13](T13.md), [보고서](content-verification.md). 6 사건 참조 VERIFIED·핵심 mutant 검출 |
-| T14 통합·요구사항 점검 | [T14](T14.md). FR/NFR 대조, 제출 채점 job 결함 수정. 영향 테스트(JobLeaseTest·SubmissionAcceptanceTest) 통과; 전체 clean check는 호스트 Docker 과부하로 재실행 필요 |
+| T14 통합·요구사항 점검 | [T14](T14.md). FR/NFR 대조, 제출 채점 job 결함 수정. `./gradlew clean check` 193건 통과(skip 0) |
 
 ## 미검증 항목
 
