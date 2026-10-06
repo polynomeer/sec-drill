@@ -29,6 +29,7 @@ import secdrill.kernel.SessionStatus
 import secdrill.kernel.SubmissionKind
 import secdrill.kernel.SubmissionStatus
 import secdrill.kernel.TrustLevel
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Clock
 import java.time.ZoneOffset
@@ -100,6 +101,7 @@ class SubmissionService(
         val checked = request.flag?.let { checkFlag(sessionId, submissionId, jobId, it, now) }
             ?: request.patch?.let { storePatch(sessionId, it) }
             ?: request.detection?.let { storeDetection(sessionId, it) }
+            ?: request.recorded?.let { storeRecorded(sessionId, submissionId, request.kind, it) }
         jdbc.sql(
             """INSERT INTO submissions(id, session_id, kind, client_request_id, request_digest, status, safe_metadata, created_at, artifact_id)
                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)""",
@@ -107,12 +109,17 @@ class SubmissionService(
             listOf(submissionId, sessionId, request.kind.name, idempotencyKey, request.digest, SubmissionStatus.ACCEPTED.name,
                 json.writeValueAsString(checked?.metadata ?: emptyMap<String, Any>()), now.atOffset(ZoneOffset.UTC), checked?.artifactId),
         ).update()
-        jdbc.sql("INSERT INTO jobs(id, submission_id, session_id, kind, state, due_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-            .params(jobId, submissionId, sessionId, JobKind.GRADE.name, JobState.PENDING.name, now.atOffset(ZoneOffset.UTC), now.atOffset(ZoneOffset.UTC))
-            .update()
+        // Only kinds with a grader get a GRADE job (FLAG, PATCH, DETECTION). OBJECTIVE and POSTMORTEM are recorded
+        // for human review (10) and would otherwise leave a job no grader ever claims.
+        val graded = request.kind in setOf(SubmissionKind.FLAG, SubmissionKind.PATCH, SubmissionKind.DETECTION)
+        if (graded) {
+            jdbc.sql("INSERT INTO jobs(id, submission_id, session_id, kind, state, due_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+                .params(jobId, submissionId, sessionId, JobKind.GRADE.name, JobState.PENDING.name, now.atOffset(ZoneOffset.UTC), now.atOffset(ZoneOffset.UTC))
+                .update()
+        }
         val evidence = ledger.append(
             sessionId, EventType.SubmissionAccepted.name, EvidenceSource.CONTROL, TrustLevel.SERVER_VERIFIED,
-            mapOf("submissionId" to submissionId, "jobId" to jobId, "kind" to request.kind.name, "requestDigest" to request.digest),
+            mapOf("submissionId" to submissionId, "jobId" to (if (graded) jobId else null), "kind" to request.kind.name, "requestDigest" to request.digest),
         )
         outbox.append(
             type = EventType.SubmissionAccepted,
@@ -123,7 +130,7 @@ class SubmissionService(
             seq = evidence.seq,
             payload = mapOf(
                 "submissionId" to submissionId.toString(),
-                "jobId" to jobId.toString(),
+                "jobId" to (if (graded) jobId.toString() else null),
                 "kind" to request.kind.name,
                 // Content storage arrives with T09; until then the bundle is identified by its request digest only.
                 "bundleRef" to (checked?.bundleRef ?: mapOf("key" to "submission-request/$submissionId", "digest" to request.digest, "byteSize" to request.byteSize)),
@@ -176,6 +183,16 @@ class SubmissionService(
             "ruleDigest" to ruleDigest, "explanationDigest" to secdrill.kernel.Digests.sha256Hex(detection.explanation.toByteArray()),
         ), artifactId = stored.id)
         return ContentCheck(stored.id, mapOf("ruleDigest" to ruleDigest), mapOf("key" to stored.key, "digest" to stored.digest, "byteSize" to stored.byteSize))
+    }
+
+    /** Records OBJECTIVE/POSTMORTEM content for human review as the learner's artifact and evidence (10). No grader. */
+    private fun storeRecorded(sessionId: UUID, submissionId: UUID, kind: SubmissionKind, content: JsonNode): ContentCheck {
+        val bytes = json.writeValueAsBytes(mapOf("kind" to kind.name, "content" to content))
+        val stored = artifacts.store(sessionId, ArtifactSensitivity.LEARNER, "application/json", bytes)
+        val eventType = if (kind == SubmissionKind.OBJECTIVE) "HYPOTHESIS_REPORTED" else "POSTMORTEM_SUBMITTED"
+        ledger.append(sessionId, eventType, EvidenceSource.USER, TrustLevel.USER_REPORTED,
+            mapOf("submissionId" to submissionId, "contentDigest" to secdrill.kernel.Digests.sha256Hex(bytes)), artifactId = stored.id)
+        return ContentCheck(stored.id, mapOf("recorded" to true), mapOf("key" to stored.key, "digest" to stored.digest, "byteSize" to stored.byteSize))
     }
 
     /** Canonical bundle (20): files by path with their SHA-256, plus the explanation digest; stored as the learner's artifact. */

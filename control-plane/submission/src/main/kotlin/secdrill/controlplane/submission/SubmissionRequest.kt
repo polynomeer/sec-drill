@@ -28,6 +28,8 @@ class SubmissionRequest private constructor(
     val patch: PatchContent? = null,
     /** DETECTION content: the parsed, limit-checked rule (21) and the learner's explanation. */
     val detection: DetectionContent? = null,
+    /** OBJECTIVE/POSTMORTEM content, recorded for human review without an auto-grader (10). */
+    val recorded: JsonNode? = null,
 ) {
     class DetectionContent(val rule: secdrill.simulation.Rule, val ruleJson: JsonNode, val explanation: String)
 
@@ -81,7 +83,8 @@ class SubmissionRequest private constructor(
                 PatchContent(content!!["files"].properties().associate { it.key to it.value.asString() }, content["explanation"].asString())
             } else null
             val detection = if (kind == SubmissionKind.DETECTION) DetectionContent(rule!!, content!!["rule"], content["explanation"].asString()) else null
-            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag, patch, detection)
+            val recorded = if (kind == SubmissionKind.OBJECTIVE || kind == SubmissionKind.POSTMORTEM) content else null
+            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag, patch, detection, recorded)
         }
 
         private fun flagErrors(content: JsonNode): List<FieldError> = buildList {

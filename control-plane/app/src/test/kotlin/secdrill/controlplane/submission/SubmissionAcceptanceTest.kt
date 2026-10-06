@@ -52,6 +52,25 @@ class SubmissionAcceptanceTest {
     private fun sessionVersion() = fixtures.count("SELECT version FROM sessions WHERE id = ?", session)
 
     @Test
+    fun `recorded postmortem and objective are stored for review without a grade job`() {
+        // 10, T14: OBJECTIVE/POSTMORTEM have no auto-grader; a GRADE job would dangle forever and the content would be lost.
+        listOf("POSTMORTEM" to "POSTMORTEM_SUBMITTED", "OBJECTIVE" to "HYPOTHESIS_REPORTED").forEach { (kind, eventType) ->
+            val response = submit("""{"kind":"$kind","expectedVersion":${sessionVersion()},"content":{"summary":"synthetic root cause"}}""")
+            assertEquals(202, response.status, response.body)
+            val id = UUID.fromString(json.readTree(response.body)["id"].asString())
+            assertEquals("ACCEPTED", json.readTree(response.body)["status"].asString())
+            assertEquals(0, fixtures.count("SELECT count(*) FROM jobs WHERE submission_id = ?", id), "$kind creates no grade job")
+            assertEquals("LEARNER", fixtures.string("SELECT a.sensitivity FROM artifacts a JOIN submissions s ON s.artifact_id = a.id WHERE s.id = ?", id), "$kind content is recorded")
+            assertEquals(1, fixtures.count("SELECT count(*) FROM evidence WHERE session_id = ? AND event_type = ? AND source = 'USER' AND trust_level = 'USER_REPORTED'", session, eventType))
+            val envelope = json.readTree(fixtures.string("SELECT envelope::text FROM outbox_events WHERE aggregate_id = ?", id))
+            assertEnvelopeMatchesContract(envelope)
+            assertFalse(envelope["payload"].has("jobId") && !envelope["payload"]["jobId"].isNull, "$kind accepted event carries no jobId")
+        }
+        // The dangling-job sweeper flags nothing, because no grade job exists for recorded submissions.
+        assertEquals(0, fixtures.count("SELECT count(*) FROM jobs WHERE session_id = ? AND kind = 'GRADE'", session))
+    }
+
+    @Test
     fun `accepted submission stores submission, job, evidence and outbox event together`() {
         val flag = "SYNTHETIC-FLAG-${UUID.randomUUID()}"
         val response = submit(Fixtures.flagBody(0, flag))
@@ -155,7 +174,9 @@ class SubmissionAcceptanceTest {
         assertTrue(schema["properties"].propertyNames().toSet().containsAll(envelope.propertyNames().toSet()), "unknown envelope field")
         val rule = schema["allOf"].values().first { it["if"]["properties"]["type"]["const"].asString() == "SubmissionAccepted" }
         val payloadSchema = rule["then"]["properties"]["payload"]
-        assertEquals(payloadSchema["required"].values().map { it.asString() }.toSet(), envelope["payload"].propertyNames().toSet())
+        val payloadKeys = envelope["payload"].propertyNames().toSet()
+        assertTrue(payloadKeys.containsAll(payloadSchema["required"].values().map { it.asString() }), "missing required payload field: $payloadKeys")
+        assertTrue(payloadSchema["properties"].propertyNames().toSet().containsAll(payloadKeys), "unknown payload field: $payloadKeys")
         assertFalse(envelope["payload"]["bundleRef"].has("content"))
     }
 }

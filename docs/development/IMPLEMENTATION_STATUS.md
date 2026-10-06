@@ -6,7 +6,7 @@
 
 ## 현재 단계
 
-**T13 MVP 콘텐츠·Transfer**(프롬프트 13): 기본 3개(tenant-orders·webhook-receiver·api-gateway) + 전이 3개(tenant-invoices·delivery-events·iam-roles)를 저작하고, 참조 패치 VERIFIED·핵심 mutant 전부 NOT_VERIFIED를 실제 local-trusted 채점으로 확인했다. 탐지 seed suite(경계 20·무작위 100)도 검증. **출판·독립 검수는 미완이고 모든 결과는 데모**(D-10). 보고서: [content-verification](content-verification.md).
+**T14 기능 통합·요구사항 점검**(프롬프트 14): acceptance-matrix의 FR/NFR을 코드·테스트에 대조해 상태와 누락을 정리했다([T14](T14.md)). 발견한 MVP 결함(OBJECTIVE·POSTMORTEM 제출이 채점 job을 남기고 내용 미저장)을 수정하고 회귀를 추가했다. 대형 미구현(운영 통제·삭제 실행·Wargame verifier·성능)은 범위 밖으로 결함 기록만 한다.
 
 ## 활성 Task
 
@@ -31,7 +31,8 @@
 | T10 탐지·대응 모델 | [T10](T10.md#결과) |
 | T11 작업 공간 | [T11](T11.md#결과) |
 | T12 리포트·Replay·스킬 | [T12](T12.md#결과) |
-| T13 MVP 콘텐츠·Transfer(데모) | [T13](T13.md), [보고서](content-verification.md). 6 사건 참조 VERIFIED·핵심 mutant 검출. `./gradlew clean check` 192건 통과(skip 0) |
+| T13 MVP 콘텐츠·Transfer(데모) | [T13](T13.md), [보고서](content-verification.md). 6 사건 참조 VERIFIED·핵심 mutant 검출 |
+| T14 통합·요구사항 점검 | [T14](T14.md). FR/NFR 대조, 제출 채점 job 결함 수정. 영향 테스트(JobLeaseTest·SubmissionAcceptanceTest) 통과; 전체 clean check는 호스트 Docker 과부하로 재실행 필요 |
 
 ## 미검증 항목
 
@@ -54,6 +55,7 @@
 
 ## 다음 작업
 
-1. 프롬프트 14 = T14(운영·배포, 개인정보 삭제 실행, DB 역할 분리)
+1. 프롬프트 15 = 보안 리뷰(security review)
+2. GAP-1·GAP-2(운영 통제·개인정보 삭제 실행), GAP-3(Wargame)
 2. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 같은 격리 테스트 실행
 3. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))

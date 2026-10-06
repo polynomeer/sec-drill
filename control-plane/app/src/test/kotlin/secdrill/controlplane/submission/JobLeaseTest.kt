@@ -40,6 +40,11 @@ class JobLeaseTest {
 
     /** Accepts a submission and waits until its GRADE job is claimable. */
     /** FLAG grading goes to the runner hosting the Lab (CtfGradingTest); generic workers get the other kinds. */
+    /**
+     * A DISPATCHED GRADE job on an OBJECTIVE submission. OBJECTIVE has no auto-grader (T14), so accept() creates no
+     * job; this inserts one directly to exercise the generic lease/fencing mechanism (the specific graders reuse it
+     * via JobLeaseService.claimJob/complete). OBJECTIVE is not excluded by claimNext, so a generic worker can claim it.
+     */
     private fun dispatchedJob(kind: String = "OBJECTIVE"): Pair<UUID, UUID> {
         val learner = fixtures.learner()
         val session = fixtures.activeSession(learner.userId)
@@ -50,7 +55,16 @@ class JobLeaseTest {
         )
         assertEquals(202, response.status, response.body)
         val submission = UUID.fromString(json.readTree(response.body)["id"].asString())
-        val job = UUID.fromString(fixtures.string("SELECT id::text FROM jobs WHERE submission_id = ?", submission))
+        val job = fixtures.string("SELECT id::text FROM jobs WHERE submission_id = ?", submission)?.let(UUID::fromString) ?: run {
+            val id = UUID.randomUUID()
+            val now = clock.instant().atOffset(java.time.ZoneOffset.UTC)
+            jdbc.sql(
+                """INSERT INTO jobs(id, submission_id, session_id, kind, state, dispatched_at, due_at, created_at)
+                   VALUES (?, ?, ?, 'GRADE', 'DISPATCHED', ?, ?, ?)""",
+            ).params(id, submission, session, now, now, now).update()
+            jdbc.sql("UPDATE submissions SET status = 'EVALUATING' WHERE id = ?").param(submission).update()
+            id
+        }
         publisher.publishOnce()
         fixtures.await { state(job) == "DISPATCHED" }
         // Each test owns exactly one claimable job: cancel leftovers from earlier tests in this context.
