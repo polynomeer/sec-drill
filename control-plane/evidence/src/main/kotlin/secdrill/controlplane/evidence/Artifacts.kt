@@ -60,6 +60,17 @@ class LocalArtifactStore(private val root: Path) : ArtifactStore {
     override fun delete(key: String) {
         Files.deleteIfExists(resolve(key))
     }
+
+    /** Store keys with their last-modified time, for the orphan sweep (T14). S3 enumeration is separate (D-15). */
+    fun list(): List<Pair<String, java.time.Instant>> {
+        if (!Files.isDirectory(root)) return emptyList()
+        return Files.walk(root).use { stream ->
+            stream.filter(Files::isRegularFile).toList().mapNotNull { path ->
+                val key = root.relativize(path).toString().replace('\\', '/')
+                if (Regex("^[a-z]+(/[0-9a-f-]{36})+$").matches(key)) key to Files.getLastModifiedTime(path).toInstant() else null
+            }
+        }
+    }
 }
 
 @ConfigurationProperties("secdrill.artifacts")

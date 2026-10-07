@@ -17,6 +17,7 @@ dependencies {
     implementation(project(":control-plane:ctf"))
     implementation(project(":control-plane:response"))
     implementation(project(":control-plane:insight"))
+    implementation(project(":control-plane:privacy"))
     implementation(project(":execution:fake-worker"))
     implementation(libs.spring.boot.starter.webmvc)
     implementation(libs.spring.boot.starter.actuator)

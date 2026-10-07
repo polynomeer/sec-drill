@@ -11,7 +11,13 @@ data class LearnerPrincipal(
     val authSessionId: UUID,
     val accessExpiresAt: Instant,
     internal val csrfHash: String,
-)
+) {
+    /**
+     * Re-authentication proof for a sensitive action (deletion): the caller must present the live login's CSRF
+     * token. A real re-auth challenge replaces this when an identity provider is wired (D-09, ADR 0013).
+     */
+    fun confirms(confirmationToken: String?): Boolean = Secrets.matches(confirmationToken, csrfHash)
+}
 
 /** An authenticated operator request on `/ops` routes. Never valid on learner routes. */
 data class OperatorPrincipal(
