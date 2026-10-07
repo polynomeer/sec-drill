@@ -61,7 +61,7 @@ class JobLeaseService(
      */
     @Transactional
     override fun claimNext(workerId: String, kinds: Set<JobKind>): JobLease? {
-        if (kinds.isEmpty()) return null
+        if (kinds.isEmpty() || quarantined(workerId)) return null
         val row = jdbc.sql(
             """SELECT j.id, j.kind, j.attempt, j.fencing_token, j.submission_id, s.request_digest FROM jobs j
                LEFT JOIN submissions s ON s.id = j.submission_id
@@ -75,6 +75,7 @@ class JobLeaseService(
     /** Leases one specific DISPATCHED job if it is still claimable (used by graders that choose their own jobs). */
     @Transactional
     fun claimJob(jobId: UUID, workerId: String): JobLease? {
+        if (quarantined(workerId)) return null
         val row = jdbc.sql(
             """SELECT j.id, j.kind, j.attempt, j.fencing_token, j.submission_id, s.request_digest FROM jobs j
                LEFT JOIN submissions s ON s.id = j.submission_id
@@ -86,6 +87,26 @@ class JobLeaseService(
     /** The worker that holds the current lease of [lease]'s job, if any. */
     fun leaseHolder(lease: JobLease): String? = jdbc.sql("SELECT worker_id FROM jobs WHERE id = ? AND fencing_token = ?")
         .params(lease.jobId, lease.fencingToken).query(String::class.java).optional().orElse(null)
+
+    /** A quarantined Runner (19, 25) gets no new claims and no accepted results. */
+    fun quarantined(workerId: String): Boolean =
+        jdbc.sql("SELECT count(*) FROM runner_quarantine WHERE runner_id = ?").param(workerId).query(Int::class.java).single() > 0
+
+    @Transactional
+    fun quarantineRunner(runnerId: String, reason: String) {
+        jdbc.sql(
+            """INSERT INTO runner_quarantine(runner_id, reason, quarantined_at) VALUES (?, ?, ?)
+               ON CONFLICT (runner_id) DO UPDATE SET reason = excluded.reason, quarantined_at = excluded.quarantined_at""",
+        ).params(runnerId, reason.take(500), now().db()).update()
+        audit.record("runner quarantine", "runner $runnerId quarantined: ${reason.take(200)}")
+    }
+
+    @Transactional
+    fun releaseRunner(runnerId: String) {
+        if (jdbc.sql("DELETE FROM runner_quarantine WHERE runner_id = ?").param(runnerId).update() > 0) {
+            audit.record("runner release", "runner $runnerId released from quarantine")
+        }
+    }
 
     private fun claimRow(rs: java.sql.ResultSet) = ClaimRow(
         rs.getObject(1, UUID::class.java), JobKind.valueOf(rs.getString(2)), rs.getInt(3), rs.getLong(4),
@@ -109,7 +130,8 @@ class JobLeaseService(
     override fun start(lease: JobLease): Ack = acceptIf(
         lease, "start",
         jdbc.sql(
-            "UPDATE jobs SET state = 'RUNNING', version = version + 1 WHERE id = ? AND fencing_token = ? AND state = 'LEASED' AND lease_until > ?",
+            """UPDATE jobs SET state = 'RUNNING', version = version + 1 WHERE id = ? AND fencing_token = ? AND state = 'LEASED' AND lease_until > ?
+               AND NOT EXISTS (SELECT 1 FROM runner_quarantine q WHERE q.runner_id = worker_id)""",
         ).params(lease.jobId, lease.fencingToken, now().db()).update(),
     )
 
@@ -119,7 +141,8 @@ class JobLeaseService(
         return acceptIf(
             lease, "heartbeat",
             jdbc.sql(
-                """UPDATE jobs SET lease_until = ? WHERE id = ? AND fencing_token = ? AND state IN ('LEASED', 'RUNNING') AND lease_until > ?""",
+                """UPDATE jobs SET lease_until = ? WHERE id = ? AND fencing_token = ? AND state IN ('LEASED', 'RUNNING') AND lease_until > ?
+                   AND NOT EXISTS (SELECT 1 FROM runner_quarantine q WHERE q.runner_id = worker_id)""",
             ).params(now.plus(properties.lease).db(), lease.jobId, lease.fencingToken, now.db()).update(),
         )
     }
@@ -128,7 +151,9 @@ class JobLeaseService(
     override fun complete(lease: JobLease, report: JobResultReport): Ack {
         val now = now()
         val job = lockJob(lease.jobId) ?: return stale(lease, "complete")
-        if (job.state != JobState.RUNNING || job.token != lease.fencingToken || !job.leaseUntil!!.isAfter(now)) {
+        if (job.state != JobState.RUNNING || job.token != lease.fencingToken || !job.leaseUntil!!.isAfter(now) ||
+            (job.workerId != null && quarantined(job.workerId))
+        ) {
             return stale(lease, "complete")
         }
         when (report.outcome) {
@@ -249,12 +274,12 @@ class JobLeaseService(
     }
 
     private fun lockJob(id: UUID): LockedJob? = jdbc.sql(
-        "SELECT id, session_id, submission_id, state, attempt, fencing_token, lease_until, version FROM jobs WHERE id = ? FOR UPDATE",
+        "SELECT id, session_id, submission_id, state, attempt, fencing_token, lease_until, version, worker_id FROM jobs WHERE id = ? FOR UPDATE",
     ).param(id).query { rs, _ ->
         LockedJob(
             rs.getObject(1, UUID::class.java), rs.getObject(2, UUID::class.java), rs.getObject(3, UUID::class.java),
             JobState.valueOf(rs.getString(4)), rs.getInt(5), rs.getLong(6),
-            rs.getObject(7, OffsetDateTime::class.java)?.toInstant(), rs.getLong(8),
+            rs.getObject(7, OffsetDateTime::class.java)?.toInstant(), rs.getLong(8), rs.getString(9),
         )
     }.optional().orElse(null)
 
@@ -269,7 +294,7 @@ class JobLeaseService(
 
     private data class LockedJob(
         val id: UUID, val sessionId: UUID, val submissionId: UUID?, val state: JobState,
-        val attempt: Int, val token: Long, val leaseUntil: Instant?, val version: Long,
+        val attempt: Int, val token: Long, val leaseUntil: Instant?, val version: Long, val workerId: String?,
     )
 }
 
@@ -300,5 +325,41 @@ class RejudgeController(private val jdbc: JdbcClient, private val audit: SystemA
             .params(job, id, session, revision, now, now, now).update()
         audit.record("rejudge", "operator ${principal.operatorId} re-graded submission $id as job revision $revision")
         return mapOf("jobId" to job.toString(), "revision" to revision)
+    }
+}
+
+/**
+ * Runner quarantine (19, 25 "Runner 유실"): an operator marks a Runner so it can no longer claim work or have its
+ * results accepted, then releases it after the node is re-enrolled on a clean host.
+ */
+@org.springframework.web.bind.annotation.RestController
+class RunnerOpsController(private val jobs: JobLeaseService) {
+    @org.springframework.web.bind.annotation.PostMapping("/ops/v1/runners/{runnerId}/quarantine", consumes = ["application/json"])
+    fun quarantine(
+        @org.springframework.security.core.annotation.AuthenticationPrincipal principal: secdrill.controlplane.identity.OperatorPrincipal,
+        @org.springframework.web.bind.annotation.PathVariable runnerId: String,
+        @org.springframework.web.bind.annotation.RequestBody body: tools.jackson.databind.JsonNode,
+    ): org.springframework.http.ResponseEntity<Void> {
+        requireOps(principal)
+        val reason = body["reason"]?.takeIf { it.isString }?.asString()?.takeIf { it.length in 3..500 }
+            ?: throw secdrill.kernel.ApiException(secdrill.kernel.ErrorCode.VALIDATION_FAILED, "reason must be 3 to 500 characters")
+        jobs.quarantineRunner(runnerId, reason)
+        return org.springframework.http.ResponseEntity.noContent().build()
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/ops/v1/runners/{runnerId}/release")
+    fun release(
+        @org.springframework.security.core.annotation.AuthenticationPrincipal principal: secdrill.controlplane.identity.OperatorPrincipal,
+        @org.springframework.web.bind.annotation.PathVariable runnerId: String,
+    ): org.springframework.http.ResponseEntity<Void> {
+        requireOps(principal)
+        jobs.releaseRunner(runnerId)
+        return org.springframework.http.ResponseEntity.noContent().build()
+    }
+
+    private fun requireOps(principal: secdrill.controlplane.identity.OperatorPrincipal) {
+        if (principal.role !in setOf(secdrill.kernel.OperatorRole.OPERATOR, secdrill.kernel.OperatorRole.SECURITY_ADMIN)) {
+            throw secdrill.kernel.ApiException(secdrill.kernel.ErrorCode.FORBIDDEN, "Role is not allowed to quarantine Runners")
+        }
     }
 }

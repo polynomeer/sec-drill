@@ -107,13 +107,22 @@ class LabInternalController(private val jobs: LabJobService) {
     }
 }
 
-/** Operator Lab stop (FR-10). */
+/** Operator Lab stop and pool drain (FR-10, 25). */
 @RestController
 class LabOpsController(private val labs: LabService) {
     @PostMapping("/ops/v1/labs/{labId}/stop")
     fun stop(@AuthenticationPrincipal principal: OperatorPrincipal, @PathVariable labId: UUID): ResponseEntity<Void> {
         if (principal.role !in setOf(OperatorRole.OPERATOR, OperatorRole.SECURITY_ADMIN)) throw ApiException(ErrorCode.FORBIDDEN, "Role is not allowed to stop Labs")
         labs.requestTermination(labId, LabTerminateReason.OPERATOR)
+        return ResponseEntity.noContent().build()
+    }
+
+    @PostMapping("/ops/v1/lab-pool/drain", consumes = [org.springframework.http.MediaType.APPLICATION_JSON_VALUE])
+    fun drain(@AuthenticationPrincipal principal: OperatorPrincipal, @RequestBody body: tools.jackson.databind.JsonNode): ResponseEntity<Void> {
+        if (principal.role !in setOf(OperatorRole.OPERATOR, OperatorRole.SECURITY_ADMIN)) throw ApiException(ErrorCode.FORBIDDEN, "Role is not allowed to drain the Lab pool")
+        val draining = body["draining"]?.takeIf { it.isBoolean }?.asBoolean()
+            ?: throw ApiException(ErrorCode.VALIDATION_FAILED, "draining must be a boolean")
+        labs.setDraining(draining)
         return ResponseEntity.noContent().build()
     }
 }

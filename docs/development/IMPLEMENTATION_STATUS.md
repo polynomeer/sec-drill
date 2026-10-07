@@ -6,7 +6,7 @@
 
 ## 현재 단계
 
-**T16 운영·배포·복구·개인정보 준비**(프롬프트 16): 범위 중 로컬에서 완전히 리허설 가능한 **개인정보 데이터주체 실행**(GAP-2/FR-10)을 먼저 구현·리허설했다([T16](T16.md), [ADR 0013](../adr/0013-privacy-data-subject-execution.md)). export·삭제 요청/2인 승인/전용 `privacy_eraser` 역할의 `SECURITY DEFINER` 삭제 실행·retention/orphan sweep·tombstone 재적용을 통합 테스트로 확인했다(원장 row 유지, hash chain 보존). 나머지(관측 지표·운영통제 drain/quarantine·경보·CI/staging·백업/복원·runbook)는 staging·cloud·외부 수신자가 있어야 리허설이 성립하므로 다음 단계로 남긴다.
+**T16 운영·배포·복구·개인정보 준비**(프롬프트 16): 범위 중 로컬에서 완전히 리허설 가능한 **개인정보 데이터주체 실행**(GAP-2/FR-10)을 먼저 구현·리허설했다([T16](T16.md), [ADR 0013](../adr/0013-privacy-data-subject-execution.md)). export·삭제 요청/2인 승인/전용 `privacy_eraser` 역할의 `SECURITY DEFINER` 삭제 실행·retention/orphan sweep·tombstone 재적용을 통합 테스트로 확인했다(원장 row 유지, hash chain 보존). 이어서 **운영 통제(GAP-1)**인 Lab pool drain·Runner quarantine을 구현·리허설했다(`lab_pool`·`runner_quarantine`, V12). 나머지(관측 지표·경보·CI/staging·백업/복원·runbook)는 staging·cloud·외부 수신자가 있어야 리허설이 성립하므로 다음 단계로 남긴다.
 
 ## 활성 Task
 
@@ -35,6 +35,7 @@
 | T14 통합·요구사항 점검 | [T14](T14.md). FR/NFR 대조, 제출 채점 job 결함 수정. `./gradlew clean check` 193건 통과(skip 0) |
 | T15 보안·채점 신뢰성 리뷰 | [T15](T15.md). 11개 우선순위 영역 정적 리뷰+적대 테스트 확인. 악용 가능 결함 없음, 코드 변경 없음. SEC-1(holdout gaming) 권고 보류 |
 | T16 개인정보 데이터주체 실행 | [T16](T16.md), [ADR 0013](../adr/0013-privacy-data-subject-execution.md). export·삭제 실행·retention/orphan sweep·tombstone 재적용. `PrivacyExecutionTest`·`PrivacyPrivilegeTest` 9건 통과. FR-10 게이트 충족(원장 row 유지 모델) |
+| T16 운영 통제(GAP-1) | [T16](T16.md). Lab pool drain·Runner quarantine(claim 차단·결과 STALE). `lab_pool`·`runner_quarantine`(V12). `OpsControlsTest` 4건 통과, 채점·lease 회귀 없음 |
 
 ## 미검증 항목
 
@@ -57,7 +58,7 @@
 
 ## 다음 작업
 
-1. T16 남은 범위([T16](T16.md)): 관측 지표·구조화 로그/trace, 운영 통제(lab drain·node quarantine·DLQ, GAP-1), 경보 규칙·수신자, 이미지 서명·환경 분리, CI/staging, 백업/복원 리허설, runbook. 구현 가능 코드와 절차 문서를 분리
+1. T16 남은 범위([T16](T16.md)): 관측 지표·구조화 로그/trace(구현+테스트 가능), 경보 규칙·수신자, 이미지 서명·환경 분리, CI/staging, 백업/복원 리허설, DLQ 재처리·runbook(절차 문서)
 2. SEC-1 결정([T15](T15.md)): 탐지 holdout 피드백 거칠게 하기 / 제출 quota — 평가 계약·ADR·테스트 동반 변경
 3. GAP-3(Wargame objective verifier)
 4. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 doc 17 출시 검증 체크리스트 실행, T15 미검증 항목 재판정

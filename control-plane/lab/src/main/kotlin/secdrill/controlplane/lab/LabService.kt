@@ -138,6 +138,10 @@ class LabService(
             IdempotencyDecision.Proceed -> Unit
         }
         guard.requireOwned(principal, OwnedResource.SESSION, sessionId)
+        // Operations drain (25): pause new Labs while keeping existing ones; the learner may retry later.
+        if (jdbc.sql("SELECT draining FROM lab_pool WHERE id = 1").query(Boolean::class.java).single()) {
+            throw ApiException(ErrorCode.SERVICE_UNAVAILABLE, "The Lab pool is paused for maintenance; try again shortly")
+        }
         val session = jdbc.sql("SELECT status, version, scenario_version_id FROM sessions WHERE id = ? FOR UPDATE").param(sessionId)
             .query { rs, _ -> Triple(SessionStatus.valueOf(rs.getString(1)), rs.getLong(2), rs.getObject(3, UUID::class.java)) }.single()
         if (session.first !in setOf(SessionStatus.CREATED, SessionStatus.ACTIVE)) throw ApiException(ErrorCode.INVALID_STATE, "Session does not accept a Lab")
@@ -266,6 +270,12 @@ class LabService(
         val expires = clock.instant().plus(properties.connectTokenTtl)
         val token = ConnectTokens.sign(ConnectTokens.Claims(labId, generation, principal.userId.value, expires, secdrill.controlplane.identity.Secrets.newToken()), signingKey())
         return ConnectView("${properties.gatewayBaseUrl.trimEnd('/')}/connect?token=$token", Rfc3339.format(expires))
+    }
+
+    /** Operations drain switch (25): true pauses new Lab requests. Existing Labs keep running. */
+    @Transactional
+    fun setDraining(draining: Boolean) {
+        jdbc.sql("UPDATE lab_pool SET draining = ?, updated_at = ? WHERE id = 1").params(draining, now().db()).update()
     }
 
     fun sessionView(sessionId: UUID): SessionView {
