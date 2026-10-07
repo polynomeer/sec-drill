@@ -1,6 +1,6 @@
 # 개인정보 삭제 경로 검토
 
-상태: **검토와 기초 계약만 완료. 실제 삭제 실행은 미구현이며 FR-10 출시 게이트를 통과하지 못한다.** 검토일 2026-10-04. 근거: [14](../../SecDrill-docs/docs/14-database.md) "보관과 개인정보 삭제", [15](../../SecDrill-docs/docs/15-api.md) `POST /deletion-requests`, [19](../../SecDrill-docs/docs/19-iam.md), [25](../../SecDrill-docs/docs/25-operations-deployment.md) "삭제와 abuse"·"백업과 복구".
+상태: **실행 구현 완료(T14 ops, 프롬프트 16, [ADR 0013](../adr/0013-privacy-data-subject-execution.md)). FR-10 완료 조건을 통합 테스트로 충족한다.** 원장 row는 유지하고 bytes·identity만 삭제하는 모델이다(만료 세션 전체 원장 삭제는 조건부 trigger가 필요해 범위 밖). 검토일 2026-10-04, 구현일 2026-10-07. 근거: [14](../../SecDrill-docs/docs/14-database.md) "보관과 개인정보 삭제", [15](../../SecDrill-docs/docs/15-api.md) `POST /deletion-requests`, [19](../../SecDrill-docs/docs/19-iam.md), [25](../../SecDrill-docs/docs/25-operations-deployment.md) "삭제와 abuse"·"백업과 복구".
 
 ## 요구 경로
 
@@ -21,14 +21,20 @@
 | 보관 기간 | 일부 | artifact `expires_at`을 sensitivity별로 기록(LEARNER·PUBLIC_SUMMARY 180일, RAW_LOG 30일). 만료 artifact는 learner에게 없음으로 응답. 실제 purge job 없음 |
 | identity 최소 저장 | 있음 | `user_identities`는 issuer·subject만, email·profile 없음 |
 
-## 없는 것(미구현)
+## 구현됨(프롬프트 16)
 
-- `POST /v1/deletion-requests`·`/v1/async-jobs/{id}` API, 재인증과 confirmationToken
-- 전용 삭제 역할(`privacy_eraser` 제안)과 `SECURITY DEFINER` 함수: search_path 고정, 승인된 요청만 실행, 대상 Session 검증, receipt·audit
-- 승인 워크플로와 2인 분리(운영자 디렉터리·break-glass는 T14)
-- 객체 bytes 삭제, 만료 purge, orphan bytes sweeper, projection invalidate
-- restore 후 tombstone 재적용 절차와 리허설(25)
-- 원장 삭제 시 hash chain 처리: 만료 Session 전체 삭제는 chain을 함께 제거한다. 부분 삭제가 필요하면 payload를 artifact로 분리해 두었으므로 bytes만 지우고 row의 digest는 남긴다(14 "payload unavailable")
+- `POST /v1/exports`·`POST /v1/deletion-requests`·`GET /v1/async-jobs/{id}`·`GET /v1/exports/{id}/download` API. `confirmationToken`은 살아있는 세션 보유 증명(CSRF 상수시간 비교)으로 검증 — 진짜 재인증은 D-09.
+- 전용 역할 `privacy_eraser`와 `erase_deletion_request`/`reapply_tombstones` `SECURITY DEFINER` 함수(search_path 고정, APPROVED·2인 확인, 대상 scope 검증, receipt·tombstone). EXECUTE는 `privacy_eraser`에만, `control_app`은 불가. `user_identities` DELETE도 `control_app`에서 회수.
+- 승인 워크플로와 2인 분리: 학습자 요청 + SECURITY_ADMIN 승인(`POST /ops/v1/deletion-requests/{id}/decision`).
+- 객체 bytes 삭제, 만료 artifact purge, orphan bytes sweep, projection(reports·checkpoints·recommendations) 삭제, 접속 revoke·Lab 종료.
+- restore 후 tombstone 재적용(`reapply_tombstones`)과 리허설 테스트(삭제→복원→재적용→부재).
+- 원장: bytes만 지우고 PII 없는 row·digest는 남긴다(14 "payload unavailable"). hash chain 유지.
+
+## 아직 없는 것
+
+- 만료 Session 전체의 원장·head row 삭제: append-only trigger를 `privacy_eraser`에서만 허용하는 조건부 trigger가 선행돼야 한다(보안 경계 변경, 사용자 결정 대기).
+- 진짜 본인 재인증 provider(D-09), 배포의 전용 `privacy_eraser` 접속 구성(D-14), S3 호환 store의 orphan 열거(D-15).
+- 법적 보관 예외·처리 지역(D-11).
 
 ## 설계상 주의
 

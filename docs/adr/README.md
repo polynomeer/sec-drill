@@ -26,3 +26,4 @@
 | [0010](0010-detection-dsl-and-incident-model.md) | 탐지 DSL 평가와 사고 대응 모델 | Proposed | ADR-011 일부 |
 | [0011](0011-learner-workspace-web.md) | 학습자 작업 공간 Web | Proposed | ADR-012 일부 |
 | [0012](0012-reports-replay-skills-recommendations.md) | 리포트, Replay, 스킬 projection, 추천 | Proposed | ADR-007, ADR-013 |
+| [0013](0013-privacy-data-subject-execution.md) | 개인정보 데이터주체 실행(export·삭제·tombstone) | Proposed | FR-10, NFR-03 |
