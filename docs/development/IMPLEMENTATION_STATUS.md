@@ -6,13 +6,13 @@
 
 ## 현재 단계
 
-**T16 운영·배포·복구·개인정보 준비**(프롬프트 16): 범위 중 로컬에서 완전히 리허설 가능한 **개인정보 데이터주체 실행**(GAP-2/FR-10)을 먼저 구현·리허설했다([T16](T16.md), [ADR 0013](../adr/0013-privacy-data-subject-execution.md)). export·삭제 요청/2인 승인/전용 `privacy_eraser` 역할의 `SECURITY DEFINER` 삭제 실행·retention/orphan sweep·tombstone 재적용을 통합 테스트로 확인했다(원장 row 유지, hash chain 보존). 이어서 **운영 통제(GAP-1)**인 Lab pool drain·Runner quarantine(`lab_pool`·`runner_quarantine`, V12)과 **관측**(Micrometer 운영 게이지·`X-Request-Id` 상관 id)을 구현·리허설했다. 남은 것(경보 수신자·이미지 서명/환경 분리·CI/staging·백업/복원·DLQ 재처리·runbook)은 staging·cloud·외부 수신자가 있어야 리허설이 성립하므로 절차 문서로 남긴다.
+**T16 운영·배포·복구·개인정보 준비**(프롬프트 16): 범위 중 로컬에서 완전히 리허설 가능한 **개인정보 데이터주체 실행**(GAP-2/FR-10)을 먼저 구현·리허설했다([T16](T16.md), [ADR 0013](../adr/0013-privacy-data-subject-execution.md)). export·삭제 요청/2인 승인/전용 `privacy_eraser` 역할의 `SECURITY DEFINER` 삭제 실행·retention/orphan sweep·tombstone 재적용을 통합 테스트로 확인했다(원장 row 유지, hash chain 보존). 이어서 **운영 통제(GAP-1)**인 Lab pool drain·Runner quarantine(`lab_pool`·`runner_quarantine`, V12)과 **관측**(Micrometer 운영 게이지·`X-Request-Id` 상관 id)을 구현·리허설했다. staging·cloud·외부 수신자가 있어야 리허설이 성립하는 항목(경보 수신자·이미지 서명/환경 분리·CI/staging·백업/복원·DLQ 재처리·runbook·JSON 로그 인코더)은 [OPERATIONS](OPERATIONS.md)에 수행 절차로 정리했다(미리허설).
 
 ## 활성 Task
 
 | Task | 담당 | 대상 경로 | 시작일 | 메모 |
 |---|---|---|---|---|
-| — | — | — | — | 다음: T16 절차 문서(경보·배포·백업·runbook) |
+| — | — | — | — | 다음: 프롬프트 17 성능·카오스 |
 
 ## 완료 항목
 
@@ -37,6 +37,7 @@
 | T16 개인정보 데이터주체 실행 | [T16](T16.md), [ADR 0013](../adr/0013-privacy-data-subject-execution.md). export·삭제 실행·retention/orphan sweep·tombstone 재적용. `PrivacyExecutionTest`·`PrivacyPrivilegeTest` 9건 통과. FR-10 게이트 충족(원장 row 유지 모델) |
 | T16 운영 통제(GAP-1) | [T16](T16.md). Lab pool drain·Runner quarantine(claim 차단·결과 STALE). `lab_pool`·`runner_quarantine`(V12). `OpsControlsTest` 4건 통과, 채점·lease 회귀 없음 |
 | T16 관측(24) | [T16](T16.md). Micrometer 운영 게이지(outbox·lab·grading·runner)+`X-Request-Id` 상관 id. `ObservabilityTest` 3건 통과. 스크래프 노출·JSON 로그 인코더는 배포 절차 |
+| T16 운영 절차 | [OPERATIONS](OPERATIONS.md). 배포·서명·CI/staging·rollback·백업/복원·경보·Runbook·DLQ·abuse 절차 문서(staging·외부 의존, 미리허설). 각 항목에 구현 수단·남은 의존 표기 |
 
 ## 미검증 항목
 
@@ -59,7 +60,7 @@
 
 ## 다음 작업
 
-1. T16 남은 범위([T16](T16.md), 절차 문서): 경보 규칙·수신자, 이미지 서명·환경 분리, CI/staging, 백업/복원 리허설, DLQ 재처리·runbook, JSON 로그 인코더(배포 설정)
+1. 프롬프트 17 = 성능·카오스(performance-chaos). [OPERATIONS](OPERATIONS.md) 절차 항목의 실제 수행·리허설은 staging·cloud 확보 후
 2. SEC-1 결정([T15](T15.md)): 탐지 holdout 피드백 거칠게 하기 / 제출 quota — 평가 계약·ADR·테스트 동반 변경
 3. GAP-3(Wargame objective verifier)
 4. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 doc 17 출시 검증 체크리스트 실행, T15 미검증 항목 재판정
