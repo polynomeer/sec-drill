@@ -22,6 +22,7 @@ import secdrill.kernel.Digests
 import secdrill.kernel.EventType
 import secdrill.kernel.EvidenceSource
 import secdrill.kernel.GateResult
+import secdrill.kernel.SubmissionKind
 import secdrill.kernel.TrustLevel
 import secdrill.kernel.Verdict
 import tools.jackson.databind.JsonNode
@@ -63,12 +64,17 @@ class CtfGradingService(
 
     @Transactional
     fun claim(runnerId: String): GradeAssignment? {
+        // FLAG: the runner that hosts the matched Lab (or any runner for a wrong flag, which has no Lab). OBJECTIVE
+        // (09, ADR 0014): the runner hosting a live Lab of the Session, which is where the objective is observed.
         val candidates = jdbc.sql(
             """SELECT j.id FROM jobs j JOIN submissions s ON s.id = j.submission_id
-               LEFT JOIN labs l ON l.id = (s.safe_metadata->>'labId')::uuid
-               WHERE j.kind = 'GRADE' AND j.state = 'DISPATCHED' AND s.kind = 'FLAG' AND j.attempt < ? AND (l.id IS NULL OR l.runner_id = ?)
+               LEFT JOIN labs lf ON lf.id = (s.safe_metadata->>'labId')::uuid
+               WHERE j.kind = 'GRADE' AND j.state = 'DISPATCHED' AND s.kind IN ('FLAG', 'OBJECTIVE') AND j.attempt < ?
+               AND ( (s.kind = 'FLAG' AND (lf.id IS NULL OR lf.runner_id = ?))
+                  OR (s.kind = 'OBJECTIVE' AND EXISTS (SELECT 1 FROM labs lo WHERE lo.session_id = s.session_id
+                        AND lo.runner_id = ? AND lo.desired_state = 'RUNNING' AND lo.cleanup_confirmed_at IS NULL)) )
                ORDER BY j.dispatched_at, j.id LIMIT 10""",
-        ).params(async.maxAttempts, runnerId).query(UUID::class.java).list().filterNotNull()
+        ).params(async.maxAttempts, runnerId, runnerId).query(UUID::class.java).list().filterNotNull()
         for (candidate in candidates) {
             val lease = jobs.claimJob(candidate, runnerId) ?: continue
             return GradeAssignment(lease, task(lease))
@@ -84,10 +90,16 @@ class CtfGradingService(
     fun observed(runnerId: String, lease: JobLease, observation: ObjectiveObservation): Ack {
         if (!holds(runnerId, lease)) return stale(runnerId, lease, "observed")
         val submission = checkNotNull(lease.submissionId)
-        val receipt = receipt(submission)
-        val unverified = !isolationVerified(submission, receipt?.labId)
         val digest = Digests.canonical(mapOf("jobId" to lease.jobId.toString(), "attempt" to lease.attempt, "observed" to observation.observed,
             "matchingRecords" to observation.matchingRecords, "recordsDigest" to observation.recordsDigest))
+        return if (kindOf(submission) == SubmissionKind.OBJECTIVE) objectiveVerdict(submission, lease, observation, digest)
+        else flagVerdict(submission, lease, observation, digest)
+    }
+
+    /** FLAG: signed receipt (did the flag match this Session?) + runner observation (was the objective reached?). */
+    private fun flagVerdict(submission: UUID, lease: JobLease, observation: ObjectiveObservation, digest: String): Ack {
+        val receipt = receipt(submission)
+        val unverified = !isolationVerified(submission, receipt?.labId)
         fun report(outcome: JobOutcome, verdict: Verdict?, gates: List<GateReport>) =
             JobResultReport(outcome, verdict, digest, POLICY, fake = false, gates = gates, unverifiedIsolation = unverified)
         val result = when {
@@ -98,26 +110,74 @@ class CtfGradingService(
             else -> report(JobOutcome.PLATFORM_ERROR, null, emptyList())
         }
         val ack = jobs.complete(lease, result)
-        // 10: OBJECTIVE_CONFIRMED is server-collected evidence, recorded only when the access was actually observed.
         if (ack == Ack.ACCEPTED && receipt?.matched == true && observation.observed == true) {
-            val sessionId = jdbc.sql("SELECT session_id FROM submissions WHERE id = ?").param(submission).query(UUID::class.java).single()
-            ledger.append(sessionId, "OBJECTIVE_CONFIRMED", EvidenceSource.COLLECTOR, TrustLevel.OBSERVED, mapOf(
-                "submissionId" to submission, "labId" to receipt.labId, "generation" to receipt.generation, "challengeId" to receipt.challengeId,
-                "matchingRecords" to observation.matchingRecords, "recordsDigest" to observation.recordsDigest,
-            ))
+            confirmObjective(submission, receipt.labId, receipt.generation, receipt.challengeId, observation)
         }
         return ack
     }
 
-    /** What to observe: only for a matched flag, on the Lab generation the flag belonged to. */
+    /** OBJECTIVE (09, ADR 0014): observation is the only signal. Observed = PASS, not = FAIL, unobservable = SYSTEM_ERROR. */
+    private fun objectiveVerdict(submission: UUID, lease: JobLease, observation: ObjectiveObservation, digest: String): Ack {
+        val lab = objectiveLab(submission)
+        val unverified = !isolationVerified(submission, lab?.first)
+        fun report(outcome: JobOutcome, verdict: Verdict?, gates: List<GateReport>) =
+            JobResultReport(outcome, verdict, digest, POLICY, fake = false, gates = gates, unverifiedIsolation = unverified)
+        val result = when (observation.observed) {
+            true -> report(JobOutcome.COMPLETED, Verdict.PASS, listOf(GateReport("objective", GateResult.PASS)))
+            false -> report(JobOutcome.COMPLETED, Verdict.FAIL, listOf(GateReport("objective", GateResult.FAIL)))
+            null -> report(JobOutcome.PLATFORM_ERROR, null, emptyList())
+        }
+        val ack = jobs.complete(lease, result)
+        if (ack == Ack.ACCEPTED && observation.observed == true) {
+            confirmObjective(submission, lab?.first, lab?.second, objectiveChallengeId(submission), observation)
+        }
+        return ack
+    }
+
+    /** OBJECTIVE_CONFIRMED is server-collected evidence (10), recorded only when the access was actually observed. */
+    private fun confirmObjective(submission: UUID, labId: UUID?, generation: Int?, challengeId: UUID?, observation: ObjectiveObservation) {
+        val sessionId = jdbc.sql("SELECT session_id FROM submissions WHERE id = ?").param(submission).query(UUID::class.java).single()
+        ledger.append(sessionId, "OBJECTIVE_CONFIRMED", EvidenceSource.COLLECTOR, TrustLevel.OBSERVED, mapOf(
+            "submissionId" to submission, "labId" to labId, "generation" to generation, "challengeId" to challengeId,
+            "matchingRecords" to observation.matchingRecords, "recordsDigest" to observation.recordsDigest,
+        ))
+    }
+
+    private fun kindOf(submission: UUID): SubmissionKind =
+        jdbc.sql("SELECT kind FROM submissions WHERE id = ?").param(submission).query { rs, _ -> SubmissionKind.valueOf(rs.getString(1)) }.single()
+
+    private fun objectiveChallengeId(submission: UUID): UUID? =
+        jdbc.sql("SELECT safe_metadata->>'challengeId' FROM submissions WHERE id = ?").param(submission).query(String::class.java).optional().orElse(null)?.let(UUID::fromString)
+
+    /** The Session's live Lab for an OBJECTIVE verdict (the one the claiming runner hosts). */
+    private fun objectiveLab(submission: UUID): Pair<UUID, Int>? = jdbc.sql(
+        """SELECT l.id, l.generation FROM labs l JOIN submissions s ON s.session_id = l.session_id
+           WHERE s.id = ? AND l.desired_state = 'RUNNING' AND l.cleanup_confirmed_at IS NULL ORDER BY l.generation DESC LIMIT 1""",
+    ).param(submission).query { rs, _ -> rs.getObject(1, UUID::class.java) to rs.getInt(2) }.optional().orElse(null)
+
+    /** What to observe: for FLAG, the matched flag's Lab generation; for OBJECTIVE, the Session's live Lab (ADR 0014). */
     private fun task(lease: JobLease): ObjectiveTask? {
         val submission = lease.submissionId ?: return null
-        val receipt = receipt(submission) ?: return null
-        if (!receipt.matched || receipt.labId == null || receipt.generation == null) return null
+        return when (kindOf(submission)) {
+            SubmissionKind.FLAG -> {
+                val receipt = receipt(submission) ?: return null
+                if (!receipt.matched || receipt.labId == null || receipt.generation == null) return null
+                objectiveTask(submission, receipt.labId, receipt.generation, receipt.challengeId)
+            }
+            SubmissionKind.OBJECTIVE -> {
+                val challengeId = objectiveChallengeId(submission) ?: return null
+                val lab = objectiveLab(submission) ?: return null
+                objectiveTask(submission, lab.first, lab.second, challengeId)
+            }
+            else -> null
+        }
+    }
+
+    private fun objectiveTask(submission: UUID, labId: UUID, generation: Int, challengeId: UUID): ObjectiveTask? {
         val (manifest, oracle) = contentOf(submission) ?: return null
-        val key = manifest["challenges"]?.values()?.firstOrNull { it["id"]?.asString() == receipt.challengeId.toString() }?.get("key")?.asString() ?: return null
+        val key = manifest["challenges"]?.values()?.firstOrNull { it["id"]?.asString() == challengeId.toString() }?.get("key")?.asString() ?: return null
         val requires = oracle?.get("verifier")?.get("requires")?.values()?.map { it.asString() } ?: emptyList()
-        return ObjectiveTask(receipt.labId, receipt.generation, key, requires)
+        return ObjectiveTask(labId, generation, key, requires)
     }
 
     /** Public manifest and grader-only oracle of the Session's pinned version. The oracle never leaves graders. */

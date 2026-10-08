@@ -53,6 +53,7 @@
 | T17 성능·카오스 검증 | [T17](T17.md). 실제 환경 기록, 장애 불변식↔테스트 추적(비-Docker 5종 재실행 통과). 성능·부하·soak·회복시간은 D-10로 미측정(미검증) |
 | T18 파일럿 출시 판정 | [T18](T18.md). Evidence dossier·요구사항 상태·blocker(B1~B7). 판정 **외부 파일럿 NO-GO**(강한 격리·경보 수신자·담당자·출판·성능·복원 미충족). 파일럿·배포 계획 준비, 배포 미실행 |
 | T19 문서 현행화 | README를 T18 상태로 갱신(시작/중지/테스트·지원 범위·격리 조건), [PORTFOLIO](PORTFOLIO.md)(문제→선택→구현→증거→한계) 작성. `check.py --strict` 14/14 |
+| GAP-3 Wargame 목표 검증 | [ADR 0014](../adr/0014-wargame-objective-verification.md). OBJECTIVE 제출을 FLAG 목표 관측 재사용으로 독립 검증(관측됨 PASS·미관측 FAIL·관측불가 SYSTEM_ERROR), 설명은 HYPOTHESIS_REPORTED로 분리. `WargameObjectiveTest` 3건, FLAG·lease 회귀 없음 |
 
 ## 미검증 항목
 
@@ -77,6 +78,6 @@
 
 1. 프롬프트 20~22 = 작업 재개/변경·수정/프리커밋 리뷰(상황에 따라 사용). 파일럿 GO 조건 B1~B7([T18](T18.md))의 실제 해소는 강한 runtime·staging·담당자 배정 후
 2. SEC-1 결정([T15](T15.md)): 탐지 holdout 피드백 거칠게 하기 / 제출 quota — 평가 계약·ADR·테스트 동반 변경
-3. GAP-3(Wargame objective verifier)
+3. GAP-3 후속: Wargame 목표 검증은 구현됨([ADR 0014](../adr/0014-wargame-objective-verification.md)). 남은 것은 다중 독립 목표용 per-challenge verifier와 목표 발견 UI
 4. D-10 결정: KVM 지원 Linux runner host와 strong runtime 선택 후 doc 17 출시 검증 체크리스트 실행, T15 미검증 항목 재판정
 5. 자원 API가 생길 때마다 owner guard 연결([T02 후속](T02.md#후속-task가-반드시-연결할-것))

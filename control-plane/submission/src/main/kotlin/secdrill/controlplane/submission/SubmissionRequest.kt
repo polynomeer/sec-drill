@@ -28,8 +28,10 @@ class SubmissionRequest private constructor(
     val patch: PatchContent? = null,
     /** DETECTION content: the parsed, limit-checked rule (21) and the learner's explanation. */
     val detection: DetectionContent? = null,
-    /** OBJECTIVE/POSTMORTEM content, recorded for human review without an auto-grader (10). */
+    /** OBJECTIVE/POSTMORTEM content, recorded for human review as the learner's claim (10). */
     val recorded: JsonNode? = null,
+    /** OBJECTIVE only: the challenge the learner claims to have reached, verified by independent observation (09, ADR 0014). */
+    val objectiveChallengeId: UUID? = null,
 ) {
     class DetectionContent(val rule: secdrill.simulation.Rule, val ruleJson: JsonNode, val explanation: String)
 
@@ -60,6 +62,7 @@ class SubmissionRequest private constructor(
             if (content == null || !content.isObject) errors += FieldError("content", "must be an object")
             if (kind == SubmissionKind.FLAG && content != null && content.isObject) errors += flagErrors(content)
             if (kind == SubmissionKind.PATCH && content != null && content.isObject) errors += patchErrors(content)
+            if (kind == SubmissionKind.OBJECTIVE && content != null && content.isObject) errors += objectiveErrors(content)
             var rule: secdrill.simulation.Rule? = null
             if (kind == SubmissionKind.DETECTION && content != null && content.isObject) {
                 (content.propertyNames().toSet() - setOf("rule", "explanation")).forEach { errors += FieldError("content.$it", "unknown field") }
@@ -84,7 +87,23 @@ class SubmissionRequest private constructor(
             } else null
             val detection = if (kind == SubmissionKind.DETECTION) DetectionContent(rule!!, content!!["rule"], content["explanation"].asString()) else null
             val recorded = if (kind == SubmissionKind.OBJECTIVE || kind == SubmissionKind.POSTMORTEM) content else null
-            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag, patch, detection, recorded)
+            val objectiveChallengeId = if (kind == SubmissionKind.OBJECTIVE) Uuids.parse(content!!["challengeId"].asString()) else null
+            return SubmissionRequest(kind!!, expected!!.asLong(), digest, byteSize, flag, patch, detection, recorded, objectiveChallengeId)
+        }
+
+        /** OBJECTIVE content (OpenAPI ObjectiveSubmission): the claimed challenge plus the learner's supporting claim. */
+        private fun objectiveErrors(content: JsonNode): List<FieldError> = buildList {
+            (content.propertyNames().toSet() - setOf("challengeId", "evidenceSeqs", "resourceId", "explanation")).forEach { add(FieldError("content.$it", "unknown field")) }
+            val challenge = content["challengeId"]
+            if (challenge == null || !challenge.isString || runCatching { Uuids.parse(challenge.asString()) }.isFailure) add(FieldError("content.challengeId", "must be a UUID"))
+            val seqs = content["evidenceSeqs"]
+            if (seqs == null || !seqs.isArray || seqs.size() !in 1..100 || seqs.values().any { !it.isIntegralNumber || it.asLong() < 1 }) {
+                add(FieldError("content.evidenceSeqs", "must be 1-100 positive evidence sequence numbers"))
+            }
+            val resource = content["resourceId"]
+            if (resource == null || !resource.isString || resource.asString().length !in 1..128) add(FieldError("content.resourceId", "must be 1-128 characters"))
+            val explanation = content["explanation"]
+            if (explanation == null || !explanation.isString || explanation.asString().length > 8192) add(FieldError("content.explanation", "must be at most 8192 characters"))
         }
 
         private fun flagErrors(content: JsonNode): List<FieldError> = buildList {

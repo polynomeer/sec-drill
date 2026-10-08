@@ -93,6 +93,7 @@ class SubmissionService(
         request.flag?.let { requireFlagAllowed(sessionId, it, now) }
         request.patch?.let { requirePatchAllowed(sessionId, it) }
         request.detection?.let { requireDetectionAllowed(sessionId) }
+        request.objectiveChallengeId?.let { requireObjectiveAllowed(sessionId, it) }
         val sessionVersion = casSession(sessionId, owner, request.expectedVersion)
 
         val submissionId = UUID.randomUUID()
@@ -101,7 +102,7 @@ class SubmissionService(
         val checked = request.flag?.let { checkFlag(sessionId, submissionId, jobId, it, now) }
             ?: request.patch?.let { storePatch(sessionId, it) }
             ?: request.detection?.let { storeDetection(sessionId, it) }
-            ?: request.recorded?.let { storeRecorded(sessionId, submissionId, request.kind, it) }
+            ?: request.recorded?.let { storeRecorded(sessionId, submissionId, request.kind, it, request.objectiveChallengeId) }
         jdbc.sql(
             """INSERT INTO submissions(id, session_id, kind, client_request_id, request_digest, status, safe_metadata, created_at, artifact_id)
                VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?)""",
@@ -109,9 +110,10 @@ class SubmissionService(
             listOf(submissionId, sessionId, request.kind.name, idempotencyKey, request.digest, SubmissionStatus.ACCEPTED.name,
                 json.writeValueAsString(checked?.metadata ?: emptyMap<String, Any>()), now.atOffset(ZoneOffset.UTC), checked?.artifactId),
         ).update()
-        // Only kinds with a grader get a GRADE job (FLAG, PATCH, DETECTION). OBJECTIVE and POSTMORTEM are recorded
-        // for human review (10) and would otherwise leave a job no grader ever claims.
-        val graded = request.kind in setOf(SubmissionKind.FLAG, SubmissionKind.PATCH, SubmissionKind.DETECTION)
+        // Kinds with a grader get a GRADE job. OBJECTIVE is verified by independent observation only when a live Lab
+        // exists (requireObjectiveAllowed, 09, ADR 0014); POSTMORTEM is recorded for human review and gets no job,
+        // which would otherwise leave a job no grader ever claims.
+        val graded = request.kind in setOf(SubmissionKind.FLAG, SubmissionKind.PATCH, SubmissionKind.DETECTION, SubmissionKind.OBJECTIVE)
         if (graded) {
             jdbc.sql("INSERT INTO jobs(id, submission_id, session_id, kind, state, due_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
                 .params(jobId, submissionId, sessionId, JobKind.GRADE.name, JobState.PENDING.name, now.atOffset(ZoneOffset.UTC), now.atOffset(ZoneOffset.UTC))
@@ -185,14 +187,34 @@ class SubmissionService(
         return ContentCheck(stored.id, mapOf("ruleDigest" to ruleDigest), mapOf("key" to stored.key, "digest" to stored.digest, "byteSize" to stored.byteSize))
     }
 
-    /** Records OBJECTIVE/POSTMORTEM content for human review as the learner's artifact and evidence (10). No grader. */
-    private fun storeRecorded(sessionId: UUID, submissionId: UUID, kind: SubmissionKind, content: JsonNode): ContentCheck {
+    /**
+     * Records OBJECTIVE/POSTMORTEM content as the learner's artifact and USER_REPORTED evidence (10). The
+     * explanation is the learner's claim and is never auto-graded; for OBJECTIVE the verdict comes from independent
+     * observation of [challengeId] (ADR 0014), which is kept in the metadata so the grader knows what to observe.
+     */
+    private fun storeRecorded(sessionId: UUID, submissionId: UUID, kind: SubmissionKind, content: JsonNode, challengeId: UUID?): ContentCheck {
         val bytes = json.writeValueAsBytes(mapOf("kind" to kind.name, "content" to content))
         val stored = artifacts.store(sessionId, ArtifactSensitivity.LEARNER, "application/json", bytes)
         val eventType = if (kind == SubmissionKind.OBJECTIVE) "HYPOTHESIS_REPORTED" else "POSTMORTEM_SUBMITTED"
         ledger.append(sessionId, eventType, EvidenceSource.USER, TrustLevel.USER_REPORTED,
             mapOf("submissionId" to submissionId, "contentDigest" to secdrill.kernel.Digests.sha256Hex(bytes)), artifactId = stored.id)
-        return ContentCheck(stored.id, mapOf("recorded" to true), mapOf("key" to stored.key, "digest" to stored.digest, "byteSize" to stored.byteSize))
+        val metadata = if (challengeId != null) mapOf("challengeId" to challengeId.toString()) else mapOf("recorded" to true)
+        return ContentCheck(stored.id, metadata, mapOf("key" to stored.key, "digest" to stored.digest, "byteSize" to stored.byteSize))
+    }
+
+    /**
+     * OBJECTIVE (09, ADR 0014): a WARGAME/PURPLE Session, an OBJECTIVE challenge of the pinned manifest, and a live
+     * Lab to observe. Without a Lab there is nothing to verify, so the submission is refused rather than left as a
+     * grade job no runner can satisfy.
+     */
+    private fun requireObjectiveAllowed(sessionId: UUID, challengeId: UUID) {
+        val (mode, manifestText) = jdbc.sql("SELECT s.mode, sv.public_manifest::text FROM sessions s JOIN scenario_versions sv ON sv.id = s.scenario_version_id WHERE s.id = ?")
+            .param(sessionId).query { rs, _ -> rs.getString(1) to rs.getString(2) }.single()
+        if (mode !in setOf("WARGAME", "PURPLE")) throw ApiException(ErrorCode.UNSUPPORTED_MODE, "This Session has no Wargame objective stage")
+        val known = json.readTree(manifestText)["challenges"]?.values()?.any { it["id"]?.asString() == challengeId.toString() && it["kind"]?.asString() == "OBJECTIVE" } == true
+        if (!known) throw ApiException(ErrorCode.VALIDATION_FAILED, "Submission is invalid", ErrorDetails(fieldErrors = listOf(FieldError("content.challengeId", "is not an objective challenge of this scenario"))))
+        val liveLab = jdbc.sql("SELECT count(*) FROM labs WHERE session_id = ? AND desired_state = 'RUNNING' AND cleanup_confirmed_at IS NULL").param(sessionId).query(Int::class.java).single() > 0
+        if (!liveLab) throw ApiException(ErrorCode.INVALID_STATE, "A live Lab is needed to verify the objective")
     }
 
     /** Canonical bundle (20): files by path with their SHA-256, plus the explanation digest; stored as the learner's artifact. */

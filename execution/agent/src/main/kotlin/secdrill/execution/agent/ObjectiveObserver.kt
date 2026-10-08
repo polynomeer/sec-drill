@@ -69,7 +69,8 @@ fun interface PatchGrader {
  * Lab this runner hosts; PATCH jobs are taken only when a [PatchGrader] is configured.
  */
 class GradeAgent(private val control: GradeControl, private val observer: ObjectiveObserver, private val patches: PatchGrader? = null) {
-    private val kinds = setOfNotNull(SubmissionKind.FLAG, patches?.let { SubmissionKind.PATCH })
+    // FLAG and OBJECTIVE are both verified by observing this runner's Lab (09, ADR 0014); PATCH needs a grader.
+    private val kinds = setOfNotNull(SubmissionKind.FLAG, SubmissionKind.OBJECTIVE, patches?.let { SubmissionKind.PATCH })
 
     fun runOnce(): GradeAssignment? {
         val assignment = control.claim(kinds) ?: return null

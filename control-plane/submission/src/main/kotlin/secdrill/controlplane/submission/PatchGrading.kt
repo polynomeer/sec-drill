@@ -170,7 +170,8 @@ class GradeJobController(private val ctf: CtfGradingService, private val patches
     @PostMapping("/internal/v1/grade-jobs/claim")
     fun claim(@AuthenticationPrincipal runner: WorkloadPrincipal, @RequestBody(required = false) body: ClaimBody?): ResponseEntity<GradeAssignment> {
         val kinds = body?.kinds ?: setOf(SubmissionKind.FLAG)
-        val assignment = (if (SubmissionKind.FLAG in kinds) ctf.claim(runner.runnerId) else null)
+        // ctf.claim serves both FLAG and OBJECTIVE (both observe this runner's Lab, 09, ADR 0014).
+        val assignment = (if (SubmissionKind.FLAG in kinds || SubmissionKind.OBJECTIVE in kinds) ctf.claim(runner.runnerId) else null)
             ?: (if (SubmissionKind.PATCH in kinds) patches.claim(runner.runnerId) else null)
         return assignment?.let { ResponseEntity.ok(it) } ?: ResponseEntity.noContent().build()
     }

@@ -41,11 +41,12 @@ class JobLeaseTest {
     /** Accepts a submission and waits until its GRADE job is claimable. */
     /** FLAG grading goes to the runner hosting the Lab (CtfGradingTest); generic workers get the other kinds. */
     /**
-     * A DISPATCHED GRADE job on an OBJECTIVE submission. OBJECTIVE has no auto-grader (T14), so accept() creates no
-     * job; this inserts one directly to exercise the generic lease/fencing mechanism (the specific graders reuse it
-     * via JobLeaseService.claimJob/complete). OBJECTIVE is not excluded by claimNext, so a generic worker can claim it.
+     * A DISPATCHED GRADE job on a POSTMORTEM submission. POSTMORTEM has no auto-grader, so accept() creates no job;
+     * this inserts one directly to exercise the generic lease/fencing mechanism (the specific graders reuse it via
+     * JobLeaseService.claimJob/complete). POSTMORTEM is not excluded by claimNext, so a generic worker can claim it
+     * (OBJECTIVE is now verified by observation and excluded, so it is no longer the generic fixture, ADR 0014).
      */
-    private fun dispatchedJob(kind: String = "OBJECTIVE"): Pair<UUID, UUID> {
+    private fun dispatchedJob(kind: String = "POSTMORTEM"): Pair<UUID, UUID> {
         val learner = fixtures.learner()
         val session = fixtures.activeSession(learner.userId)
         val body = if (kind == "FLAG") Fixtures.flagBody(0) else """{"kind":"$kind","expectedVersion":0,"content":{}}"""

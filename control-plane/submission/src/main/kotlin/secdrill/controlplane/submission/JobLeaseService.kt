@@ -65,7 +65,7 @@ class JobLeaseService(
         val row = jdbc.sql(
             """SELECT j.id, j.kind, j.attempt, j.fencing_token, j.submission_id, s.request_digest FROM jobs j
                LEFT JOIN submissions s ON s.id = j.submission_id
-               WHERE j.state = 'DISPATCHED' AND j.kind IN (:kinds) AND j.attempt < :max AND (s.kind IS NULL OR s.kind NOT IN ('FLAG', 'PATCH', 'DETECTION'))
+               WHERE j.state = 'DISPATCHED' AND j.kind IN (:kinds) AND j.attempt < :max AND (s.kind IS NULL OR s.kind NOT IN ('FLAG', 'PATCH', 'DETECTION', 'OBJECTIVE'))
                ORDER BY j.dispatched_at, j.id LIMIT 1 FOR UPDATE OF j SKIP LOCKED""",
         ).param("kinds", kinds.map { it.name }).param("max", properties.maxAttempts)
             .query { rs, _ -> claimRow(rs) }.optional().orElse(null) ?: return null

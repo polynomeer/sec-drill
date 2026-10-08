@@ -52,9 +52,10 @@ class SubmissionAcceptanceTest {
     private fun sessionVersion() = fixtures.count("SELECT version FROM sessions WHERE id = ?", session)
 
     @Test
-    fun `recorded postmortem and objective are stored for review without a grade job`() {
-        // 10, T14: OBJECTIVE/POSTMORTEM have no auto-grader; a GRADE job would dangle forever and the content would be lost.
-        listOf("POSTMORTEM" to "POSTMORTEM_SUBMITTED", "OBJECTIVE" to "HYPOTHESIS_REPORTED").forEach { (kind, eventType) ->
+    fun `a recorded postmortem is stored for review without a grade job`() {
+        // 10, T14: POSTMORTEM has no auto-grader; a GRADE job would dangle forever and the content would be lost.
+        // OBJECTIVE is verified by independent observation (WargameObjectiveTest, ADR 0014), not recorded-only.
+        listOf("POSTMORTEM" to "POSTMORTEM_SUBMITTED").forEach { (kind, eventType) ->
             val response = submit("""{"kind":"$kind","expectedVersion":${sessionVersion()},"content":{"summary":"synthetic root cause"}}""")
             assertEquals(202, response.status, response.body)
             val id = UUID.fromString(json.readTree(response.body)["id"].asString())
