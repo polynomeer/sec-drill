@@ -103,11 +103,11 @@ class DetectionGradingService(
             return report(JobOutcome.COMPLETED, Verdict.FAIL, listOf(GateReport("resource_limit", GateResult.FAIL)))
         }
         val dimensions = dimensions("training", trainingMetrics) + dimensions("holdout", holdoutMetrics)
+        // SEC-1 (T15, ADR 0015): record that holdout scoring ran, but do not emit the exact confusion-matrix counts
+        // per submission. Those let a learner reconstruct the hidden holdout by resubmitting; the aggregate ratio
+        // dimensions below still show the training-vs-holdout generalization gap for the learner.
         ledger.append(sessionId, "TEST_RESULT", EvidenceSource.SIMULATOR, TrustLevel.SIMULATED, mapOf(
             "submissionId" to submission, "dataset" to "holdout", "generator" to SyntheticLogs.VERSION,
-            "truePositives" to holdoutMetrics.truePositives, "falsePositives" to holdoutMetrics.falsePositives,
-            "falseNegatives" to holdoutMetrics.falseNegatives, "trueNegatives" to holdoutMetrics.trueNegatives,
-            "p95LatencySeconds" to holdoutMetrics.p95LatencySeconds,
         ))
         return when (DetectionGate.of(holdoutMetrics, thresholds)) {
             Gate.PASS -> report(JobOutcome.COMPLETED, Verdict.PASS, listOf(GateReport("detection", GateResult.PASS)), dimensions)
