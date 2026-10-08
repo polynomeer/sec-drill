@@ -28,3 +28,4 @@
 | [0012](0012-reports-replay-skills-recommendations.md) | 리포트, Replay, 스킬 projection, 추천 | Proposed | ADR-007, ADR-013 |
 | [0013](0013-privacy-data-subject-execution.md) | 개인정보 데이터주체 실행(export·삭제·tombstone) | Proposed | FR-10, NFR-03 |
 | [0014](0014-wargame-objective-verification.md) | Wargame 목표(OBJECTIVE) 독립 검증 | Proposed | FR-04 |
+| [0015](0015-detection-holdout-feedback.md) | 탐지 holdout 피드백 축소(SEC-1) | Proposed | T15 SEC-1, FR-08 |
